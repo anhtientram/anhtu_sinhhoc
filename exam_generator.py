@@ -19,12 +19,18 @@ from datetime import datetime
 from typing import Dict, List, Tuple
 from xml.sax.saxutils import escape as xml_escape
 
-import docx
-from docx.enum.text import WD_ALIGN_PARAGRAPH
-from docx.shared import Cm, Inches, Pt, RGBColor
+try:
+    import docx
+    from docx.enum.text import WD_ALIGN_PARAGRAPH
+    from docx.shared import Cm, Inches, Pt, RGBColor
+except ImportError:
+    docx = None
+    WD_ALIGN_PARAGRAPH = None
+    Cm = Inches = Pt = RGBColor = None
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 STATIC_DIR = os.path.join(BASE_DIR, "static")
+EXTRA_UPLOADS_DIR = os.environ.get("UPLOADS_DIR", "").strip()
 
 LEVEL_LABELS = {
     "nhan_biet": "Nhận biết",
@@ -216,7 +222,13 @@ def _add_question_media_to_docx(doc, images: List[str], tables: List[List[List[s
         rel = img_url.lstrip("/")
         if rel.startswith("sinhhoc12/"):
             rel = rel[len("sinhhoc12/") :]
-        fpath = os.path.join(STATIC_DIR, rel)
+        fpath = ""
+        if rel.startswith("uploads/") and EXTRA_UPLOADS_DIR:
+            candidate = os.path.join(EXTRA_UPLOADS_DIR, rel[len("uploads/") :])
+            if os.path.isfile(candidate):
+                fpath = candidate
+        if not fpath:
+            fpath = os.path.join(STATIC_DIR, rel)
         if os.path.isfile(fpath) and not fpath.lower().endswith(".svg"):
             try:
                 p = doc.add_paragraph()
@@ -250,6 +262,10 @@ def _add_question_media_to_docx(doc, images: List[str], tables: List[List[List[s
 
 def build_exams_docx(exams: List[Dict], meta: Dict, actual_counts: Dict) -> bytes:
     """Tạo file Word (.docx) chứa toàn bộ các mã đề đã trộn, định dạng chuẩn đề thi THPT."""
+    if docx is None:
+        raise RuntimeError(
+            "Thiếu thư viện python-docx trên máy chủ. Hãy cài đặt python-docx để xuất đề Word."
+        )
     doc = docx.Document()
 
     # Căn lề chuẩn đề thi

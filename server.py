@@ -42,8 +42,11 @@ from student_excel import (
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 STATIC_DIR = os.path.join(BASE_DIR, "static")
 PORT = int(os.environ.get("PORT", "8080"))
-BASE_PATH = "/" + os.environ.get("BASE_PATH", "sinhhoc12").strip("/")
+_raw_base = os.environ.get("BASE_PATH", "sinhhoc12").strip("/")
+BASE_PATH = f"/{_raw_base}" if _raw_base else "/"
 PUBLIC_HOST = os.environ.get("PUBLIC_HOST", "lms.bachanhtu")
+EXTRA_UPLOADS_DIR = os.environ.get("UPLOADS_DIR", "").strip()
+MAX_BODY_BYTES = int(os.environ.get("MAX_BODY_BYTES", str(50 * 1024 * 1024)))
 
 # Bộ nhớ tạm lưu các gói đề trộn (.docx + .xlsx) vừa tạo để tải xuống nhanh
 EXAM_EXPORTS = {}
@@ -106,7 +109,7 @@ class Bio12Handler(BaseHTTPRequestHandler):
 
     def read_json_body(self):
         length = int(self.headers.get("Content-Length", "0") or 0)
-        if length <= 0:
+        if length <= 0 or length > MAX_BODY_BYTES:
             return {}
         raw = self.rfile.read(length)
         try:
@@ -166,7 +169,7 @@ class Bio12Handler(BaseHTTPRequestHandler):
         qs = parse_qs(parsed.query)
 
         # Chuyển hướng gọn /sinhhoc12 -> /sinhhoc12/ để các tệp tĩnh tương đối hoạt động chuẩn
-        if raw_path == BASE_PATH:
+        if BASE_PATH != "/" and raw_path == BASE_PATH:
             self.send_response(302)
             self.send_header("Location", BASE_PATH + "/")
             self.end_headers()
@@ -1315,8 +1318,34 @@ class Bio12Handler(BaseHTTPRequestHandler):
         else:
             rel = path.lstrip("/")
 
-        safe_path = os.path.normpath(os.path.join(STATIC_DIR, rel))
-        if not safe_path.startswith(os.path.abspath(STATIC_DIR)):
+        if rel.startswith("uploads/") and EXTRA_UPLOADS_DIR:
+            abs_extra = os.path.abspath(EXTRA_UPLOADS_DIR)
+            candidate = os.path.abspath(
+                os.path.normpath(os.path.join(abs_extra, rel[len("uploads/") :]))
+            )
+            try:
+                in_extra = os.path.commonpath([candidate, abs_extra]) == abs_extra
+            except ValueError:
+                in_extra = False
+            if in_extra and os.path.isfile(candidate):
+                safe_path = candidate
+            else:
+                safe_path = os.path.normpath(os.path.join(STATIC_DIR, rel))
+        else:
+            safe_path = os.path.normpath(os.path.join(STATIC_DIR, rel))
+
+        abs_static = os.path.abspath(STATIC_DIR)
+        abs_safe = os.path.abspath(safe_path)
+        try:
+            in_static = os.path.commonpath([abs_safe, abs_static]) == abs_static
+        except ValueError:
+            in_static = False
+        in_extra_ok = bool(
+            EXTRA_UPLOADS_DIR
+            and os.path.commonpath([abs_safe, os.path.abspath(EXTRA_UPLOADS_DIR)])
+            == os.path.abspath(EXTRA_UPLOADS_DIR)
+        )
+        if not in_static and not in_extra_ok:
             self.send_error(403, "Forbidden")
             return
 
@@ -1351,13 +1380,15 @@ def main():
     init_db()
     server = ThreadingHTTPServer(("0.0.0.0", PORT), Bio12Handler)
     port_suffix = "" if PORT == 80 else f":{PORT}"
+    base_display = "" if BASE_PATH == "/" else BASE_PATH
     print(f"============================================================")
     print(f"  WEB APP GIẢNG DẠY SINH HỌC 12 (CT GDPT 2018)")
-    print(f"  Địa chỉ nội bộ:   http://localhost{port_suffix}{BASE_PATH}")
-    print(f"  Địa chỉ tên miền: http://{PUBLIC_HOST}{port_suffix}{BASE_PATH}")
-    print(f"  Cơ sở dữ liệu:    data/sinhhoc12.db")
+    print(f"  Địa chỉ nội bộ:   http://localhost{port_suffix}{base_display or '/'}")
+    print(f"  Địa chỉ tên miền: http://{PUBLIC_HOST}{port_suffix}{base_display or '/'}")
+    print(f"  Cơ sở dữ liệu:    {os.environ.get('DB_PATH') or 'data/sinhhoc12.db'}")
     print(f"  Mã đăng ký Giáo viên mặc định: {TEACHER_INVITE_CODE}")
     print(f"============================================================")
+    sys.stdout.flush()
     try:
         server.serve_forever()
     except KeyboardInterrupt:

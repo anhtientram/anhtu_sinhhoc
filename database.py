@@ -8,9 +8,10 @@ import sqlite3
 from datetime import datetime, timedelta
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-DATA_DIR = os.path.join(BASE_DIR, "data")
-DB_PATH = os.path.join(DATA_DIR, "sinhhoc12.db")
-TOPIC1_PATH = os.path.join(DATA_DIR, "topics", "chu_de_1.json")
+BUNDLED_TOPICS_DIR = os.path.join(BASE_DIR, "data", "topics")
+DATA_DIR = os.environ.get("DATA_DIR") or os.path.join(BASE_DIR, "data")
+DB_PATH = os.environ.get("DB_PATH") or os.path.join(DATA_DIR, "sinhhoc12.db")
+TOPIC1_PATH = os.path.join(BUNDLED_TOPICS_DIR, "chu_de_1.json")
 
 ADMIN_USERNAME = "bachanhtu"
 ADMIN_DEFAULT_PASSWORD = os.environ.get("ADMIN_DEFAULT_PASSWORD", "123456789@")
@@ -23,10 +24,15 @@ def now_iso():
 
 
 def get_conn():
-    os.makedirs(DATA_DIR, exist_ok=True)
-    conn = sqlite3.connect(DB_PATH, check_same_thread=False)
+    os.makedirs(os.path.dirname(os.path.abspath(DB_PATH)), exist_ok=True)
+    conn = sqlite3.connect(DB_PATH, timeout=30.0, check_same_thread=False)
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA foreign_keys = ON;")
+    conn.execute("PRAGMA busy_timeout = 10000;")
+    try:
+        conn.execute("PRAGMA journal_mode = WAL;")
+    except sqlite3.Error:
+        pass
     return conn
 
 
@@ -231,7 +237,7 @@ def seed_initial_data(conn):
     ts = now_iso()
 
     # Seed all available topics from data/topics/chu_de_*.json
-    topics_dir = os.path.join(DATA_DIR, "topics")
+    topics_dir = BUNDLED_TOPICS_DIR
     for idx in range(1, 5):
         tpath = os.path.join(topics_dir, f"chu_de_{idx}.json")
         if os.path.exists(tpath):

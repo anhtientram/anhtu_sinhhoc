@@ -16,9 +16,10 @@ import json
 import os
 import re
 import subprocess
+import sys
 import tempfile
 import uuid
-from typing import Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 try:
     import docx
@@ -27,6 +28,9 @@ try:
     from docx.text.paragraph import Paragraph
 except ImportError:
     docx = None
+    qn = None
+    Table = None
+    Paragraph = Any
 
 try:
     from pypdf import PdfReader
@@ -34,7 +38,7 @@ except ImportError:
     PdfReader = None
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-UPLOADS_DIR = os.path.join(BASE_DIR, "static", "uploads")
+UPLOADS_DIR = os.environ.get("UPLOADS_DIR") or os.path.join(BASE_DIR, "static", "uploads")
 
 # Bản đồ mô phỏng tương tác bổ trợ riêng cho Chủ đề 1
 TOPIC1_DIAGRAMS = ["dna-replication", "codon-translator", "operon-lac", "mutation-lab"]
@@ -280,7 +284,7 @@ def extract_body_items_from_docx(file_bytes: bytes, topic_id: str) -> Dict:
         dst_path = os.path.join(topic_upload_dir, fname)
         url = f"/uploads/{topic_id}/{fname}"
 
-        if needs_transform and os.path.exists(CROP_BIN):
+        if needs_transform and sys.platform == "darwin" and os.path.exists(CROP_BIN):
             crop_jobs.append({"src": raw_path, "dst": dst_path, "l": l, "t": t, "r": r, "b": b, "rot": rot})
         else:
             with open(dst_path, "wb") as f:
@@ -370,7 +374,7 @@ def extract_body_items_from_docx(file_bytes: bytes, topic_id: str) -> Dict:
                 )
 
     # Thực thi cắt hàng loạt tất cả các ảnh có srcRect trong 1 lần gọi CoreGraphics
-    if crop_jobs and os.path.exists(CROP_BIN):
+    if crop_jobs and sys.platform == "darwin" and os.path.exists(CROP_BIN):
         jobs_file = os.path.join(tmp_dir, "jobs.json")
         with open(jobs_file, "w", encoding="utf-8") as jf:
             json.dump(crop_jobs, jf)

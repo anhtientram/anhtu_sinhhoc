@@ -1,0 +1,13 @@
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+wasix-packages/
+.DS_Store
+/*.docx
+/*.pdf
+data/sinhhoc12.db
+data/sinhhoc12.db-wal
+data/sinhhoc12.db-shm
+tools/crop_img_bin
