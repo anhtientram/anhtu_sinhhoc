@@ -1,0 +1,78 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 480" width="960" height="480">
+  <rect width="960" height="480" rx="16" fill="#f8fafc"/>
+  <text x="34" y="40" font-family="sans-serif" font-size="20" font-weight="800" fill="#0f172a">MÔ HÌNH ĐIỀU HÒA BIỂU HIỆN GENE — OPERON LAC (E. COLI)</text>
+  <text x="34" y="64" font-family="sans-serif" font-size="13" fill="#475569">Thí nghiệm kinh điển của Jacob &amp; Monod: Cơ chế bật/tắt nhóm gene cấu trúc lacZ, lacY, lacA theo đường Lactose</text>
+
+  <!-- TOP HALF: WITHOUT LACTOSE (OFF) -->
+  <rect x="34" y="84" width="892" height="174" rx="16" fill="#fff1f2" stroke="#fda4af" stroke-width="2"/>
+  <rect x="52" y="98" width="330" height="28" rx="14" fill="#be123c"/>
+  <text x="217" y="116" font-family="sans-serif" font-size="12" font-weight="800" fill="#fff" text-anchor="middle">A. KHI KHÔNG CÓ LACTOSE → OPERON TẮT</text>
+
+  <line x1="56" y1="202" x2="900" y2="202" stroke="#334155" stroke-width="6" stroke-linecap="round"/>
+  <rect x="68" y="182" width="110" height="40" rx="8" fill="#6d28d9"/>
+  <text x="123" y="207" font-family="sans-serif" font-size="13" font-weight="800" fill="#fff" text-anchor="middle">lacI (Điều hòa)</text>
+
+  <rect x="232" y="182" width="86" height="40" rx="8" fill="#0284c7"/>
+  <text x="275" y="207" font-family="sans-serif" font-size="13" font-weight="800" fill="#fff" text-anchor="middle">P (Khởi động)</text>
+
+  <rect x="326" y="182" width="96" height="40" rx="8" fill="#d97706"/>
+  <text x="374" y="207" font-family="sans-serif" font-size="13" font-weight="800" fill="#fff" text-anchor="middle">O (Vận hành)</text>
+
+  <rect x="434" y="182" width="136" height="40" rx="8" fill="#94a3b8"/>
+  <text x="502" y="207" font-family="sans-serif" font-size="13" font-weight="800" fill="#fff" text-anchor="middle">lacZ</text>
+  <rect x="578" y="182" width="136" height="40" rx="8" fill="#94a3b8"/>
+  <text x="646" y="207" font-family="sans-serif" font-size="13" font-weight="800" fill="#fff" text-anchor="middle">lacY</text>
+  <rect x="722" y="182" width="136" height="40" rx="8" fill="#94a3b8"/>
+  <text x="790" y="207" font-family="sans-serif" font-size="13" font-weight="800" fill="#fff" text-anchor="middle">lacA</text>
+
+  <!-- RNA Pol blocked -->
+  <ellipse cx="275" cy="154" rx="42" ry="20" fill="#38bdf8" stroke="#0369a1" stroke-width="2"/>
+  <text x="275" y="158" font-family="sans-serif" font-size="11" font-weight="800" fill="#0c4a6e" text-anchor="middle">RNA Pol</text>
+
+  <!-- Active repressor binding O -->
+  <rect x="344" y="142" width="60" height="42" rx="10" fill="#e11d48"/>
+  <text x="374" y="162" font-family="sans-serif" font-size="10" font-weight="800" fill="#fff" text-anchor="middle">Protein</text>
+  <text x="374" y="175" font-family="sans-serif" font-size="10" font-weight="800" fill="#fff" text-anchor="middle">ức chế</text>
+
+  <text x="646" y="158" font-family="sans-serif" font-size="13" font-weight="800" fill="#be123c" text-anchor="middle">✕ KHÔNG PHIÊN MÃ (Protein ức chế chặn vùng O)</text>
+
+  <!-- BOTTOM HALF: WITH LACTOSE (ON) -->
+  <rect x="34" y="274" width="892" height="184" rx="16" fill="#ecfdf5" stroke="#6ee7b7" stroke-width="2"/>
+  <rect x="52" y="288" width="330" height="28" rx="14" fill="#0f766e"/>
+  <text x="217" y="306" font-family="sans-serif" font-size="12" font-weight="800" fill="#fff" text-anchor="middle">B. KHI CÓ LACTOSE → OPERON BẬT</text>
+
+  <line x1="56" y1="398" x2="900" y2="398" stroke="#334155" stroke-width="6" stroke-linecap="round"/>
+  <rect x="68" y="378" width="110" height="40" rx="8" fill="#6d28d9"/>
+  <text x="123" y="403" font-family="sans-serif" font-size="13" font-weight="800" fill="#fff" text-anchor="middle">lacI (Điều hòa)</text>
+
+  <rect x="232" y="378" width="86" height="40" rx="8" fill="#0284c7"/>
+  <text x="275" y="403" font-family="sans-serif" font-size="13" font-weight="800" fill="#fff" text-anchor="middle">P (Khởi động)</text>
+
+  <rect x="326" y="378" width="96" height="40" rx="8" fill="#d97706"/>
+  <text x="374" y="403" font-family="sans-serif" font-size="13" font-weight="800" fill="#fff" text-anchor="middle">O (Trống)</text>
+
+  <rect x="434" y="378" width="136" height="40" rx="8" fill="#0f766e"/>
+  <text x="502" y="403" font-family="sans-serif" font-size="13" font-weight="800" fill="#fff" text-anchor="middle">lacZ</text>
+  <rect x="578" y="378" width="136" height="40" rx="8" fill="#0d9488"/>
+  <text x="646" y="403" font-family="sans-serif" font-size="13" font-weight="800" fill="#fff" text-anchor="middle">lacY</text>
+  <rect x="722" y="378" width="136" height="40" rx="8" fill="#14b8a6"/>
+  <text x="790" y="403" font-family="sans-serif" font-size="13" font-weight="800" fill="#fff" text-anchor="middle">lacA</text>
+
+  <!-- Inactivated repressor + allolactose -->
+  <rect x="86" y="328" width="66" height="36" rx="10" fill="#fb7185" stroke="#be123c" stroke-dasharray="4 2"/>
+  <text x="119" y="350" font-family="sans-serif" font-size="10" font-weight="800" fill="#fff" text-anchor="middle">Bất hoạt</text>
+  <circle cx="162" cy="346" r="14" fill="#f59e0b"/>
+  <text x="162" y="350" font-family="sans-serif" font-size="9" font-weight="800" fill="#fff" text-anchor="middle">Lac</text>
+  <text x="200" y="350" font-family="sans-serif" font-size="11" font-weight="700" fill="#92400e">Allolactose gắn làm đổi cấu hình</text>
+
+  <!-- RNA Pol moving + mRNA -->
+  <ellipse cx="485" cy="356" rx="44" ry="20" fill="#38bdf8" stroke="#0369a1" stroke-width="2"/>
+  <text x="485" y="360" font-family="sans-serif" font-size="11" font-weight="800" fill="#0c4a6e" text-anchor="middle">RNA Pol →</text>
+
+  <path d="M 538 340 Q 570 322 602 340 T 666 340 T 730 340 T 794 340 T 858 340" fill="none" stroke="#10b981" stroke-width="5" stroke-linecap="round"/>
+  <text x="696" y="316" font-family="sans-serif" font-size="12.5" font-weight="800" fill="#047857" text-anchor="middle">✓ Phiên mã tạo mRNA → Dịch mã 3 enzyme phân giải Lactose</text>
+
+  <!-- Operon bracket -->
+  <path d="M 232 426 L 232 436 L 858 436 L 858 426" fill="none" stroke="#0f766e" stroke-width="2"/>
+  <text x="545" y="451" font-family="sans-serif" font-size="12" font-weight="800" fill="#0f766e" text-anchor="middle">Operon Lac (P + O + lacZ, lacY, lacA)  |  Gene điều hòa lacI nằm NGOÀI Operon</text>
+</svg>

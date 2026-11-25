@@ -1,0 +1,96 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 480" width="960" height="480">
+  <defs>
+    <linearGradient id="cellBg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#f8fafc"/>
+      <stop offset="100%" stop-color="#eff6ff"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="960" height="480" rx="16" fill="url(#cellBg)"/>
+  <text x="34" y="40" font-family="sans-serif" font-size="20" font-weight="800" fill="#0f172a">TRUYỀN ĐẠT THÔNG TIN DI TRUYỀN: PHIÊN MÃ &amp; DỊCH MÃ</text>
+  <text x="34" y="64" font-family="sans-serif" font-size="13" fill="#475569">Dòng thông tin trung tâm: DNA (Gene) → Phiên mã → mRNA → Dịch mã (Ribosome) → Chuỗi Polypeptide</text>
+
+  <!-- Nucleus panel (Left) -->
+  <rect x="34" y="88" width="380" height="316" rx="22" fill="#ecfdf5" stroke="#0f766e" stroke-width="2.5" stroke-dasharray="10 6"/>
+  <rect x="52" y="102" width="176" height="28" rx="14" fill="#0f766e"/>
+  <text x="140" y="120" font-family="sans-serif" font-size="12" font-weight="800" fill="#fff" text-anchor="middle">1. TRONG NHÂN TẾ BÀO</text>
+
+  <!-- DNA transcription bubble -->
+  <path d="M 60 190 L 145 190 C 175 155, 275 155, 305 190 L 388 190" fill="none" stroke="#0f766e" stroke-width="7" stroke-linecap="round"/>
+  <path d="M 60 218 L 145 218 C 175 255, 275 255, 305 218 L 388 218" fill="none" stroke="#0f766e" stroke-width="7" stroke-linecap="round"/>
+  <text x="60" y="176" font-family="monospace" font-size="12" font-weight="800" fill="#0f766e">5' — Mạch mã hóa — 3'</text>
+  <text x="60" y="256" font-family="monospace" font-size="12" font-weight="800" fill="#0f766e">3' — Mạch khuôn — 5'</text>
+
+  <!-- RNA Polymerase -->
+  <ellipse cx="226" cy="206" rx="54" ry="26" fill="#0ea5e9" fill-opacity="0.85" stroke="#0369a1" stroke-width="2"/>
+  <text x="226" y="210" font-family="sans-serif" font-size="12" font-weight="800" fill="#fff" text-anchor="middle">RNA Pol</text>
+
+  <!-- mRNA leaving nucleus -->
+  <path d="M 218 228 C 240 285, 325 305, 455 305" fill="none" stroke="#f59e0b" stroke-width="7" stroke-linecap="round"/>
+  <rect x="64" y="318" width="320" height="62" rx="10" fill="#ffffff" stroke="#99f6e4"/>
+  <text x="224" y="340" font-family="sans-serif" font-size="13" font-weight="700" fill="#0f766e" text-anchor="middle">PHIÊN MÃ (A→U, T→A, G→C, C→G)</text>
+  <text x="224" y="362" font-family="sans-serif" font-size="11.5" fill="#475569" text-anchor="middle">Tổng hợp mRNA theo chiều 5'→3' từ mạch khuôn 3'→5'</text>
+
+  <!-- Nuclear pore arrow -->
+  <rect x="396" y="286" width="52" height="38" rx="8" fill="#fef3c7" stroke="#f59e0b" stroke-width="2"/>
+  <text x="422" y="309" font-family="sans-serif" font-size="11" font-weight="800" fill="#92400e" text-anchor="middle">Lỗ nhân</text>
+
+  <!-- Cytoplasm panel (Right) -->
+  <rect x="464" y="88" width="462" height="316" rx="22" fill="#ffffff" stroke="#0284c7" stroke-width="2.5"/>
+  <rect x="482" y="102" width="218" height="28" rx="14" fill="#0284c7"/>
+  <text x="591" y="120" font-family="sans-serif" font-size="12" font-weight="800" fill="#fff" text-anchor="middle">2. TẾ BÀO CHẤT (TẠI RIBOSOME)</text>
+
+  <!-- Ribosome large & small subunits -->
+  <ellipse cx="695" cy="242" rx="102" ry="58" fill="#e0f2fe" stroke="#0284c7" stroke-width="2.5"/>
+  <ellipse cx="695" cy="316" rx="84" ry="28" fill="#bae6fd" stroke="#0284c7" stroke-width="2.5"/>
+  <text x="822" y="220" font-family="sans-serif" font-size="12" font-weight="800" fill="#0369a1">Ribosome</text>
+  <text x="822" y="236" font-family="sans-serif" font-size="11" fill="#475569">(Trượt 5' → 3')</text>
+
+  <!-- mRNA strand through ribosome -->
+  <line x1="455" y1="305" x2="896" y2="305" stroke="#f59e0b" stroke-width="8" stroke-linecap="round"/>
+  <text x="488" y="294" font-family="monospace" font-size="12" font-weight="800" fill="#b45309">5'</text>
+  <text x="885" y="294" font-family="monospace" font-size="12" font-weight="800" fill="#b45309">3'</text>
+
+  <!-- Codon boxes on mRNA -->
+  <g font-family="monospace" font-size="12" font-weight="800" text-anchor="middle">
+    <rect x="615" y="291" width="50" height="26" rx="5" fill="#fff" stroke="#d97706" stroke-width="2"/>
+    <text x="640" y="308" fill="#b45309">AUG</text>
+    <rect x="670" y="291" width="50" height="26" rx="5" fill="#fff" stroke="#d97706" stroke-width="2"/>
+    <text x="695" y="308" fill="#b45309">AAG</text>
+    <rect x="725" y="291" width="50" height="26" rx="5" fill="#fff" stroke="#d97706" stroke-width="2"/>
+    <text x="750" y="308" fill="#b45309">UUU</text>
+  </g>
+
+  <!-- tRNA molecules -->
+  <g>
+    <rect x="678" y="218" width="34" height="58" rx="10" fill="#7c3aed"/>
+    <text x="695" y="244" font-family="sans-serif" font-size="10" font-weight="800" fill="#fff" text-anchor="middle">tRNA</text>
+    <text x="695" y="266" font-family="monospace" font-size="10" font-weight="800" fill="#fde68a" text-anchor="middle">UUC</text>
+
+    <rect x="733" y="218" width="34" height="58" rx="10" fill="#6d28d9"/>
+    <text x="750" y="244" font-family="sans-serif" font-size="10" font-weight="800" fill="#fff" text-anchor="middle">tRNA</text>
+    <text x="750" y="266" font-family="monospace" font-size="10" font-weight="800" fill="#fde68a" text-anchor="middle">AAA</text>
+  </g>
+
+  <!-- Polypeptide chain emerging -->
+  <g>
+    <line x1="590" y1="168" x2="640" y2="180" stroke="#0f766e" stroke-width="4"/>
+    <line x1="640" y1="180" x2="695" y2="198" stroke="#0f766e" stroke-width="4"/>
+    <circle cx="576" cy="164" r="18" fill="#10b981" stroke="#047857" stroke-width="2"/>
+    <text x="576" y="168" font-family="sans-serif" font-size="10" font-weight="800" fill="#fff" text-anchor="middle">Met</text>
+    <circle cx="634" cy="178" r="18" fill="#0d9488" stroke="#0f766e" stroke-width="2"/>
+    <text x="634" y="182" font-family="sans-serif" font-size="10" font-weight="800" fill="#fff" text-anchor="middle">Lys</text>
+    <circle cx="695" cy="198" r="18" fill="#0284c7" stroke="#0369a1" stroke-width="2"/>
+    <text x="695" y="202" font-family="sans-serif" font-size="10" font-weight="800" fill="#fff" text-anchor="middle">Phe</text>
+    <text x="515" y="146" font-family="sans-serif" font-size="12" font-weight="800" fill="#047857">Chuỗi Polypeptide</text>
+  </g>
+
+  <rect x="492" y="352" width="406" height="36" rx="8" fill="#f0f9ff" stroke="#bae6fd"/>
+  <text x="695" y="374" font-family="sans-serif" font-size="12" font-weight="700" fill="#0369a1" text-anchor="middle">DỊCH MÃ: Khớp bổ sung Anticodon (tRNA) ↔ Codon (mRNA)</text>
+
+  <!-- Bottom summary bar -->
+  <rect x="34" y="422" width="892" height="38" rx="10" fill="#ffffff" stroke="#e2e8f0"/>
+  <text x="480" y="446" font-family="sans-serif" font-size="13" font-weight="700" fill="#0f172a" text-anchor="middle">
+    Mã mở đầu: 5'-AUG-3' (Met)  •  3 mã kết thúc: 5'-UAA-3', 5'-UAG-3', 5'-UGA-3'  •  61/64 bộ ba mã hóa amino acid
+  </text>
+</svg>
