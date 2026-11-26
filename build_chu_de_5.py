@@ -23,7 +23,7 @@ from importer import UPLOADS_DIR, parse_document_to_topic
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 TOPICS_DIR = os.path.join(BASE_DIR, "data", "topics")
-BUNDLED_VERSION = "2026.11.26-chu-de-5-v1"
+BUNDLED_VERSION = "2026.11.26-chu-de-5-v3"
 
 LETTER_TO_IDX = {"A": 0, "B": 1, "C": 2, "D": 3}
 
@@ -516,7 +516,9 @@ def apply_review_keys_and_levels(d):
             else:
                 ans = MCQ_KEYS_5_4_PHA_HE.get(on)
         if ans is not None:
+            q["correct_index"] = ans
             q["answer"] = ans
+            q["answer_key_ready"] = True
             mcq_ok += 1
         q["cognitive_level"] = classify_question(q, "mcq", force=True)
 
@@ -535,6 +537,7 @@ def apply_review_keys_and_levels(d):
             for i, st in enumerate(q.get("statements", [])):
                 if i < len(vals):
                     st["answer"] = vals[i]
+            q["answer_key_ready"] = True
             tf_ok += 1
         q["cognitive_level"] = classify_question(q, "true_false", force=True)
 
@@ -551,6 +554,8 @@ def apply_review_keys_and_levels(d):
         acc = sa_map.get(lid, {}).get(on)
         if acc:
             q["accepted"] = acc
+            q["accepted_answers"] = acc
+            q["answer_key_ready"] = True
             sa_ok += 1
         q["cognitive_level"] = classify_question(q, "short_answer", force=True)
 

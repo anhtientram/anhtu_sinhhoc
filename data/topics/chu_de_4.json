@@ -1310,7 +1310,7 @@
           },
           {
             "type": "text",
-            "text": "- Phương pháp giải bài tập thuộc di truyền liên kết với giới tính cũng giống như phương pháp giải chung của bài tập quy luật di truyền. Tuy nhiên, một vài điểm khác biệt là luôn biết chính xác kiểu gene của giới đực dù mang kiểu hình trội (XAY) hay lặn (XaY). Cơ thể bố luôn luôn cho 2 loại giao tử.",
+            "text": "- Phương pháp giải bài tập thuộc di truyền liên kết với giới tính cũng giống như phương pháp giải chung của bài tập quy luật di truyền. Tuy nhiên, một vài điểm khác biệt là luôn biết chính xác kiểu gene của giới đực dù mang kiểu hình trội (X^AY) hay lặn (X^aY). Cơ thể bố luôn luôn cho 2 loại giao tử.",
             "is_bold": false
           },
           {
@@ -1446,7 +1446,7 @@
           },
           {
             "type": "text",
-            "text": "Dấu hiệu nhận biết là tỉ lệ phân li kiểu hình giống như các kiểu tương tác gene trên NST thường nhưng không đều ở 2 giới. Ngoài ra, có thể dựa vào dấu hiệu 2 cặp gene nhung quy định 1 cặp tính trạng, trong đó có một cặp nằm trên NST giới tính. Ví dụ: AaXBXb → ♀ màu đỏ.",
+            "text": "Dấu hiệu nhận biết là tỉ lệ phân li kiểu hình giống như các kiểu tương tác gene trên NST thường nhưng không đều ở 2 giới. Ngoài ra, có thể dựa vào dấu hiệu 2 cặp gene nhung quy định 1 cặp tính trạng, trong đó có một cặp nằm trên NST giới tính. Ví dụ: AaX^BX^b → ♀ màu đỏ.",
             "is_bold": false
           },
           {
@@ -1530,7 +1530,7 @@
           },
           {
             "type": "text",
-            "text": "1. Kiểu gene con đực F1 là AaXBY hoặc BbXAY.",
+            "text": "1. Kiểu gene con đực F1 là AaX^BY hoặc BbX^AY.",
             "is_bold": false,
             "exercise": {
               "id": "cd4-ks-4.1-ttgt-vd2-1",
@@ -1542,7 +1542,7 @@
           },
           {
             "type": "text",
-            "text": "2. Kiểu gene con cái F1 là AaXBXb hoặc BbXAXa.",
+            "text": "2. Kiểu gene con cái F1 là AaX^BX^b hoặc BbX^AX^a.",
             "is_bold": false,
             "exercise": {
               "id": "cd4-ks-4.1-ttgt-vd2-2",
@@ -2063,37 +2063,37 @@
               ],
               [
                 "1",
-                "AB/ab× AB/ab",
+                "AB/ab × AB/ab",
                 "",
                 "",
                 "6",
-                "Ab/ab× Ab/ab",
+                "Ab/ab × Ab/ab",
                 "",
                 ""
               ],
               [
                 "2",
-                "Ab/aB× Ab/aB",
+                "Ab/aB × Ab/aB",
                 "",
                 "",
                 "7",
-                "AB/ab× ab/ab",
+                "AB/ab × ab/ab",
                 "",
                 ""
               ],
               [
                 "3",
-                "aB/ab× Ab/ab",
+                "aB/ab × Ab/ab",
                 "",
                 "",
                 "8",
-                "Ab/aB× Ab/ab",
+                "Ab/aB × Ab/ab",
                 "",
                 ""
               ],
               [
                 "4",
-                "AB/ab× Ab/ab",
+                "AB/ab × Ab/ab",
                 "",
                 "",
                 "9",
@@ -2103,7 +2103,7 @@
               ],
               [
                 "5",
-                "AB/ab× Ab/aB",
+                "AB/ab × Ab/aB",
                 "",
                 "",
                 "10",
@@ -2484,12 +2484,12 @@
           },
           {
             "type": "text",
-            "text": "- Tỉ lệ kiểu hình trội trội = 50% + lặn lặn (A_B_ = 50% + aabb)",
+            "text": "- Tỉ lệ kiểu hình trội trội = 50% + lặn lặn (A-B- = 50% + aabb)",
             "is_bold": false
           },
           {
             "type": "text",
-            "text": "- Tỉ lệ kiểu hình trội lặn = lặn trội = 25% - lặn lặn. (A_bb = aaB_ = 25% - aabb)",
+            "text": "- Tỉ lệ kiểu hình trội lặn = lặn trội = 25% - lặn lặn. (A-bb = aaB- = 25% - aabb)",
             "is_bold": false
           },
           {
@@ -2499,7 +2499,7 @@
           },
           {
             "type": "text",
-            "text": "1. P: AB/ab× ab/ab (hoán vị 1 bên, f = 0,4);",
+            "text": "1. P: AB/ab × ab/ab (hoán vị 1 bên, f = 0,4);",
             "is_bold": false,
             "exercise": {
               "id": "cd4-ks-4.2-hv-vd1-1",
@@ -2511,7 +2511,7 @@
           },
           {
             "type": "text",
-            "text": "2. P: AB/ab× AB/ab (hoán vị 1 bên, f = 0,2);",
+            "text": "2. P: AB/ab × AB/ab (hoán vị 1 bên, f = 0,2);",
             "is_bold": false,
             "exercise": {
               "id": "cd4-ks-4.2-hv-vd1-2",
@@ -2523,7 +2523,7 @@
           },
           {
             "type": "text",
-            "text": "3. P: Ab/aB× Ab/aB (hoán vị 1 bên, f = 0,3);",
+            "text": "3. P: Ab/aB × Ab/aB (hoán vị 1 bên, f = 0,3);",
             "is_bold": false,
             "exercise": {
               "id": "cd4-ks-4.2-hv-vd1-3",
@@ -2535,7 +2535,7 @@
           },
           {
             "type": "text",
-            "text": "4. P: AB/ab× AB/ab (hoán vị 1 bên, f = 0.4).",
+            "text": "4. P: AB/ab × AB/ab (hoán vị 1 bên, f = 0.4).",
             "is_bold": false,
             "exercise": {
               "id": "cd4-ks-4.2-hv-vd1-4",
@@ -2785,7 +2785,7 @@
           },
           {
             "type": "text",
-            "text": "- Liên kết gene + Di truyền liên kết với giới tính → AB/ab XDXd",
+            "text": "- Liên kết gene + Di truyền liên kết với giới tính → AB/ab X^DX^d",
             "is_bold": false
           },
           {
@@ -2910,7 +2910,7 @@
           },
           {
             "type": "text",
-            "text": "Ví dụ 3: Ở ruồi giấm, allele A quy định thân xám trội hoàn toàn so với allele a quy định thân đen: allele B quy định cánh dài trội hoàn toàn so với allele b quy định cánh cụt; Allele D quy định mắt đỏ trội hoàn toàn so với allele d quy định mắt trắng. Thực hiện phép lai P: AB/ab XDXd × AB/ab XDY thu được F1. Trong tổng số các ruồi ở F1, ruồi thân xám, cánh dài, mắt đỏ chiếm tỉ lệ 52,5%. Biết rằng không xảy ra đột biến, hãy xác định:",
+            "text": "Ví dụ 3: Ở ruồi giấm, allele A quy định thân xám trội hoàn toàn so với allele a quy định thân đen: allele B quy định cánh dài trội hoàn toàn so với allele b quy định cánh cụt; Allele D quy định mắt đỏ trội hoàn toàn so với allele d quy định mắt trắng. Thực hiện phép lai P: AB/ab X^DX^d × AB/ab X^DY thu được F1. Trong tổng số các ruồi ở F1, ruồi thân xám, cánh dài, mắt đỏ chiếm tỉ lệ 52,5%. Biết rằng không xảy ra đột biến, hãy xác định:",
             "is_bold": false
           },
           {
@@ -2939,7 +2939,7 @@
           },
           {
             "type": "text",
-            "text": "3. Tỉ lệ ruồi mang kiểu gene Ab/ab XDXd ở F1.",
+            "text": "3. Tỉ lệ ruồi mang kiểu gene Ab/ab X^DX^d ở F1.",
             "is_bold": false,
             "exercise": {
               "id": "cd4-ks-4.2-th-vd3-3",
@@ -3683,7 +3683,7 @@
         "lesson_id": "chu-de-4-bai-1",
         "lesson": "4.1",
         "level": "1. Di truyền giới tính và di truyền liên kết với giới tính",
-        "question": "Trong trường hợp một gene quy định một tính trạng, nếu kết quả lai thuận và lai nghịch khác nhau ở hai giới, tính trạng lặn xuất hiện ở giới dị giao tử (XY) nhiều hơn ở giới đồng giao tử (XX) thì tính trạng này được quy định bởi gen",
+        "question": "Trong trường hợp một gene quy định một tính trạng, nếu kết quả lai thuận và lai nghịch khác nhau ở hai giới, tính trạng lặn xuất hiện ở giới dị giao tử (XY) nhiều hơn ở giới đồng giao tử (XX) thì tính trạng này được quy định bởi gene",
         "images": [],
         "tables": [],
         "options": [
@@ -3843,7 +3843,7 @@
         "lesson_id": "chu-de-4-bai-1",
         "lesson": "4.1",
         "level": "2. Bài tập di truyền liên kết với giới tính",
-        "question": "Ở ruồi giấm, allele A quy định mắt đỏ trội hoàn toàn so với allele a quy định mắt trắng. Biết rằng không xảy ra đột biến mới. Theo lí thuyết, phép lai: XAXa × XAY cho đời con có kiểu hình phân li theo tỉ lệ",
+        "question": "Ở ruồi giấm, allele A quy định mắt đỏ trội hoàn toàn so với allele a quy định mắt trắng. Biết rằng không xảy ra đột biến mới. Theo lí thuyết, phép lai: X^AX^a × X^AY cho đời con có kiểu hình phân li theo tỉ lệ",
         "images": [],
         "tables": [],
         "options": [
@@ -3927,10 +3927,10 @@
         "images": [],
         "tables": [],
         "options": [
-          "XAXA và XaY hoặc XAXa và XaY.",
-          "XAXA và XaY hoặc XAXa và XaXa.",
-          "XaXa và XAY.",
-          "XAXA và XaXa hoặc XAXa và XaXa."
+          "X^AX^A và X^aY hoặc X^AX^a và X^aY.",
+          "X^AX^A và X^aY hoặc X^AX^a và X^aX^a.",
+          "X^aX^a và X^AY.",
+          "X^AX^A và X^aX^a hoặc X^AX^a và X^aX^a."
         ],
         "correct_index": 0,
         "answer_key_ready": true,
@@ -4007,10 +4007,10 @@
         "images": [],
         "tables": [],
         "options": [
-          "XWXW × XwY",
-          "XWXw × XwY",
-          "XWXW × XWY",
-          "XWXw × XWY"
+          "X^WX^W × X^wY",
+          "X^WX^w × X^wY",
+          "X^WX^W × X^WY",
+          "X^WX^w × X^WY"
         ],
         "correct_index": 3,
         "answer_key_ready": true,
@@ -4027,10 +4027,10 @@
         "images": [],
         "tables": [],
         "options": [
-          "XAXa × XaY",
-          "XAXA × XaY",
-          "XaXa × XAY",
-          "XAXa × XAY"
+          "X^AX^a × X^aY",
+          "X^AX^A × X^aY",
+          "X^aX^a × X^AY",
+          "X^AX^a × X^AY"
         ],
         "correct_index": 1,
         "answer_key_ready": true,
@@ -4047,10 +4047,10 @@
         "images": [],
         "tables": [],
         "options": [
-          "XAY, XaXa",
-          "XAY, XaO",
-          "XaY, XAXa",
-          "XaY, XAXA"
+          "X^AY, X^aX^a",
+          "X^AY, XaO",
+          "X^aY, X^AX^a",
+          "X^aY, X^AX^A"
         ],
         "correct_index": 2,
         "answer_key_ready": true,
@@ -4067,10 +4067,10 @@
         "images": [],
         "tables": [],
         "options": [
-          "XBXb × XbY",
-          "XBXB × XbY",
-          "XbXb XBY",
-          "XBXb × XBY"
+          "X^BX^b × X^bY",
+          "X^BX^B × X^bY",
+          "X^bX^b X^BY",
+          "X^BX^b × X^BY"
         ],
         "correct_index": 0,
         "answer_key_ready": true,
@@ -4087,10 +4087,10 @@
         "images": [],
         "tables": [],
         "options": [
-          "XAXA × XaY",
-          "XAXa × XAY",
-          "XaXa × XAY",
-          "XAXa × XaY"
+          "X^AX^A × X^aY",
+          "X^AX^a × X^AY",
+          "X^aX^a × X^AY",
+          "X^AX^a × X^aY"
         ],
         "correct_index": 1,
         "answer_key_ready": true,
@@ -4107,10 +4107,10 @@
         "images": [],
         "tables": [],
         "options": [
-          "XaY × XAXA",
-          "XAY × XAXa",
-          "XAY × XaXa",
-          "XaY × XaXa"
+          "X^aY × X^AX^A",
+          "X^AY × X^AX^a",
+          "X^AY × X^aX^a",
+          "X^aY × X^aX^a"
         ],
         "correct_index": 2,
         "answer_key_ready": true,
@@ -4127,10 +4127,10 @@
         "images": [],
         "tables": [],
         "options": [
-          "XmXm × XmY",
-          "XMXm × XmY",
-          "XmXm × XMY",
-          "XMXM × XMY"
+          "X^mX^m × X^mY",
+          "X^MX^m × X^mY",
+          "X^mX^m × X^MY",
+          "X^MX^M × X^MY"
         ],
         "correct_index": 1,
         "answer_key_ready": true,
@@ -4149,8 +4149,8 @@
         "options": [
           "AA × Aa",
           "Aa × aa",
-          "XAXA × XaY",
-          "XAXa × XAY"
+          "X^AX^A × X^aY",
+          "X^AX^a × X^AY"
         ],
         "correct_index": 2,
         "answer_key_ready": true,
@@ -4167,10 +4167,10 @@
         "images": [],
         "tables": [],
         "options": [
-          "XAXA × XaY",
-          "XAXa × XaY",
-          "XAXa × XAY",
-          "XaXa × XAY"
+          "X^AX^A × X^aY",
+          "X^AX^a × X^aY",
+          "X^AX^a × X^AY",
+          "X^aX^a × X^AY"
         ],
         "correct_index": 2,
         "answer_key_ready": true,
@@ -4187,10 +4187,10 @@
         "images": [],
         "tables": [],
         "options": [
-          "XaXa × XAY",
-          "XAXa × XaY",
-          "XAXA × XaY",
-          "XAXa × XAY"
+          "X^aX^a × X^AY",
+          "X^AX^a × X^aY",
+          "X^AX^A × X^aY",
+          "X^AX^a × X^AY"
         ],
         "correct_index": 1,
         "answer_key_ready": true,
@@ -4245,10 +4245,10 @@
           ]
         ],
         "options": [
-          "XRXR × XRY",
-          "XRXr × XRY.",
-          "XRXr × XrY.",
-          "XrXr × XRY."
+          "X^RX^R × X^RY",
+          "X^RX^r × X^RY.",
+          "X^RX^r × X^rY.",
+          "X^rX^r × X^RY."
         ],
         "correct_index": 2,
         "answer_key_ready": true,
@@ -4265,10 +4265,10 @@
         "images": [],
         "tables": [],
         "options": [
-          "DdXMXm × ddXMY",
-          "DdXMXM × DdXMY",
-          "ddXMXm × DdXMY",
-          "DdXMXm × DdXMY"
+          "DdX^MX^m × ddX^MY",
+          "DdX^MX^M × DdX^MY",
+          "ddX^MX^m × DdX^MY",
+          "DdX^MX^m × DdX^MY"
         ],
         "correct_index": 0,
         "answer_key_ready": true,
@@ -4385,10 +4385,10 @@
         "images": [],
         "tables": [],
         "options": [
-          "XAY, XaXa, XAXa, XAY, XAXA, XaY",
-          "XAY, XaXa, XAXa, XAY, XAXa, XaY",
-          "XAY, XaXa, XAY, XAY, XAXa, XaY",
-          "XAY, XaXa, XAXa, XAY, XAXa, XaXa"
+          "X^AY, X^aX^a, X^AX^a, X^AY, X^AX^A, X^aY",
+          "X^AY, X^aX^a, X^AX^a, X^AY, X^AX^a, X^aY",
+          "X^AY, X^aX^a, X^AY, X^AY, X^AX^a, X^aY",
+          "X^AY, X^aX^a, X^AX^a, X^AY, X^AX^a, X^aX^a"
         ],
         "correct_index": 1,
         "answer_key_ready": true,
@@ -4465,10 +4465,10 @@
         "images": [],
         "tables": [],
         "options": [
-          "Màu mắt di truyền theo tương tác bổ sung: P: ♀ AAXBXB × ♂ aaXbY.",
-          "Màu mắt di truyền theo tương tác bổ sung: P: ♂ AAXBXB × ♀ aaXbY.",
-          "Màu mắt di truyền theo trội hoàn toàn: P: ♂ XAXA × ♀ XaY.",
-          "Màu mắt di truyền theo trội hoàn toàn: P: ♀ XAXA × ♂ XaY."
+          "Màu mắt di truyền theo tương tác bổ sung: P: ♀ AAX^BX^B × ♂ aaX^bY.",
+          "Màu mắt di truyền theo tương tác bổ sung: P: ♂ AAX^BX^B × ♀ aaX^bY.",
+          "Màu mắt di truyền theo trội hoàn toàn: P: ♂ X^AX^A × ♀ X^aY.",
+          "Màu mắt di truyền theo trội hoàn toàn: P: ♀ X^AX^A × ♂ X^aY."
         ],
         "correct_index": 1,
         "answer_key_ready": true,
@@ -4601,7 +4601,7 @@
         "lesson_id": "chu-de-4-bai-2",
         "lesson": "4.2",
         "level": "1. Lý thuyết liên kết gene",
-        "question": "Phát biểu nào sau đây là không đúng về hiện tượng liên kết gen?",
+        "question": "Phát biểu nào sau đây là không đúng về hiện tượng liên kết gene?",
         "images": [],
         "tables": [],
         "options": [
@@ -5101,7 +5101,7 @@
         "lesson_id": "chu-de-4-bai-2",
         "lesson": "4.2",
         "level": "3. Lý thuyết hoán vị gene",
-        "question": "Trường hợp nào sẽ dẫn tới sự di truyền liên kết gen?",
+        "question": "Trường hợp nào sẽ dẫn tới sự di truyền liên kết gene?",
         "images": [],
         "tables": [],
         "options": [
@@ -5281,7 +5281,7 @@
         "lesson_id": "chu-de-4-bai-2",
         "lesson": "4.2",
         "level": "3. Lý thuyết hoán vị gene",
-        "question": "Nguyên tắc nào sau đây được sử dụng vào việc lập bản đồ gen?",
+        "question": "Nguyên tắc nào sau đây được sử dụng vào việc lập bản đồ gene?",
         "images": [],
         "tables": [],
         "options": [
@@ -6440,7 +6440,7 @@
         "lesson_id": "chu-de-4-bai-2",
         "lesson": "4.2",
         "level": "5. Bài toán thuận tổng hợp giữa liên kết gene với các quy luật khác",
-        "question": "Ở ruồi giấm, allele A quy định thân xám là trội hoàn toàn so với allele a quy định thân đen, allele B quy định cánh dài là trội hoàn toàn so với allele b quy định cánh cụt. Hai cặp gene này cùng nằm trên một cặp NST thường, allele D quy định mắt đỏ là trội hoàn toàn so với allele d quy định mắt trắng. Gene quy định màu mắt nằm trên NST giới tính X, không có allele tương ứng trên Y. Phép lai AB/abXDXd × AB/abXDY. Cho F1 có kiểu hình thân đen, cánh cụt, mắt đỏ chiếm tỉ lệ 15%. Tính theo lý thuyết, tỉ lệ ruồi đực F1 có kiểu hình thân đen, cánh cụt, mắt đỏ và tần số hoán vị là:",
+        "question": "Ở ruồi giấm, allele A quy định thân xám là trội hoàn toàn so với allele a quy định thân đen, allele B quy định cánh dài là trội hoàn toàn so với allele b quy định cánh cụt. Hai cặp gene này cùng nằm trên một cặp NST thường, allele D quy định mắt đỏ là trội hoàn toàn so với allele d quy định mắt trắng. Gene quy định màu mắt nằm trên NST giới tính X, không có allele tương ứng trên Y. Phép lai AB/abX^DX^d × AB/abX^DY. Cho F1 có kiểu hình thân đen, cánh cụt, mắt đỏ chiếm tỉ lệ 15%. Tính theo lý thuyết, tỉ lệ ruồi đực F1 có kiểu hình thân đen, cánh cụt, mắt đỏ và tần số hoán vị là:",
         "images": [],
         "tables": [],
         "options": [
@@ -6460,7 +6460,7 @@
         "lesson_id": "chu-de-4-bai-2",
         "lesson": "4.2",
         "level": "5. Bài toán thuận tổng hợp giữa liên kết gene với các quy luật khác",
-        "question": "Ở phép lai giữa ruồi giấm AB/abXDXd với ruồi giấm AB/abXDY cho F1 có kiểu hình đồng hợp lặn về tất cả các tính trạng chiếm tỉ lệ 4,375%. Tỉ lệ đời con có ít nhất 1 tính trạng trội là",
+        "question": "Ở phép lai giữa ruồi giấm AB/abX^DX^d với ruồi giấm AB/abX^DY cho F1 có kiểu hình đồng hợp lặn về tất cả các tính trạng chiếm tỉ lệ 4,375%. Tỉ lệ đời con có ít nhất 1 tính trạng trội là",
         "images": [],
         "tables": [],
         "options": [
@@ -6480,7 +6480,7 @@
         "lesson_id": "chu-de-4-bai-2",
         "lesson": "4.2",
         "level": "5. Bài toán thuận tổng hợp giữa liên kết gene với các quy luật khác",
-        "question": "Ở một loài sinh vật, allele A quy định thân đen là trội hoàn toàn so với allele a quy định thân trắng, allele quy định B lông xoăn trội hoàn toàn so với allele b quy định lông thẳng, allele D quy định mắt nâu là trội hoàn toàn so với allele d quy định mắt xanh. Tiến hành phép lai AB/abXDXd × AB/abXDY cho F1 có kiểu hình thân đen, lông thẳng, mắt xanh chiếm tỷ lệ 6%. Biết rằng diễn biến giảm phân ở 2 giới là như nhau, theo lý thuyết, ở F1 tỷ lệ cá thể có kiểu hình thân trắng, lông thẳng, mắt nâu chiếm tỷ lệ",
+        "question": "Ở một loài sinh vật, allele A quy định thân đen là trội hoàn toàn so với allele a quy định thân trắng, allele quy định B lông xoăn trội hoàn toàn so với allele b quy định lông thẳng, allele D quy định mắt nâu là trội hoàn toàn so với allele d quy định mắt xanh. Tiến hành phép lai AB/abX^DX^d × AB/abX^DY cho F1 có kiểu hình thân đen, lông thẳng, mắt xanh chiếm tỷ lệ 6%. Biết rằng diễn biến giảm phân ở 2 giới là như nhau, theo lý thuyết, ở F1 tỷ lệ cá thể có kiểu hình thân trắng, lông thẳng, mắt nâu chiếm tỷ lệ",
         "images": [],
         "tables": [],
         "options": [
@@ -6500,7 +6500,7 @@
         "lesson_id": "chu-de-4-bai-2",
         "lesson": "4.2",
         "level": "5. Bài toán thuận tổng hợp giữa liên kết gene với các quy luật khác",
-        "question": "Ở một loài động vật, allele A quy định lông xám trội hoàn toàn so với allele a quy định lông hung: allele B quy định chân cao trội hoàn toàn so với allele b quy định chân thấp; allele D quy định mắt nâu trội hoàn toàn so với allele d quy định mắt đen. Phép lai P: ♀ AB/abXDXd × ♂ AB/abXdY thu được F1.Trong tổng số cá thể E F1 số cá thể cái có lông hung, chân thấp, mắt đen chiếm tỉ lệ 1%. Biết quá trình giảm phân không xảy ra đột biển nhưng xảy ra hoán vị gene ở cả hai giới với tần số như nhau. Theo lí thuyết, số cá thể lông xám dị hợp, chân thấp, mắt nâu ở F1 chiếm ti lệ",
+        "question": "Ở một loài động vật, allele A quy định lông xám trội hoàn toàn so với allele a quy định lông hung: allele B quy định chân cao trội hoàn toàn so với allele b quy định chân thấp; allele D quy định mắt nâu trội hoàn toàn so với allele d quy định mắt đen. Phép lai P: ♀ AB/abX^DX^d × ♂ AB/abX^dY thu được F1.Trong tổng số cá thể E F1 số cá thể cái có lông hung, chân thấp, mắt đen chiếm tỉ lệ 1%. Biết quá trình giảm phân không xảy ra đột biển nhưng xảy ra hoán vị gene ở cả hai giới với tần số như nhau. Theo lí thuyết, số cá thể lông xám dị hợp, chân thấp, mắt nâu ở F1 chiếm ti lệ",
         "images": [],
         "tables": [],
         "options": [
@@ -6620,7 +6620,7 @@
         "lesson_id": "chu-de-4-bai-2",
         "lesson": "4.2",
         "level": "6. Bài tập lai tổng hợp biện luận tìm các quy luật chi phối khác nhau",
-        "question": "Một loài thực vật xét hai cặp gen: A,a; B,b quy định 2 tính trạng, các allele trội là trội hoàn toàn. Phép lai P: Cây thuần chủng có kiểu hình trội về 2 tính trạng × Cây thuần chủng có kiểu hình lặn về 2 tính trạng, thu được các cây F1. Cho F1 tự thụ phấn, thu được các cây F2. Theo lí thuyết, phát biểu nào sau đây về các cây F2 không đúng?",
+        "question": "Một loài thực vật xét hai cặp gene: A,a; B,b quy định 2 tính trạng, các allele trội là trội hoàn toàn. Phép lai P: Cây thuần chủng có kiểu hình trội về 2 tính trạng × Cây thuần chủng có kiểu hình lặn về 2 tính trạng, thu được các cây F1. Cho F1 tự thụ phấn, thu được các cây F2. Theo lí thuyết, phát biểu nào sau đây về các cây F2 không đúng?",
         "images": [],
         "tables": [],
         "options": [
@@ -7479,7 +7479,7 @@
         "images": [],
         "tables": [],
         "options": [
-          "có cùng kiểu gen.",
+          "có cùng kiểu gene.",
           "có kiểu hình khác nhau.",
           "có kiểu hình giống nhau.",
           "có kiểu gene khác nhau."
@@ -7821,7 +7821,7 @@
         "options": [
           "Kiểu hình là kết quả sự tương tác giữa kiểu gene và môi trường.",
           "Kiểu gene quy định khả năng phản ứng của cơ thể trước môi trường.",
-          "Bố mẹ không truyền đạt cho con những tính trạng đã hình thành sẵn mà truyền đạt 1 kiểu gen.",
+          "Bố mẹ không truyền đạt cho con những tính trạng đã hình thành sẵn mà truyền đạt 1 kiểu gene.",
           "Kiểu hình của cơ thể chỉ phụ thuộc vào kiểu gene mà không phụ thuộc vào môi trường."
         ],
         "correct_index": 3,
@@ -7900,7 +7900,7 @@
         "tables": [],
         "options": [
           "Có thể xác định mức phản ứng của một kiểu gene dị hợp ở một loài thực vật sinh sản hữu tính bằng cách gieo các hạt của cây này trong các môi trường khác nhau rồi theo dõi các đặc điểm của chúng.",
-          "Tập hợp các kiểu hình của cùng một kiểu gene tương ứng với các môi trường khác nhau được gọi là mức phản ứng của kiểu gen.",
+          "Tập hợp các kiểu hình của cùng một kiểu gene tương ứng với các môi trường khác nhau được gọi là mức phản ứng của kiểu gene.",
           "Mức phản ứng của 1 kiểu gene là tập hợp các phản ứng của 1 cơ thể khi điều kiện môi trường biến đổi.",
           "Các cá thể của một loài có kiểu gene khác nhau, khi sống trong cùng một môi trường thì có mức phản ứng giống nhau."
         ],
@@ -8070,7 +8070,7 @@
         "orig_num": 3,
         "lesson_id": "chu-de-4-bai-1",
         "lesson": "4.1",
-        "stem": "Ở một loài động vật, xét 3 phép lai sau: P1: XaXA × XaY; P2: XaXa × XAY; P3: Dd × Dd. Biết rằng mỗi gene quy định một tính trạng, allele trội là trội hoàn toàn và không xảy ra đột biến; các phép lai trên đều tạo ra F1, các cá thể F1 của mỗi phép lai ngẫu phối với nhau tạo ra F2. Theo lí thuyết, mỗi nhận xét sau đây là đúng hay sai?",
+        "stem": "Ở một loài động vật, xét 3 phép lai sau: P1: X^aX^A × X^aY; P2: X^aX^a × X^AY; P3: Dd × Dd. Biết rằng mỗi gene quy định một tính trạng, allele trội là trội hoàn toàn và không xảy ra đột biến; các phép lai trên đều tạo ra F1, các cá thể F1 của mỗi phép lai ngẫu phối với nhau tạo ra F2. Theo lí thuyết, mỗi nhận xét sau đây là đúng hay sai?",
         "images": [],
         "tables": [],
         "statements": [
@@ -8477,7 +8477,7 @@
         "orig_num": 8,
         "lesson_id": "chu-de-4-bai-2",
         "lesson": "4.2",
-        "stem": "Lai hai cây cà chua thuần chủng (P) khác nhau về các cặp tính trạng tương phản, F1 thu được 100% cây thân cao, hoa đỏ, quả tròn. Cho F1 lai với cây khác, tỉ lệ phân li kiểu hình ở F2 là 4 cây thân cao, hoa đỏ, quả dài : 4 cây thân cao, hoa vàng, quả tròn : 4 cây thân thấp, hoa đỏ, quả dài : 4 cây thân thấp, hoa vàng, quả tròn : 1 cây thân cao, hoa đỏ, quả tròn : 1 cây thân cao, hoa vàng, quả dài : 1 cây thân thấp, hoa đỏ, quả tròn : 1 cây thân thấp, hoa vàng, quả dài. Biết rằng mỗi gen quy định một tính trạng, mọi quá trình sinh học diễn ra bình thường. Mỗi nhận xét sau đây là đúng hay sai?",
+        "stem": "Lai hai cây cà chua thuần chủng (P) khác nhau về các cặp tính trạng tương phản, F1 thu được 100% cây thân cao, hoa đỏ, quả tròn. Cho F1 lai với cây khác, tỉ lệ phân li kiểu hình ở F2 là 4 cây thân cao, hoa đỏ, quả dài : 4 cây thân cao, hoa vàng, quả tròn : 4 cây thân thấp, hoa đỏ, quả dài : 4 cây thân thấp, hoa vàng, quả tròn : 1 cây thân cao, hoa đỏ, quả tròn : 1 cây thân cao, hoa vàng, quả dài : 1 cây thân thấp, hoa đỏ, quả tròn : 1 cây thân thấp, hoa vàng, quả dài. Biết rằng mỗi gene quy định một tính trạng, mọi quá trình sinh học diễn ra bình thường. Mỗi nhận xét sau đây là đúng hay sai?",
         "images": [],
         "tables": [],
         "statements": [
@@ -8551,7 +8551,7 @@
         "orig_num": 10,
         "lesson_id": "chu-de-4-bai-2",
         "lesson": "4.2",
-        "stem": "Một loài thú, xét 3 cặp gene Aa, Bb và Dd quy định 3 cặp tính trạng khác nhau. Trong đó, cặp gene Aa và Bb nằm trên vùng không tương đồng của nhiễm sắc thể X; cặp gen Dd nằm trên nhiễm sắc thể thường. Cho con đực mang kiểu hình trội về 3 tính trạng giao phối với con cái mang kiểu hình trội về 3 tính trạng (P), thu được F1 có 24 kiểu gene và 10 kiểu hình, trong đó, tỉ lệ kiểu hình ở giới đực là: 12:12:4:4:3:3:1: 1. Biết mỗi cặp tính trạng do một cặp gene quy định và không xảy ra đột biến. Theo lí thuyết, mỗi phát biểu sau đây là đúng hay sai?",
+        "stem": "Một loài thú, xét 3 cặp gene Aa, Bb và Dd quy định 3 cặp tính trạng khác nhau. Trong đó, cặp gene Aa và Bb nằm trên vùng không tương đồng của nhiễm sắc thể X; cặp gene Dd nằm trên nhiễm sắc thể thường. Cho con đực mang kiểu hình trội về 3 tính trạng giao phối với con cái mang kiểu hình trội về 3 tính trạng (P), thu được F1 có 24 kiểu gene và 10 kiểu hình, trong đó, tỉ lệ kiểu hình ở giới đực là: 12:12:4:4:3:3:1: 1. Biết mỗi cặp tính trạng do một cặp gene quy định và không xảy ra đột biến. Theo lí thuyết, mỗi phát biểu sau đây là đúng hay sai?",
         "images": [],
         "tables": [],
         "statements": [
@@ -9092,7 +9092,7 @@
         "orig_num": 1,
         "lesson_id": "chu-de-4-bai-2",
         "lesson": "4.2",
-        "question": "Cho lai ruồi giấm có kiểu gene AB/abXDXd với ruồi giấm có kiểu gene AB/abXDY thu được F1 có kiểu gene đồng hợp lặn về cả ba cặp gene trên chiếm tỉ lệ 4,375%. Ở con cái giao tử ABXd chiếm tỉ lệ là bao nhiêu phần trăm (%)?",
+        "question": "Cho lai ruồi giấm có kiểu gene AB/abX^DX^d với ruồi giấm có kiểu gene AB/abX^DY thu được F1 có kiểu gene đồng hợp lặn về cả ba cặp gene trên chiếm tỉ lệ 4,375%. Ở con cái giao tử ABXd chiếm tỉ lệ là bao nhiêu phần trăm (%)?",
         "images": [],
         "tables": [],
         "placeholder": "Nhập kết quả của bạn...",
@@ -9486,7 +9486,7 @@
         "orig_num": 3,
         "lesson_id": "chu-de-4-bai-4",
         "lesson": "4.4",
-        "question": "Ở cừu, kiểu gene HH quy định có sừng, kiểu gene hh quy định không sừng, kiểu gen Hh biểu hiện có sừng ở cừu đực và không sừng ở cừu cái. Gene này nằm trên nhiễm sắc thể thường. Cho lai cừu đực không sừng với cừu cái có sừng được F1, cho F1 giao phối với nhau được F2. Tính theo lí thuyết, tỉ lệ cừu có sừng ở F2 là bao nhiêu phần trăm (%)?",
+        "question": "Ở cừu, kiểu gene HH quy định có sừng, kiểu gene hh quy định không sừng, kiểu gene Hh biểu hiện có sừng ở cừu đực và không sừng ở cừu cái. Gene này nằm trên nhiễm sắc thể thường. Cho lai cừu đực không sừng với cừu cái có sừng được F1, cho F1 giao phối với nhau được F2. Tính theo lí thuyết, tỉ lệ cừu có sừng ở F2 là bao nhiêu phần trăm (%)?",
         "images": [],
         "tables": [],
         "placeholder": "Nhập kết quả của bạn...",
@@ -9503,7 +9503,7 @@
         "orig_num": 4,
         "lesson_id": "chu-de-4-bai-4",
         "lesson": "4.4",
-        "question": "Ở loài cừu, con đực có kiểu gen SS và Ss quy định có sừng, ss: không sừng; con cái có kiểu gen SS quy định có sừng, Ss và ss: không sừng. Thế hệ xuất phát cho giao phối cừu đực và cái đều có sừng, thu được F1, trong đó có cừu cái không sừng. Nếu cho cừu cái không sừng của F1 giao phối với cừu đực ở P thì khả năng F2 thu được cừu cái không sừng là bao nhiêu phần trăm (%)?",
+        "question": "Ở loài cừu, con đực có kiểu gene SS và Ss quy định có sừng, ss: không sừng; con cái có kiểu gene SS quy định có sừng, Ss và ss: không sừng. Thế hệ xuất phát cho giao phối cừu đực và cái đều có sừng, thu được F1, trong đó có cừu cái không sừng. Nếu cho cừu cái không sừng của F1 giao phối với cừu đực ở P thì khả năng F2 thu được cừu cái không sừng là bao nhiêu phần trăm (%)?",
         "images": [],
         "tables": [],
         "placeholder": "Nhập kết quả của bạn...",
@@ -9518,5 +9518,5 @@
       }
     ]
   },
-  "bundled_version": "2026.11.26-exercises-v3"
+  "bundled_version": "2026.11.26-dna-geno-v4"
 }

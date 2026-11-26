@@ -66,6 +66,10 @@ export function mountTeacherDashboard(container, activeTopic, onTopicUpdated, sh
   let cacheInfo = cachedTeacher.cacheInfo || null;
   let cacheClearing = false;
   let deletingTopicId = "";
+  let editingTopicId = "";
+  let editingTopicTitle = "";
+  let editingTopicSubtitle = "";
+  let savingTopicMetaId = "";
 
   let importState = {
     file: null,
@@ -878,23 +882,48 @@ export function mountTeacherDashboard(container, activeTopic, onTopicUpdated, sh
                                   .map((tp) => {
                                     const isCur = tp.id === activeTopic?.id;
                                     const isDel = deletingTopicId === tp.id;
+                                    const isEditing = editingTopicId === tp.id;
+                                    const isSavingMeta = savingTopicMetaId === tp.id;
                                     const disableDel = topicsList.length <= 1 || Boolean(deletingTopicId);
                                     return `
                                       <tr>
                                         <td><span class="pill pill-primary">Chủ đề ${escapeHtml(String(tp.order_index || ""))}</span></td>
                                         <td>
-                                          <strong>${escapeHtml(tp.title)}</strong>
-                                          ${tp.subtitle ? `<div style="font-size:0.78rem;color:var(--text-muted);margin-top:2px;">${escapeHtml(tp.subtitle)}</div>` : ""}
+                                          ${
+                                            isEditing
+                                              ? `
+                                                <div style="display:flex;flex-direction:column;gap:6px;">
+                                                  <input type="text" class="form-control form-control-sm" id="edit-topic-title-input" value="${escapeHtml(editingTopicTitle)}" placeholder="Nhập tên Chủ đề mới..." />
+                                                  <input type="text" class="form-control form-control-sm" id="edit-topic-subtitle-input" value="${escapeHtml(editingTopicSubtitle)}" placeholder="Mô tả ngắn (không bắt buộc)" />
+                                                </div>
+                                              `
+                                              : `
+                                                <strong>${escapeHtml(tp.title)}</strong>
+                                                ${tp.subtitle ? `<div style="font-size:0.78rem;color:var(--text-muted);margin-top:2px;">${escapeHtml(tp.subtitle)}</div>` : ""}
+                                              `
+                                          }
                                         </td>
                                         <td>
                                           ${isCur ? `<span class="pill pill-green">Đang mở</span>` : `<span class="pill pill-muted">Đã xuất bản</span>`}
                                         </td>
                                         <td>
                                           <div style="display:flex;gap:8px;flex-wrap:wrap;">
-                                            <button type="button" class="btn btn-secondary btn-sm" data-open-topic="${escapeHtml(tp.id)}">Mở xem</button>
-                                            <button type="button" class="btn btn-danger btn-sm" data-delete-topic="${escapeHtml(tp.id)}" data-delete-topic-title="${escapeHtml(tp.title)}" ${disableDel ? "disabled" : ""}>
-                                              ${isDel ? "Đang xoá..." : "Xoá chủ đề"}
-                                            </button>
+                                            ${
+                                              isEditing
+                                                ? `
+                                                  <button type="button" class="btn btn-primary btn-sm" data-save-topic-meta="${escapeHtml(tp.id)}" ${isSavingMeta ? "disabled" : ""}>
+                                                    ${isSavingMeta ? "Đang lưu..." : "Lưu tên"}
+                                                  </button>
+                                                  <button type="button" class="btn btn-ghost btn-sm" data-cancel-topic-meta="1" ${isSavingMeta ? "disabled" : ""}>Huỷ</button>
+                                                `
+                                                : `
+                                                  <button type="button" class="btn btn-secondary btn-sm" data-open-topic="${escapeHtml(tp.id)}">Mở xem</button>
+                                                  <button type="button" class="btn btn-soft btn-sm" data-edit-topic-meta="${escapeHtml(tp.id)}" data-edit-topic-title="${escapeHtml(tp.title)}" data-edit-topic-subtitle="${escapeHtml(tp.subtitle || "")}">Sửa tên</button>
+                                                  <button type="button" class="btn btn-danger btn-sm" data-delete-topic="${escapeHtml(tp.id)}" data-delete-topic-title="${escapeHtml(tp.title)}" ${disableDel ? "disabled" : ""}>
+                                                    ${isDel ? "Đang xoá..." : "Xoá chủ đề"}
+                                                  </button>
+                                                `
+                                            }
                                           </div>
                                         </td>
                                       </tr>
@@ -1792,6 +1821,56 @@ export function mountTeacherDashboard(container, activeTopic, onTopicUpdated, sh
           if (!tid) return;
           if (onSelectTopic) {
             await onSelectTopic(tid);
+          }
+        });
+      });
+
+      container.querySelectorAll("[data-edit-topic-meta]").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          editingTopicId = btn.dataset.editTopicMeta || "";
+          editingTopicTitle = btn.dataset.editTopicTitle || "";
+          editingTopicSubtitle = btn.dataset.editTopicSubtitle || "";
+          render();
+          const inp = container.querySelector("#edit-topic-title-input");
+          if (inp) {
+            inp.focus();
+            inp.setSelectionRange(inp.value.length, inp.value.length);
+          }
+        });
+      });
+
+      container.querySelector("[data-cancel-topic-meta]")?.addEventListener("click", () => {
+        editingTopicId = "";
+        editingTopicTitle = "";
+        editingTopicSubtitle = "";
+        render();
+      });
+
+      container.querySelectorAll("[data-save-topic-meta]").forEach((btn) => {
+        btn.addEventListener("click", async () => {
+          const tid = btn.dataset.saveTopicMeta;
+          const newTitle = (container.querySelector("#edit-topic-title-input")?.value || "").trim();
+          const newSubtitle = (container.querySelector("#edit-topic-subtitle-input")?.value || "").trim();
+          if (!newTitle) {
+            showToast("Vui lòng nhập tên Chủ đề.", "error");
+            return;
+          }
+          savingTopicMetaId = tid;
+          render();
+          try {
+            const res = await api.updateTopicMeta(tid, { title: newTitle, subtitle: newSubtitle });
+            clientCache.invalidateTopic(tid);
+            clientCache.invalidateTeacherData();
+            editingTopicId = "";
+            editingTopicTitle = "";
+            editingTopicSubtitle = "";
+            showToast(res.message || `Đã đổi tên Chủ đề thành "${newTitle}".`, "success");
+            await onTopicsReload(activeTopic?.id || tid);
+          } catch (err) {
+            showToast(err.message, "error");
+          } finally {
+            savingTopicMetaId = "";
+            render();
           }
         });
       });

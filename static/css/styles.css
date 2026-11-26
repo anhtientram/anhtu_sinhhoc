@@ -1323,10 +1323,17 @@ body.presentation-mode .center-tabs-bar {
 /* ================== TABLES, MINDMAP, FLASHCARDS ================== */
 .data-table-wrap {
   width: 100%;
+  max-width: 100%;
   overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
   border: 1px solid var(--border);
   border-radius: var(--radius);
   background: var(--surface);
+}
+
+.ex-interactive-table th,
+.ex-interactive-table td {
+  padding: 8px 9px;
 }
 
 .data-table {
