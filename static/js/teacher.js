@@ -791,16 +791,23 @@ export function mountTeacherDashboard(container, activeTopic, onTopicUpdated, sh
                           ${newTopicDraft.loading ? "Đang đọc & thiết kế Chủ đề..." : "Chọn file Word (.docx) hoặc PDF (.pdf)"}
                           <input type="file" id="new-topic-file-input" accept=".docx,.pdf,.txt,.md" style="display:none;" ${newTopicDraft.loading ? "disabled" : ""} />
                         </label>
-                        <span style="font-size:0.85rem;color:var(--text-secondary);">
+                        <span id="new-topic-upload-text" style="font-size:0.85rem;color:var(--text-secondary);">
                           ${
                             newTopicDraft.loading
-                              ? "Đang phân tích cấu trúc bài học, hình ảnh, bảng biểu và câu hỏi..."
+                              ? "Đang chuẩn bị tải file lên..."
                               : newTopicDraft.file
                               ? `Đã đọc xong: <strong>${escapeHtml(newTopicDraft.file.name)}</strong>`
                               : "Hỗ trợ tệp Word (.docx) và PDF (.pdf) chuẩn cấu trúc giảng dạy"
                           }
                         </span>
                       </div>
+                      ${
+                        newTopicDraft.loading
+                          ? `<div style="margin-top:10px;height:6px;border-radius:999px;background:rgba(15,118,110,0.14);overflow:hidden;">
+                               <div id="new-topic-upload-bar" style="height:100%;width:8%;background:var(--primary);transition:width 0.15s ease;"></div>
+                             </div>`
+                          : ""
+                      }
                     </div>
 
                     ${
@@ -925,7 +932,7 @@ export function mountTeacherDashboard(container, activeTopic, onTopicUpdated, sh
                     Chọn file tài liệu
                     <input type="file" id="doc-import-input" accept=".docx,.pdf,.txt,.md" style="display:none;" />
                   </label>
-                  <span style="font-size:0.84rem;color:var(--text-secondary);">
+                  <span id="doc-import-upload-text" style="font-size:0.84rem;color:var(--text-secondary);">
                     ${
                       importState.loading
                         ? "Đang đọc tài liệu..."
@@ -935,6 +942,13 @@ export function mountTeacherDashboard(container, activeTopic, onTopicUpdated, sh
                     }
                   </span>
                 </div>
+                ${
+                  importState.loading
+                    ? `<div style="margin-bottom:12px;height:6px;border-radius:999px;background:rgba(15,118,110,0.14);overflow:hidden;">
+                         <div id="doc-import-upload-bar" style="height:100%;width:8%;background:var(--primary);transition:width 0.15s ease;"></div>
+                       </div>`
+                    : ""
+                }
 
                 <div style="display:flex;gap:14px;flex-wrap:wrap;font-size:0.84rem;color:var(--text-secondary);">
                   <label><input type="checkbox" data-imp-sec="theory" ${importState.sections.theory ? "checked" : ""}/> Lý thuyết &amp; Hình ảnh</label>
@@ -1697,10 +1711,24 @@ export function mountTeacherDashboard(container, activeTopic, onTopicUpdated, sh
         newTopicDraft.preview = null;
         render();
         try {
+          const updateProgressUi = (p) => {
+            const txtEl = container.querySelector("#new-topic-upload-text");
+            const barEl = container.querySelector("#new-topic-upload-bar");
+            if (p.phase === "uploading") {
+              const mbDone = (p.loaded / (1024 * 1024)).toFixed(1);
+              const mbTotal = (p.total / (1024 * 1024)).toFixed(1);
+              if (txtEl) txtEl.textContent = `Đang tải file lên: ${p.percent}% (${mbDone} / ${mbTotal} MB)...`;
+              if (barEl) barEl.style.width = `${Math.max(8, p.percent)}%`;
+            } else {
+              if (txtEl) txtEl.textContent = "Đã tải lên 100% — Máy chủ đang trích xuất bài học, hình ảnh & câu hỏi...";
+              if (barEl) barEl.style.width = "100%";
+            }
+          };
           const res = await api.previewNewTopicFile(file, {
             order_index: newTopicDraft.order_index,
             title: newTopicDraft.title,
             subtitle: newTopicDraft.subtitle,
+            onProgress: updateProgressUi,
           });
           newTopicDraft.preview = res.preview;
           newTopicDraft.order_index = res.order_index || newTopicDraft.order_index;
@@ -1856,8 +1884,22 @@ export function mountTeacherDashboard(container, activeTopic, onTopicUpdated, sh
           importState.preview = null;
           render();
           try {
+            const updateDocProgressUi = (p) => {
+              const txtEl = container.querySelector("#doc-import-upload-text");
+              const barEl = container.querySelector("#doc-import-upload-bar");
+              if (p.phase === "uploading") {
+                const mbDone = (p.loaded / (1024 * 1024)).toFixed(1);
+                const mbTotal = (p.total / (1024 * 1024)).toFixed(1);
+                if (txtEl) txtEl.textContent = `Đang tải file lên: ${p.percent}% (${mbDone} / ${mbTotal} MB)...`;
+                if (barEl) barEl.style.width = `${Math.max(8, p.percent)}%`;
+              } else {
+                if (txtEl) txtEl.textContent = "Đã tải lên 100% — Máy chủ đang phân tích tài liệu...";
+                if (barEl) barEl.style.width = "100%";
+              }
+            };
             const res = await api.importTopicFile(activeTopic.id, file, {
               preview_only: true,
+              onProgress: updateDocProgressUi,
             });
             importState.preview = res.preview;
             showToast(`Đã đọc xong "${file.name}".`, "success");

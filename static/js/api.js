@@ -190,12 +190,50 @@ export async function apiRequest(path, options = {}) {
   throw lastErr || new Error("Không thể kết nối máy chủ.");
 }
 
-async function apiBinaryUpload(path, file) {
+async function apiBinaryUpload(path, file, onProgress = null) {
   const token = getToken();
+  const fullUrl = withBase(path);
+
+  if (typeof onProgress === "function" && typeof XMLHttpRequest !== "undefined") {
+    return new Promise((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
+      xhr.open("POST", fullUrl, true);
+      xhr.setRequestHeader("Content-Type", "application/octet-stream");
+      if (token) xhr.setRequestHeader("Authorization", `Bearer ${token}`);
+
+      xhr.upload.onprogress = (ev) => {
+        if (ev.lengthComputable && ev.total > 0) {
+          const percent = Math.min(99, Math.round((ev.loaded / ev.total) * 100));
+          onProgress({ phase: "uploading", loaded: ev.loaded, total: ev.total, percent });
+        }
+      };
+      xhr.upload.onload = () => {
+        onProgress({ phase: "processing", loaded: file.size || 0, total: file.size || 0, percent: 100 });
+      };
+      xhr.onload = () => {
+        const text = xhr.responseText || "";
+        let data = {};
+        try {
+          data = text ? JSON.parse(text) : {};
+        } catch {
+          data = { raw: text };
+        }
+        if (xhr.status >= 200 && xhr.status < 300) {
+          resolve(data);
+        } else {
+          reject(new Error(data.error || `Lỗi máy chủ (${xhr.status})`));
+        }
+      };
+      xhr.onerror = () => reject(new Error("Lỗi kết nối khi tải file lên máy chủ."));
+      xhr.ontimeout = () => reject(new Error("Quá thời gian xử lý file trên máy chủ."));
+      xhr.send(file);
+    });
+  }
+
   const headers = { "Content-Type": "application/octet-stream" };
   if (token) headers["Authorization"] = `Bearer ${token}`;
 
-  const res = await fetch(withBase(path), {
+  const res = await fetch(fullUrl, {
     method: "POST",
     headers,
     body: file,
@@ -267,7 +305,7 @@ export const api = {
         replace_review: meta.replace_review === false ? "0" : "1",
       });
       if (meta.sections) qs.set("sections", JSON.stringify(meta.sections));
-      return apiBinaryUpload(`/api/topics/${encodeURIComponent(id)}/import-file?${qs.toString()}`, fileOrPayload);
+      return apiBinaryUpload(`/api/topics/${encodeURIComponent(id)}/import-file?${qs.toString()}`, fileOrPayload, meta.onProgress);
     }
     return apiRequest(`/api/topics/${encodeURIComponent(id)}/import-file`, {
       method: "POST",
@@ -283,7 +321,7 @@ export const api = {
         title: meta.title || "",
         subtitle: meta.subtitle || "",
       });
-      return apiBinaryUpload(`/api/topics/preview-new-file?${qs.toString()}`, fileOrPayload);
+      return apiBinaryUpload(`/api/topics/preview-new-file?${qs.toString()}`, fileOrPayload, meta.onProgress);
     }
     return apiRequest("/api/topics/preview-new-file", {
       method: "POST",

@@ -23,6 +23,7 @@ import tempfile
 import uuid
 import xml.etree.ElementTree as ET
 import zipfile
+from concurrent.futures import ThreadPoolExecutor
 from typing import Any, Dict, List, Optional, Tuple
 
 try:
@@ -384,44 +385,65 @@ def _analyze_paragraph_stdlib(p_elem, style_map: Dict[str, str]):
 
 
 def _extract_body_items_from_docx_stdlib(file_bytes: bytes, topic_id: str) -> Dict:
-    """Trình đọc .docx thuần Python stdlib (zipfile + ElementTree), không phụ thuộc python-docx/lxml."""
+    """Trình đọc .docx thuần Python stdlib (zipfile + ElementTree), tối ưu ghi ảnh song song cho Wasmer Edge."""
     topic_upload_dir = os.path.join(UPLOADS_DIR, topic_id)
     os.makedirs(topic_upload_dir, exist_ok=True)
-    tmp_dir = tempfile.mkdtemp(prefix="bio12_crop_")
+    use_crop_bin = sys.platform == "darwin" and os.path.exists(CROP_BIN)
+    tmp_dir = tempfile.mkdtemp(prefix="bio12_crop_") if use_crop_bin else ""
 
-    rid_raw_info = {}
+    rid_zip_map = {}
+    rid_blob_cache = {}
     style_map = {}
     items = []
     tables_count = 0
     crop_cache = {}
     crop_jobs = []
+    pending_writes = {}  # dst_path -> blob
     extracted_images = []
-
-    def resolve_image(rid: str, l: int, t: int, r: int, b: int, rot: int = 0) -> Optional[str]:
-        if rid not in rid_raw_info:
-            return None
-        key = (rid, l, t, r, b, rot)
-        if key in crop_cache:
-            return crop_cache[key]
-        raw_path, ext, blob = rid_raw_info[rid]
-        sig = hashlib.md5(f"{topic_id}:{rid}:{l}:{t}:{r}:{b}:{rot}".encode()).hexdigest()[:10]
-        needs_transform = any(v > 0 for v in (l, t, r, b)) or (rot % 360 != 0)
-        out_ext = ".png" if ext == ".png" else ".jpg"
-        fname = f"img_{sig}{out_ext}"
-        dst_path = os.path.join(topic_upload_dir, fname)
-        url = f"/uploads/{topic_id}/{fname}"
-        if needs_transform and sys.platform == "darwin" and os.path.exists(CROP_BIN):
-            crop_jobs.append({"src": raw_path, "dst": dst_path, "l": l, "t": t, "r": r, "b": b, "rot": rot})
-        else:
-            with open(dst_path, "wb") as f:
-                f.write(blob)
-        crop_cache[key] = url
-        extracted_images.append(url)
-        return url
 
     try:
         with zipfile.ZipFile(io.BytesIO(file_bytes)) as zf:
             names = set(zf.namelist())
+
+            def resolve_image(rid: str, l: int, t: int, r: int, b: int, rot: int = 0) -> Optional[str]:
+                if rid not in rid_zip_map:
+                    return None
+                key = (rid, l, t, r, b, rot)
+                if key in crop_cache:
+                    return crop_cache[key]
+
+                clean_target, ext = rid_zip_map[rid]
+                if rid in rid_blob_cache:
+                    blob = rid_blob_cache[rid]
+                else:
+                    blob = zf.read(clean_target)
+                    rid_blob_cache[rid] = blob
+                if not blob or len(blob) < 100:
+                    crop_cache[key] = None
+                    return None
+
+                blob_sig = hashlib.md5(blob).hexdigest()[:8]
+                sig = hashlib.md5(f"{topic_id}:{blob_sig}:{l}:{t}:{r}:{b}:{rot}".encode()).hexdigest()[:10]
+                needs_transform = any(v > 0 for v in (l, t, r, b)) or (rot % 360 != 0)
+                out_ext = ".png" if ext == ".png" else ".jpg"
+                fname = f"img_{sig}{out_ext}"
+                dst_path = os.path.join(topic_upload_dir, fname)
+                url = f"/uploads/{topic_id}/{fname}"
+
+                if needs_transform and use_crop_bin:
+                    raw_path = os.path.join(tmp_dir, f"{rid}{ext}")
+                    if not os.path.exists(raw_path):
+                        with open(raw_path, "wb") as f:
+                            f.write(blob)
+                    crop_jobs.append({"src": raw_path, "dst": dst_path, "l": l, "t": t, "r": r, "b": b, "rot": rot})
+                else:
+                    if dst_path not in pending_writes and not os.path.isfile(dst_path):
+                        pending_writes[dst_path] = blob
+
+                crop_cache[key] = url
+                if url not in extracted_images:
+                    extracted_images.append(url)
+                return url
 
             if "word/styles.xml" in names:
                 try:
@@ -459,16 +481,10 @@ def _extract_body_items_from_docx_stdlib(file_bytes: bytes, topic_id: str) -> Di
                             clean_target = posixpath.normpath(posixpath.join("word", clean_target))
                         if clean_target not in names:
                             continue
-                        blob = zf.read(clean_target)
-                        if len(blob) < 100:
-                            continue
                         ext = os.path.splitext(clean_target)[1].lower() or ".png"
                         if ext not in (".png", ".jpg", ".jpeg", ".gif", ".webp"):
                             ext = ".png"
-                        raw_path = os.path.join(tmp_dir, f"{rid}{ext}")
-                        with open(raw_path, "wb") as f:
-                            f.write(blob)
-                        rid_raw_info[rid] = (raw_path, ext, blob)
+                        rid_zip_map[rid] = (clean_target, ext)
                 except Exception:
                     pass
 
@@ -542,13 +558,27 @@ def _extract_body_items_from_docx_stdlib(file_bytes: bytes, topic_id: str) -> Di
                             }
                         )
 
-        if crop_jobs and sys.platform == "darwin" and os.path.exists(CROP_BIN):
+        if pending_writes:
+            def _write_img(item):
+                dst, data = item
+                with open(dst, "wb") as f:
+                    f.write(data)
+
+            if len(pending_writes) == 1:
+                _write_img(next(iter(pending_writes.items())))
+            else:
+                with ThreadPoolExecutor(max_workers=min(8, len(pending_writes))) as pool:
+                    for fut in [pool.submit(_write_img, pair) for pair in pending_writes.items()]:
+                        fut.result()
+
+        if crop_jobs and use_crop_bin:
             jobs_file = os.path.join(tmp_dir, "jobs.json")
             with open(jobs_file, "w", encoding="utf-8") as jf:
                 json.dump(crop_jobs, jf)
             subprocess.run([CROP_BIN, jobs_file], check=False, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     finally:
-        shutil.rmtree(tmp_dir, ignore_errors=True)
+        if tmp_dir:
+            shutil.rmtree(tmp_dir, ignore_errors=True)
 
     return {
         "items": items,
@@ -558,13 +588,13 @@ def _extract_body_items_from_docx_stdlib(file_bytes: bytes, topic_id: str) -> Di
 
 
 def extract_body_items_from_docx(file_bytes: bytes, topic_id: str) -> Dict:
-    """Đọc toàn bộ file Word theo đúng thứ tự tự nhiên: paragraph + table + ảnh (đã cắt đúng srcRect) + công thức."""
-    if docx is None:
-        return _extract_body_items_from_docx_stdlib(file_bytes, topic_id)
-    try:
-        return _extract_body_items_from_docx_python_docx(file_bytes, topic_id)
-    except Exception:
-        return _extract_body_items_from_docx_stdlib(file_bytes, topic_id)
+    """Đọc toàn bộ file Word theo đúng thứ tự tự nhiên: paragraph + table + ảnh + công thức."""
+    if os.environ.get("USE_PYTHON_DOCX_PARSER") == "1" and docx is not None:
+        try:
+            return _extract_body_items_from_docx_python_docx(file_bytes, topic_id)
+        except Exception:
+            pass
+    return _extract_body_items_from_docx_stdlib(file_bytes, topic_id)
 
 
 def _extract_body_items_from_docx_python_docx(file_bytes: bytes, topic_id: str) -> Dict:
