@@ -141,7 +141,7 @@ class Bio12Handler(BaseHTTPRequestHandler):
     def setup(self):
         super().setup()
         try:
-            self.request.settimeout(30.0)
+            self.request.settimeout(60.0)
         except Exception:
             pass
 
@@ -154,8 +154,13 @@ class Bio12Handler(BaseHTTPRequestHandler):
         return "gzip" in ae
 
     def _safe_write(self, data: bytes):
+        if not data:
+            return
+        mv = memoryview(data)
+        chunk_size = 65536
         try:
-            self.wfile.write(data)
+            for offset in range(0, len(mv), chunk_size):
+                self.wfile.write(mv[offset : offset + chunk_size])
         except (BrokenPipeError, ConnectionResetError, TimeoutError, OSError):
             pass
 
@@ -225,15 +230,54 @@ class Bio12Handler(BaseHTTPRequestHandler):
             for k, v in extra_headers.items():
                 self.send_header(k, v)
         self.end_headers()
-        self.wfile.write(payload)
+        self._safe_write(payload)
 
     def read_raw_body(self) -> bytes:
+        chunk_size = 65536
+        te = (self.headers.get("Transfer-Encoding") or "").lower()
+        if "chunked" in te:
+            buf = bytearray()
+            while True:
+                line = self.rfile.readline(256)
+                if not line:
+                    break
+                size_hex = line.split(b";", 1)[0].strip()
+                if not size_hex:
+                    continue
+                sz = int(size_hex, 16)
+                if sz == 0:
+                    while True:
+                        tr = self.rfile.readline(256)
+                        if not tr or tr in (b"\r\n", b"\n"):
+                            break
+                    break
+                if len(buf) + sz > MAX_BODY_BYTES:
+                    raise _PayloadTooLargeError()
+                rem = sz
+                while rem > 0:
+                    piece = self.rfile.read(min(rem, chunk_size))
+                    if not piece:
+                        break
+                    buf.extend(piece)
+                    rem -= len(piece)
+                # Tiêu thụ CRLF kết thúc chunk
+                self.rfile.readline(4)
+            return bytes(buf)
+
         length = int(self.headers.get("Content-Length", "0") or 0)
         if length <= 0:
             return b""
         if length > MAX_BODY_BYTES:
             raise _PayloadTooLargeError()
-        return self.rfile.read(length)
+        buf = bytearray()
+        remaining = length
+        while remaining > 0:
+            piece = self.rfile.read(min(remaining, chunk_size))
+            if not piece:
+                break
+            buf.extend(piece)
+            remaining -= len(piece)
+        return bytes(buf)
 
     def read_json_body(self):
         raw = self.read_raw_body()
@@ -587,7 +631,7 @@ class Bio12Handler(BaseHTTPRequestHandler):
                         'attachment; filename="mau-nhap-hoc-sinh-sinhhoc12.xlsx"',
                     )
                     self.end_headers()
-                    self.wfile.write(xlsx_bytes)
+                    self._safe_write(xlsx_bytes)
                     return
                 except Exception as e:
                     return self.send_json(500, {"error": f"Không thể tạo file Excel mẫu: {e}"})
@@ -633,7 +677,7 @@ class Bio12Handler(BaseHTTPRequestHandler):
                 self.send_header("Access-Control-Allow-Origin", "*")
                 self.send_header("Content-Disposition", f'attachment; filename="{fname}"')
                 self.end_headers()
-                self.wfile.write(raw_bytes)
+                self._safe_write(raw_bytes)
                 return
 
             if path == "/api/teacher/sessions/export":
@@ -666,7 +710,7 @@ class Bio12Handler(BaseHTTPRequestHandler):
                         'attachment; filename="mau-tai-lieu-chu-de-sinh12.docx"',
                     )
                     self.end_headers()
-                    self.wfile.write(docx_bytes)
+                    self._safe_write(docx_bytes)
                     return
                 except Exception as e:
                     return self.send_json(500, {"error": f"Không thể tạo file mẫu: {e}"})
