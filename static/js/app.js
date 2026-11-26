@@ -12,6 +12,12 @@ import {
 } from "./api.js";
 import { mountInteractiveDiagram } from "./diagrams.js";
 import { escapeHtml, formatBioHtml } from "./format.js";
+import {
+  bindInteractiveExerciseEvents,
+  collectInteractiveUnitIds,
+  renderDocumentBlocksInteractive,
+  renderInteractiveToolbar,
+} from "./interactive_blocks.js";
 import { mountQuizSection } from "./quiz.js";
 import { mountTeacherDashboard } from "./teacher.js";
 import { mountYoutubeLibrary } from "./youtube_videos.js";
@@ -818,73 +824,9 @@ function renderMainShell() {
   }
 }
 
-// ================== SHARED RICH CONTENT RENDERERS (với công thức chuẩn) ==================
-function renderRichTable(rows, editableEmptyCells = false) {
-  if (!rows || !rows.length) return "";
-  const [header, ...body] = rows;
-  return `
-    <div class="data-table-wrap" style="margin:12px 0;">
-      <table class="data-table">
-        <thead>
-          <tr>${header.map((c) => `<th>${formatBioHtml(c)}</th>`).join("")}</tr>
-        </thead>
-        <tbody>
-          ${body
-            .map(
-              (r) => `
-              <tr>
-                ${r
-                  .map((c, ci) => {
-                    const trimmed = (c || "").trim();
-                    if (editableEmptyCells && (!trimmed || /^[\.\…\_\-]+$/.test(trimmed))) {
-                      return `<td><input type="text" class="form-control form-control-sm" style="min-width:110px;" placeholder="Nhập nội dung..." /></td>`;
-                    }
-                    return ci === 0
-                      ? `<td><strong>${formatBioHtml(c)}</strong></td>`
-                      : `<td style="white-space:pre-line;">${formatBioHtml(c)}</td>`;
-                  })
-                  .join("")}
-              </tr>
-            `
-            )
-            .join("")}
-        </tbody>
-      </table>
-    </div>
-  `;
-}
-
+// ================== SHARED RICH CONTENT RENDERERS (với bài tập tương tác & đối chiếu đáp án) ==================
 function renderDocumentBlocks(blocks, editableEmptyCells = false) {
-  if (!blocks || !blocks.length) return "";
-  return blocks
-    .map((b) => {
-      if (b.type === "image") {
-        return `
-          <figure class="lesson-hero-figure">
-            <img src="${withBase(b.src)}" alt="${escapeHtml(b.caption || "Hình minh họa Sinh học 12")}" loading="lazy" />
-            ${b.caption ? `<figcaption>${formatBioHtml(b.caption)}</figcaption>` : ""}
-          </figure>
-        `;
-      }
-      if (b.type === "table") {
-        const extraImgs = (b.images || [])
-          .map(
-            (src) => `
-            <figure class="lesson-hero-figure" style="margin:10px 0;">
-              <img src="${withBase(src)}" alt="Hình minh họa" loading="lazy" />
-            </figure>
-          `
-          )
-          .join("");
-        return renderRichTable(b.rows, editableEmptyCells) + extraImgs;
-      }
-      const html = formatBioHtml(b.text || "");
-      const isBullet = /^[-–+•]\s*/.test(b.text || "");
-      if (b.is_bold) return `<p class="prose-p-bold">${html}</p>`;
-      if (isBullet) return `<p class="prose-bullet">${html}</p>`;
-      return `<p class="prose-p">${html}</p>`;
-    })
-    .join("");
+  return renderDocumentBlocksInteractive(blocks, editableEmptyCells);
 }
 
 // ================== TAB 1: LÝ THUYẾT & THƯ VIỆN VIDEO YOUTUBE ==================
@@ -940,6 +882,9 @@ function renderTheoryTab(container) {
   }
 
   const isDone = state.completedLessonIds.has(activeLesson.id);
+  const allLessonBlocks = (activeLesson.sections || []).flatMap((sec) => sec.blocks || []);
+  const lessonInteractiveIds = collectInteractiveUnitIds(allLessonBlocks);
+
   bodyEl.innerHTML = `
     <div class="lesson-tabs-bar">
       ${lessons
@@ -965,6 +910,8 @@ function renderTheoryTab(container) {
         </button>
       </div>
 
+      ${renderInteractiveToolbar(lessonInteractiveIds, `bài ${activeLesson.number}`)}
+
       ${(activeLesson.sections || [])
         .map((sec) => {
           const isYccd = /yêu cầu cần đạt/i.test(sec.heading || "");
@@ -989,6 +936,8 @@ function renderTheoryTab(container) {
       </div>
     </article>
   `;
+
+  bindInteractiveExerciseEvents(bodyEl, lessonInteractiveIds, () => renderTheoryTab(container));
 
   if (activeLesson.interactive_diagram) {
     mountInteractiveDiagram(bodyEl.querySelector("#lesson-interactive-sim"), activeLesson.interactive_diagram);
@@ -1071,6 +1020,7 @@ function renderKnowledgeTab(container) {
 
     if (ksMode === "source" && units.length) {
       const unit = units[activeUnitIdx] || units[0];
+      const unitInteractiveIds = collectInteractiveUnitIds(unit.blocks || []);
       bodyEl.innerHTML = `
         <div class="lesson-tabs-bar">
           ${units
@@ -1084,15 +1034,18 @@ function renderKnowledgeTab(container) {
             .join("")}
         </div>
 
-        <article class="card prose-article">
+        <article class="card prose-article prose-article-wide">
           <div style="margin-bottom:14px;padding-bottom:12px;border-bottom:1px solid var(--border);">
             <span class="pill pill-primary">${escapeHtml(unit.lesson_number)}</span>
             <h2 style="margin:6px 0 4px;font-size:1.2rem;">${formatBioHtml(unit.lesson_title)}</h2>
-            <p style="margin:0;font-size:0.84rem;color:var(--text-muted);">Học sinh có thể điền trực tiếp vào các ô trống trong bảng để tự tổng hợp kiến thức.</p>
+            <p style="margin:0;font-size:0.84rem;color:var(--text-muted);">Học sinh nhập đáp án trực tiếp vào các ô trả lời rồi bấm <strong>Kiểm tra đáp án</strong> để đối chiếu kết quả đúng ngay kế bên.</p>
           </div>
+          ${renderInteractiveToolbar(unitInteractiveIds, `phiếu ${unit.lesson_number}`)}
           ${renderDocumentBlocks(unit.blocks, true)}
         </article>
       `;
+
+      bindInteractiveExerciseEvents(bodyEl, unitInteractiveIds, draw);
 
       bodyEl.querySelectorAll("[data-ks-unit]").forEach((btn) => {
         btn.addEventListener("click", () => {
