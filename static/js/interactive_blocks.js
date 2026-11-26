@@ -378,6 +378,118 @@ function renderInteractiveTable(block) {
     `;
   }
 
+  // --- Mode 3b: check_multi_and_fill (VD: 5.4 Câu 1 — chọn nhiều cột nguyên nhân + nhập Phương pháp nghiên cứu) ---
+  if (mode === "check_multi_and_fill") {
+    const headerCount = inter.header_rows || 2;
+    const headerRow = rows[headerCount - 1] || rows[0];
+    const body = rows.slice(headerCount);
+    const checkCols = inter.check_cols || [2, 3, 4, 5];
+    const textCol = inter.text_col ?? 6;
+    const colLabels = inter.col_labels || {};
+    const rowAnswers = inter.row_answers || {};
+    let rightRows = 0;
+    const totalRows = Object.keys(rowAnswers).length;
+
+    const bodyHtml = body
+      .map((r, bi) => {
+        const rowIndex = bi + headerCount;
+        const rowMeta = rowAnswers[String(rowIndex)] || { checks: [], text: "", exact: [] };
+        const expectedSet = new Set((rowMeta.checks || []).map(Number));
+        const textKey = `${tid}::mtxt::${rowIndex}`;
+        const studentText = answerStore.has(textKey) ? String(answerStore.get(textKey)) : "";
+
+        let checksAllMatch = true;
+        for (const ci of checkCols) {
+          const cKey = `${tid}::mchk::${rowIndex}:${ci}`;
+          const isMarked = Boolean(answerStore.get(cKey));
+          if (isMarked !== expectedSet.has(ci)) checksAllMatch = false;
+        }
+        const textEval = isChecked
+          ? evaluateAnswer(studentText, {
+              mode: "input",
+              answer: rowMeta.text || "",
+              exact: rowMeta.exact,
+              grade_type: rowMeta.exact?.length ? "exact" : "compare",
+            })
+          : null;
+        const rowAllRight = checksAllMatch && textEval?.status === "correct";
+        if (isChecked && rowAllRight) rightRows++;
+
+        const cellsHtml = r
+          .map((c, ci) => {
+            if (checkCols.includes(ci)) {
+              const cKey = `${tid}::mchk::${rowIndex}:${ci}`;
+              const selected = Boolean(answerStore.get(cKey));
+              const shouldMark = expectedSet.has(ci);
+              let extraCls = "";
+              if (isChecked) {
+                if (selected && shouldMark) extraCls = "ex-input-correct";
+                else if (selected && !shouldMark) extraCls = "ex-input-wrong";
+                else if (!selected && shouldMark) extraCls = "ex-radio-reveal";
+              }
+              return `
+                <td style="text-align:center;">
+                  <button type="button" class="ex-check-box ${selected ? "is-marked" : ""} ${extraCls}" data-chk-key="${escapeHtml(
+                cKey
+              )}" aria-pressed="${selected ? "true" : "false"}">
+                    ${selected ? "✕" : ""}
+                  </button>
+                </td>
+              `;
+            }
+            if (ci === textCol) {
+              const tCls = isChecked
+                ? textEval.status === "correct"
+                  ? "ex-input-correct"
+                  : textEval.status === "wrong"
+                  ? "ex-input-wrong"
+                  : textEval.status === "empty"
+                  ? "ex-input-empty"
+                  : "ex-input-compare"
+                : "";
+              const causeNames = (rowMeta.checks || []).map((col) => colLabels[String(col)] || "").filter(Boolean).join(" + ");
+              const fullOfficial = `Nguyên nhân: ${causeNames}\nPhương pháp: ${rowMeta.text || ""}`;
+              const combinedEval = isChecked
+                ? rowAllRight
+                  ? { status: "correct", label: "Chính xác" }
+                  : { status: checksAllMatch ? textEval.status : "wrong", label: checksAllMatch ? textEval.label : "Đối chiếu đáp án" }
+                : null;
+              return `
+                <td class="ex-table-interactive-cell">
+                  <div class="ex-cell-pair ${isChecked ? "is-checked" : ""}">
+                    <div class="ex-student-col">
+                      <input type="text" class="form-control ex-input ex-table-input ${tCls}" data-ex-key="${escapeHtml(
+                textKey
+              )}" value="${escapeHtml(studentText)}" placeholder="Nhập phương pháp..." />
+                    </div>
+                    ${isChecked ? renderSideAnswerBox(combinedEval, fullOfficial) : ""}
+                  </div>
+                </td>
+              `;
+            }
+            return ci === 0
+              ? `<td><strong>${formatBioHtml(c)}</strong></td>`
+              : `<td style="white-space:pre-line;">${formatBioHtml(c)}</td>`;
+          })
+          .join("");
+        return `<tr>${cellsHtml}</tr>`;
+      })
+      .join("");
+
+    const summary = isChecked ? `Đúng trọn vẹn ${rightRows}/${totalRows} bệnh` : "";
+    return `
+      <div class="ex-block-card" data-ex-unit="${escapeHtml(tid)}">
+        <div class="data-table-wrap" style="margin:0;">
+          <table class="data-table ex-interactive-table">
+            <thead><tr>${headerRow.map((c) => `<th>${formatBioHtml(c)}</th>`).join("")}</tr></thead>
+            <tbody>${bodyHtml}</tbody>
+          </table>
+        </div>
+        ${renderActionBar(tid, isChecked, summary)}
+      </div>
+    `;
+  }
+
   // --- Mode 4: fill (Bảng điền khuyết / khái niệm / sơ đồ lai / tính toán) ---
   const headerCount = inter.header_rows || 1;
   const headerRow = rows[headerCount - 1] || rows[0];
