@@ -46,6 +46,11 @@ from database import (
 from cache_layer import app_cache
 from exam_generator import build_exam_pool_summary, generate_shuffled_exam_package
 from importer import build_sample_docx_template, cleanup_topic_uploads, parse_document_to_topic
+from mock_exam_parser import (
+    compute_exam_max_score,
+    grade_mock_exam_submission,
+    parse_mock_exam_document,
+)
 from student_excel import (
     build_student_import_template_xlsx,
     parse_students_from_file,
@@ -723,6 +728,239 @@ class Bio12Handler(BaseHTTPRequestHandler):
                 except Exception as e:
                     return self.send_json(500, {"error": f"Không thể tạo file mẫu: {e}"})
 
+            # ------------------ THI THỬ TỐT NGHIỆP THPT (GET) ------------------
+            if path == "/api/mock-exams":
+                user = self.require_user(conn, qs)
+                if not user:
+                    return
+                rows = conn.execute(
+                    """
+                    SELECT id, order_number, header_label, title, subtitle, duration_minutes,
+                           source_filename, content_json, question_count, max_score,
+                           created_by, created_by_name, created_at, updated_at
+                    FROM mock_exams
+                    ORDER BY order_number ASC, id ASC
+                    """
+                ).fetchall()
+                my_stats_rows = conn.execute(
+                    """
+                    SELECT exam_id, COUNT(*) AS cnt, MAX(score) AS best_score, MAX(id) AS last_id
+                    FROM mock_exam_attempts
+                    WHERE user_id = ?
+                    GROUP BY exam_id
+                    """,
+                    (user["id"],),
+                ).fetchall()
+                my_map = {r["exam_id"]: r for r in my_stats_rows}
+
+                all_cnt_map = {}
+                if user["role"] in ("admin", "teacher"):
+                    all_rows = conn.execute(
+                        "SELECT exam_id, COUNT(*) AS cnt FROM mock_exam_attempts GROUP BY exam_id"
+                    ).fetchall()
+                    all_cnt_map = {r["exam_id"]: r["cnt"] for r in all_rows}
+
+                exams = []
+                for r in rows:
+                    try:
+                        c = json.loads(r["content_json"])
+                    except Exception:
+                        c = {"mcq": [], "true_false": [], "short_answer": []}
+                    ms = my_map.get(r["id"])
+                    exams.append({
+                        "id": r["id"],
+                        "order_number": r["order_number"],
+                        "header_label": r["header_label"] or "PHÒNG LUYỆN TẬP",
+                        "title": r["title"] or f"Đề số {r['order_number']}",
+                        "subtitle": r["subtitle"] or "",
+                        "duration_minutes": r["duration_minutes"] or 45,
+                        "source_filename": r["source_filename"] or "",
+                        "question_count": r["question_count"],
+                        "mcq_count": len(c.get("mcq") or []),
+                        "tf_count": len(c.get("true_false") or []),
+                        "sa_count": len(c.get("short_answer") or []),
+                        "max_score": r["max_score"],
+                        "created_by": r["created_by"],
+                        "created_by_name": r["created_by_name"] or "",
+                        "created_at": r["created_at"],
+                        "updated_at": r["updated_at"],
+                        "my_attempt_count": int(ms["cnt"]) if ms else 0,
+                        "my_best_score": float(ms["best_score"]) if (ms and ms["best_score"] is not None) else None,
+                        "my_last_attempt_id": int(ms["last_id"]) if (ms and ms["last_id"] is not None) else None,
+                        "total_attempts": int(all_cnt_map.get(r["id"], 0)),
+                    })
+                return self.send_json(200, {"exams": exams})
+
+            m_me_att_one = re.match(r"^/api/mock-exams/attempts/(\d+)$", path)
+            if m_me_att_one:
+                user = self.require_user(conn, qs)
+                if not user:
+                    return
+                att_id = int(m_me_att_one.group(1))
+                att = conn.execute(
+                    """
+                    SELECT a.*, u.full_name, u.username, u.class_name, u.role AS user_role
+                    FROM mock_exam_attempts a
+                    JOIN users u ON u.id = a.user_id
+                    WHERE a.id = ?
+                    """,
+                    (att_id,),
+                ).fetchone()
+                if not att:
+                    return self.send_json(404, {"error": "Không tìm thấy bài làm."})
+                if att["user_id"] != user["id"] and user["role"] not in ("admin", "teacher"):
+                    return self.send_json(403, {"error": "Bạn không có quyền xem bài làm này."})
+                exam_row = conn.execute("SELECT * FROM mock_exams WHERE id = ?", (att["exam_id"],)).fetchone()
+                if not exam_row:
+                    return self.send_json(404, {"error": "Đề thi không còn tồn tại."})
+                content = json.loads(exam_row["content_json"])
+                answers = json.loads(att["answers_json"] or "{}")
+                result = grade_mock_exam_submission(content, answers)
+                return self.send_json(
+                    200,
+                    {
+                        "attempt": {
+                            "id": att["id"],
+                            "exam_id": att["exam_id"],
+                            "user_id": att["user_id"],
+                            "full_name": att["full_name"],
+                            "username": att["username"],
+                            "class_name": att["class_name"],
+                            "started_at": att["started_at"],
+                            "submitted_at": att["submitted_at"],
+                            "duration_seconds": att["duration_seconds"],
+                            "score": att["score"],
+                            "max_score": att["max_score"],
+                            "part1_score": att["part1_score"],
+                            "part2_score": att["part2_score"],
+                            "part3_score": att["part3_score"],
+                            "correct_count": att["correct_count"],
+                            "total_questions": att["total_questions"],
+                            "answers": answers,
+                        },
+                        "exam": {
+                            "id": exam_row["id"],
+                            "order_number": exam_row["order_number"],
+                            "header_label": exam_row["header_label"] or "PHÒNG LUYỆN TẬP",
+                            "title": exam_row["title"],
+                            "subtitle": exam_row["subtitle"] or "",
+                            "duration_minutes": exam_row["duration_minutes"] or 45,
+                            "content": content,
+                        },
+                        "result": result,
+                    },
+                )
+
+            m_me_atts = re.match(r"^/api/mock-exams/(\d+)/attempts$", path)
+            if m_me_atts:
+                user = self.require_user(conn, qs)
+                if not user:
+                    return
+                exam_id = int(m_me_atts.group(1))
+                if user["role"] in ("admin", "teacher"):
+                    rows = conn.execute(
+                        """
+                        SELECT a.id, a.exam_id, a.user_id, a.started_at, a.submitted_at,
+                               a.duration_seconds, a.score, a.max_score, a.part1_score,
+                               a.part2_score, a.part3_score, a.correct_count, a.total_questions,
+                               u.full_name, u.username, u.class_name, u.role AS user_role
+                        FROM mock_exam_attempts a
+                        JOIN users u ON u.id = a.user_id
+                        WHERE a.exam_id = ?
+                        ORDER BY a.submitted_at DESC
+                        """,
+                        (exam_id,),
+                    ).fetchall()
+                else:
+                    rows = conn.execute(
+                        """
+                        SELECT a.id, a.exam_id, a.user_id, a.started_at, a.submitted_at,
+                               a.duration_seconds, a.score, a.max_score, a.part1_score,
+                               a.part2_score, a.part3_score, a.correct_count, a.total_questions,
+                               u.full_name, u.username, u.class_name, u.role AS user_role
+                        FROM mock_exam_attempts a
+                        JOIN users u ON u.id = a.user_id
+                        WHERE a.exam_id = ? AND a.user_id = ?
+                        ORDER BY a.submitted_at DESC
+                        """,
+                        (exam_id, user["id"]),
+                    ).fetchall()
+                return self.send_json(200, {"attempts": [dict(r) for r in rows]})
+
+            m_me_one = re.match(r"^/api/mock-exams/(\d+)$", path)
+            if m_me_one:
+                user = self.require_user(conn, qs)
+                if not user:
+                    return
+                exam_id = int(m_me_one.group(1))
+                row = conn.execute("SELECT * FROM mock_exams WHERE id = ?", (exam_id,)).fetchone()
+                if not row:
+                    return self.send_json(404, {"error": "Không tìm thấy đề thi thử."})
+                content = json.loads(row["content_json"])
+                include_keys = (qs.get("include_keys", ["0"])[0] == "1") and user["role"] in ("admin", "teacher")
+                if not include_keys:
+                    # Ẩn hoàn toàn đáp án & lời giải khi học sinh đang làm bài
+                    sanitized = {
+                        "mcq": [
+                            {
+                                "id": q.get("id"),
+                                "orig_num": q.get("orig_num"),
+                                "question": q.get("question", ""),
+                                "images": q.get("images") or [],
+                                "tables": q.get("tables") or [],
+                                "options": q.get("options") or [],
+                            }
+                            for q in (content.get("mcq") or [])
+                        ],
+                        "true_false": [
+                            {
+                                "id": q.get("id"),
+                                "orig_num": q.get("orig_num"),
+                                "question": q.get("question", ""),
+                                "images": q.get("images") or [],
+                                "tables": q.get("tables") or [],
+                                "statements": [
+                                    {"key": st.get("key"), "text": st.get("text", "")}
+                                    for st in (q.get("statements") or [])
+                                ],
+                            }
+                            for q in (content.get("true_false") or [])
+                        ],
+                        "short_answer": [
+                            {
+                                "id": q.get("id"),
+                                "orig_num": q.get("orig_num"),
+                                "question": q.get("question", ""),
+                                "images": q.get("images") or [],
+                                "tables": q.get("tables") or [],
+                            }
+                            for q in (content.get("short_answer") or [])
+                        ],
+                    }
+                    content_out = sanitized
+                else:
+                    content_out = content
+
+                return self.send_json(
+                    200,
+                    {
+                        "exam": {
+                            "id": row["id"],
+                            "order_number": row["order_number"],
+                            "header_label": row["header_label"] or "PHÒNG LUYỆN TẬP",
+                            "title": row["title"] or f"Đề số {row['order_number']}",
+                            "subtitle": row["subtitle"] or "",
+                            "duration_minutes": row["duration_minutes"] or 45,
+                            "source_filename": row["source_filename"] or "",
+                            "question_count": row["question_count"],
+                            "max_score": row["max_score"],
+                            "created_by_name": row["created_by_name"] or "",
+                            "created_at": row["created_at"],
+                            "content": content_out,
+                        }
+                    },
+                )
+
             return self.send_json(404, {"error": "API endpoint không tồn tại."})
         finally:
             conn.close()
@@ -781,6 +1019,10 @@ class Bio12Handler(BaseHTTPRequestHandler):
             meta, file_bytes = self._parse_upload_request(qs)
             return self._handle_preview_new_topic_file(meta, file_bytes, qs)
 
+        if path == "/api/mock-exams/parse":
+            meta, file_bytes = self._parse_upload_request(qs)
+            return self._handle_parse_mock_exam_file(meta, file_bytes, qs)
+
         m_imp = re.match(r"^/api/topics/([a-zA-Z0-9_-]+)/import-file$", path)
         if m_imp:
             meta, file_bytes = self._parse_upload_request(qs)
@@ -794,6 +1036,28 @@ class Bio12Handler(BaseHTTPRequestHandler):
                 self._dispatch_post(conn, path, qs, body)
             finally:
                 conn.close()
+
+    def _handle_parse_mock_exam_file(self, body, file_bytes: bytes, qs):
+        filename = (body.get("filename") or "").strip()
+        if not filename or not file_bytes:
+            return self.send_json(400, {"error": "Vui lòng chọn tệp đề thi Word (.docx) hoặc PDF (.pdf)."})
+
+        conn = get_conn()
+        try:
+            staff = self.require_teacher(conn, qs, body)
+            if not staff:
+                return
+            row = conn.execute("SELECT COALESCE(MAX(order_number), 0) AS mx FROM mock_exams").fetchone()
+            next_order = int((row["mx"] if row else 0) or 0) + 1
+        finally:
+            conn.close()
+
+        try:
+            parsed = parse_mock_exam_document(file_bytes, filename, next_order_number=next_order)
+        except Exception as e:
+            return self.send_json(400, {"error": f"Lỗi khi phân tích đề thi: {e}"})
+
+        return self.send_json(200, {"ok": True, **parsed})
 
     def _handle_preview_new_topic_file(self, body, file_bytes: bytes, qs):
         filename = (body.get("filename") or "").strip()
@@ -1652,6 +1916,194 @@ class Bio12Handler(BaseHTTPRequestHandler):
                     },
                 )
 
+            # ------------------ THI THỬ TỐT NGHIỆP THPT (POST) ------------------
+            if path == "/api/mock-exams":
+                # Cả Quản trị viên (admin) và Giáo viên (teacher) đều được quyền thêm đề thi mới
+                staff = self.require_teacher(conn, qs, body)
+                if not staff:
+                    return
+                content = body.get("content")
+                if not isinstance(content, dict):
+                    return self.send_json(400, {"error": "Nội dung đề thi không hợp lệ."})
+                total_q, max_score = compute_exam_max_score(content)
+                if total_q <= 0:
+                    return self.send_json(400, {"error": "Đề thi phải có ít nhất 1 câu hỏi."})
+
+                row_mx = conn.execute("SELECT COALESCE(MAX(order_number), 0) AS mx FROM mock_exams").fetchone()
+                order_num = int((row_mx["mx"] if row_mx else 0) or 0) + 1
+                header_label = "PHÒNG LUYỆN TẬP"
+                title = (body.get("title") or "").strip() or f"Đề số {order_num}"
+                subtitle = (body.get("subtitle") or "").strip()
+                duration_minutes = int(body.get("duration_minutes") or 45)
+                if duration_minutes < 5 or duration_minutes > 180:
+                    duration_minutes = 45
+                source_filename = (body.get("source_filename") or "").strip()
+                ts = now_iso()
+
+                cur = conn.execute(
+                    """
+                    INSERT INTO mock_exams
+                    (order_number, header_label, title, subtitle, duration_minutes, source_filename,
+                     content_json, question_count, max_score, created_by, created_by_name, created_at, updated_at)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    """,
+                    (
+                        order_num,
+                        header_label,
+                        title,
+                        subtitle,
+                        duration_minutes,
+                        source_filename,
+                        json.dumps(content, ensure_ascii=False),
+                        total_q,
+                        max_score,
+                        staff["id"],
+                        staff["full_name"],
+                        ts,
+                        ts,
+                    ),
+                )
+                conn.commit()
+                new_id = cur.lastrowid
+                return self.send_json(
+                    201,
+                    {
+                        "ok": True,
+                        "exam": {
+                            "id": new_id,
+                            "order_number": order_num,
+                            "header_label": header_label,
+                            "title": title,
+                            "subtitle": subtitle,
+                            "duration_minutes": duration_minutes,
+                            "question_count": total_q,
+                            "max_score": max_score,
+                            "created_by_name": staff["full_name"],
+                            "created_at": ts,
+                        },
+                        "message": f"Đã tạo thành công {header_label} — Đề số {order_num} ({total_q} câu, {duration_minutes} phút)!",
+                    },
+                )
+
+            m_me_sub = re.match(r"^/api/mock-exams/(\d+)/submit$", path)
+            if m_me_sub:
+                user = self.require_user(conn, qs, body)
+                if not user:
+                    return
+                exam_id = int(m_me_sub.group(1))
+                row = conn.execute("SELECT * FROM mock_exams WHERE id = ?", (exam_id,)).fetchone()
+                if not row:
+                    return self.send_json(404, {"error": "Không tìm thấy đề thi thử."})
+                content = json.loads(row["content_json"])
+                answers = body.get("answers") or {}
+                auto_timeout = bool(body.get("auto_submitted_timeout"))
+
+                # Kiểm tra bắt buộc làm hết 100% câu hỏi mới được bấm Nộp bài (trừ khi hết giờ 45 phút tự nộp)
+                if not auto_timeout:
+                    ans_mcq = answers.get("mcq") or {}
+                    ans_tf = answers.get("true_false") or {}
+                    ans_sa = answers.get("short_answer") or {}
+                    missing = []
+                    for i, q in enumerate(content.get("mcq") or [], start=1):
+                        v = ans_mcq.get(q.get("id"))
+                        if v is None or str(v) == "":
+                            missing.append(f"Phần I - Câu {i}")
+                    for i, q in enumerate(content.get("true_false") or [], start=1):
+                        for st in (q.get("statements") or []):
+                            if ans_tf.get(f"{q.get('id')}:{st.get('key')}") is None:
+                                missing.append(f"Phần II - Câu {i} ({st.get('key')})")
+                                break
+                    for i, q in enumerate(content.get("short_answer") or [], start=1):
+                        if not str(ans_sa.get(q.get("id")) or "").strip():
+                            missing.append(f"Phần III - Câu {i}")
+                    if missing:
+                        return self.send_json(
+                            400,
+                            {
+                                "error": f"Bạn cần hoàn thành tất cả các câu hỏi trước khi nộp bài (còn thiếu {len(missing)} câu: {', '.join(missing[:5])}{'...' if len(missing) > 5 else ''})."
+                            },
+                        )
+
+                result = grade_mock_exam_submission(content, answers)
+                ts_now = now_iso()
+                started_at = (body.get("started_at") or "").strip() or ts_now
+                duration_seconds = max(0, int(body.get("duration_seconds") or 0))
+
+                cur = conn.execute(
+                    """
+                    INSERT INTO mock_exam_attempts
+                    (exam_id, user_id, started_at, submitted_at, duration_seconds,
+                     score, max_score, part1_score, part2_score, part3_score,
+                     correct_count, total_questions, answers_json)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    """,
+                    (
+                        exam_id,
+                        user["id"],
+                        started_at,
+                        ts_now,
+                        duration_seconds,
+                        result["score"],
+                        result["max_score"],
+                        result["part1_score"],
+                        result["part2_score"],
+                        result["part3_score"],
+                        result["correct_count"],
+                        result["total_questions"],
+                        json.dumps(answers, ensure_ascii=False),
+                    ),
+                )
+                conn.commit()
+                return self.send_json(
+                    201,
+                    {
+                        "ok": True,
+                        "attempt_id": cur.lastrowid,
+                        "started_at": started_at,
+                        "submitted_at": ts_now,
+                        "duration_seconds": duration_seconds,
+                        "result": result,
+                        "exam": {
+                            "id": row["id"],
+                            "order_number": row["order_number"],
+                            "header_label": row["header_label"] or "PHÒNG LUYỆN TẬP",
+                            "title": row["title"],
+                            "subtitle": row["subtitle"] or "",
+                            "duration_minutes": row["duration_minutes"] or 45,
+                            "content": content,
+                        },
+                    },
+                )
+
+            m_me_del = re.match(r"^/api/mock-exams/(\d+)/delete$", path)
+            if m_me_del:
+                # CHỈ Quản trị viên (admin) mới được quyền xoá đề thi đã upload; Giáo viên bị chặn 403!
+                user = self.require_user(conn, qs, body)
+                if not user:
+                    return
+                if user["role"] != "admin":
+                    return self.send_json(
+                        403,
+                        {
+                            "error": "Giáo viên chỉ được quyền thêm đề thi, không được quyền xoá đề đã tải lên. Chỉ Quản trị viên mới có quyền xoá."
+                        },
+                    )
+                exam_id = int(m_me_del.group(1))
+                row = conn.execute("SELECT id, order_number, title FROM mock_exams WHERE id = ?", (exam_id,)).fetchone()
+                if not row:
+                    return self.send_json(404, {"error": "Không tìm thấy đề thi cần xoá."})
+                conn.execute("DELETE FROM mock_exam_attempts WHERE exam_id = ?", (exam_id,))
+                conn.execute("DELETE FROM mock_exams WHERE id = ?", (exam_id,))
+                conn.commit()
+                return self.send_json(
+                    200,
+                    {
+                        "ok": True,
+                        "deleted_id": exam_id,
+                        "message": f"Đã xoá Đề số {row['order_number']} khỏi Phòng luyện tập.",
+                    },
+                )
+
             return self.send_json(404, {"error": "API endpoint không tồn tại."})
 
     # ---------------------- PUT ROUTES ----------------------
@@ -1788,6 +2240,53 @@ class Bio12Handler(BaseHTTPRequestHandler):
                             "updated_at": ts,
                         },
                         "message": f"Đã cập nhật tên Chủ đề thành '{new_title}'.",
+                    },
+                )
+
+            # Admin: Cập nhật đề thi thử Tốt nghiệp THPT đã tải lên
+            m_me_put = re.match(r"^/api/mock-exams/(\d+)$", path)
+            if m_me_put:
+                admin = self.require_admin(conn, qs, body)
+                if not admin:
+                    return
+                exam_id = int(m_me_put.group(1))
+                row = conn.execute("SELECT * FROM mock_exams WHERE id = ?", (exam_id,)).fetchone()
+                if not row:
+                    return self.send_json(404, {"error": "Không tìm thấy đề thi thử."})
+                content = body.get("content")
+                if not isinstance(content, dict):
+                    return self.send_json(400, {"error": "Nội dung đề thi không hợp lệ."})
+                total_q, max_score = compute_exam_max_score(content)
+                if total_q <= 0:
+                    return self.send_json(400, {"error": "Đề thi phải có ít nhất 1 câu hỏi."})
+                title = (body.get("title") or row["title"]).strip()
+                subtitle = (body.get("subtitle") if "subtitle" in body else (row["subtitle"] or "")).strip()
+                duration_minutes = int(body.get("duration_minutes") or row["duration_minutes"] or 45)
+                ts = now_iso()
+                conn.execute(
+                    """
+                    UPDATE mock_exams
+                    SET title = ?, subtitle = ?, duration_minutes = ?, content_json = ?,
+                        question_count = ?, max_score = ?, updated_at = ?
+                    WHERE id = ?
+                    """,
+                    (
+                        title,
+                        subtitle,
+                        duration_minutes,
+                        json.dumps(content, ensure_ascii=False),
+                        total_q,
+                        max_score,
+                        ts,
+                        exam_id,
+                    ),
+                )
+                conn.commit()
+                return self.send_json(
+                    200,
+                    {
+                        "ok": True,
+                        "message": f"Đã cập nhật Đề số {row['order_number']} ({total_q} câu).",
                     },
                 )
 
