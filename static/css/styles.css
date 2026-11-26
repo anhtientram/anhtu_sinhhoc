@@ -755,6 +755,121 @@ sub { bottom: -0.22em; }
   width: 100%;
   max-width: 960px;
   min-width: 0;
+  position: relative;
+}
+
+/* ================== TOPIC SWITCH LOADING & SMOOTH TRANSITION ================== */
+.topic-progress-bar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  z-index: 9999;
+  background: linear-gradient(90deg, #0f766e, #0284c7, #7e22ce, #c2410c);
+  background-size: 200% 100%;
+  animation: topicProgressSlide 1.1s linear infinite;
+}
+
+@keyframes topicProgressSlide {
+  0% { background-position: 0% 50%; }
+  100% { background-position: 200% 50%; }
+}
+
+.topic-loading-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 54px 24px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-xs);
+  color: var(--text-secondary);
+  font-weight: 600;
+  font-size: 0.94rem;
+}
+
+.topic-loading-spinner {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  border: 3.5px solid var(--border);
+  border-top-color: var(--primary);
+  animation: spinRotate 0.7s linear infinite;
+}
+
+@keyframes spinRotate {
+  to { transform: rotate(360deg); }
+}
+
+.topic-color-card.is-loading {
+  opacity: 0.85;
+  pointer-events: none;
+}
+
+.topic-card-spinner {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 255, 255, 0.35);
+  border-top-color: #ffffff;
+  animation: spinRotate 0.65s linear infinite;
+  margin-left: 6px;
+  vertical-align: -1px;
+}
+
+.center-stage-fade {
+  animation: stageFadeIn 0.2s ease-out;
+}
+
+@keyframes stageFadeIn {
+  from { opacity: 0.35; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* Kiểu gene liên kết 2 gạch ngang chuẩn SGK Sinh học 12 */
+.geno-linked {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  vertical-align: middle;
+  line-height: 1.08;
+  font-family: Georgia, "Times New Roman", serif;
+  font-style: italic;
+  font-weight: 600;
+  margin: 0 3px;
+  font-size: 0.96em;
+}
+
+.geno-linked .geno-top {
+  padding: 0 3px 1px;
+  border-bottom: 3px double currentColor;
+}
+
+.geno-linked .geno-bot {
+  padding: 1px 3px 0;
+}
+
+/* Khung Yêu cầu cần đạt chuẩn SGK ở đầu bài học */
+.theory-section.yccd-box {
+  background: var(--surface-tint);
+  border: 1px solid var(--primary-border);
+  border-left: 4px solid var(--primary);
+  border-radius: var(--radius);
+  padding: 16px 18px;
+  margin-bottom: 22px;
+}
+
+.theory-section.yccd-box h3 {
+  color: var(--primary);
+  text-transform: uppercase;
+  font-size: 0.92rem;
+  letter-spacing: 0.03em;
+  margin-bottom: 8px;
 }
 
 .avatar-circle {
