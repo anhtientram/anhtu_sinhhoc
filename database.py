@@ -431,6 +431,47 @@ CREATE TABLE IF NOT EXISTS password_change_logs (
 );
 
 CREATE INDEX IF NOT EXISTS idx_pw_logs_time ON password_change_logs(changed_at DESC);
+
+CREATE TABLE IF NOT EXISTS mock_exams (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    order_number INTEGER NOT NULL,
+    header_label TEXT NOT NULL DEFAULT 'PHÒNG LUYỆN TẬP',
+    title TEXT NOT NULL,
+    subtitle TEXT NOT NULL DEFAULT '',
+    duration_minutes INTEGER NOT NULL DEFAULT 45,
+    source_filename TEXT NOT NULL DEFAULT '',
+    content_json TEXT NOT NULL,
+    question_count INTEGER NOT NULL DEFAULT 0,
+    max_score REAL NOT NULL DEFAULT 10.0,
+    created_by INTEGER,
+    created_by_name TEXT NOT NULL DEFAULT '',
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    FOREIGN KEY(created_by) REFERENCES users(id) ON DELETE SET NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_mock_exams_order ON mock_exams(order_number ASC);
+
+CREATE TABLE IF NOT EXISTS mock_exam_attempts (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    exam_id INTEGER NOT NULL,
+    user_id INTEGER NOT NULL,
+    started_at TEXT NOT NULL,
+    submitted_at TEXT NOT NULL,
+    duration_seconds INTEGER NOT NULL DEFAULT 0,
+    score REAL NOT NULL,
+    max_score REAL NOT NULL DEFAULT 10.0,
+    part1_score REAL NOT NULL DEFAULT 0,
+    part2_score REAL NOT NULL DEFAULT 0,
+    part3_score REAL NOT NULL DEFAULT 0,
+    correct_count INTEGER NOT NULL DEFAULT 0,
+    total_questions INTEGER NOT NULL DEFAULT 0,
+    answers_json TEXT NOT NULL DEFAULT '{}',
+    FOREIGN KEY(exam_id) REFERENCES mock_exams(id) ON DELETE CASCADE,
+    FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS idx_mock_attempts_exam_user ON mock_exam_attempts(exam_id, user_id, submitted_at DESC);
 """
 
 MYSQL_SCHEMA_STATEMENTS = [
@@ -547,6 +588,47 @@ MYSQL_SCHEMA_STATEMENTS = [
         is_read TINYINT(1) NOT NULL DEFAULT 0,
         INDEX idx_pw_logs_time (changed_at),
         CONSTRAINT fk_pw_logs_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+    """,
+    """
+    CREATE TABLE IF NOT EXISTS mock_exams (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        order_number INT NOT NULL,
+        header_label VARCHAR(120) NOT NULL DEFAULT 'PHÒNG LUYỆN TẬP',
+        title VARCHAR(255) NOT NULL,
+        subtitle VARCHAR(500) NOT NULL DEFAULT '',
+        duration_minutes INT NOT NULL DEFAULT 45,
+        source_filename VARCHAR(255) NOT NULL DEFAULT '',
+        content_json LONGTEXT NOT NULL,
+        question_count INT NOT NULL DEFAULT 0,
+        max_score DOUBLE NOT NULL DEFAULT 10.0,
+        created_by INT NULL,
+        created_by_name VARCHAR(255) NOT NULL DEFAULT '',
+        created_at VARCHAR(40) NOT NULL,
+        updated_at VARCHAR(40) NOT NULL,
+        INDEX idx_mock_exams_order (order_number),
+        CONSTRAINT fk_mock_exams_created_by FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+    """,
+    """
+    CREATE TABLE IF NOT EXISTS mock_exam_attempts (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        exam_id INT NOT NULL,
+        user_id INT NOT NULL,
+        started_at VARCHAR(40) NOT NULL,
+        submitted_at VARCHAR(40) NOT NULL,
+        duration_seconds INT NOT NULL DEFAULT 0,
+        score DOUBLE NOT NULL,
+        max_score DOUBLE NOT NULL DEFAULT 10.0,
+        part1_score DOUBLE NOT NULL DEFAULT 0,
+        part2_score DOUBLE NOT NULL DEFAULT 0,
+        part3_score DOUBLE NOT NULL DEFAULT 0,
+        correct_count INT NOT NULL DEFAULT 0,
+        total_questions INT NOT NULL DEFAULT 0,
+        answers_json LONGTEXT NOT NULL,
+        INDEX idx_mock_attempts_exam_user (exam_id, user_id, submitted_at),
+        CONSTRAINT fk_mock_attempts_exam FOREIGN KEY (exam_id) REFERENCES mock_exams(id) ON DELETE CASCADE,
+        CONSTRAINT fk_mock_attempts_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
     """,
 ]

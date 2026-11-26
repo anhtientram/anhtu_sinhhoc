@@ -19,6 +19,7 @@ import {
   renderDocumentBlocksInteractive,
   renderInteractiveToolbar,
 } from "./interactive_blocks.js";
+import { mountMockExamSection, stopMockExamTimers } from "./mock_exam.js";
 import { mountQuizSection } from "./quiz.js";
 import { mountTeacherDashboard } from "./teacher.js";
 import { mountYoutubeLibrary } from "./youtube_videos.js";
@@ -31,6 +32,7 @@ const ICONS = {
   book: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20"/></svg>`,
   layers: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg>`,
   checkSquare: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>`,
+  award: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="6"/><path d="M15.477 12.89 17 22l-5-3-5 3 1.523-9.11"/></svg>`,
   barChart: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>`,
   user: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>`,
   menu: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg>`,
@@ -168,6 +170,7 @@ async function handleLeaveClass(shouldLogout = false) {
   }
 
   if (shouldLogout) {
+    stopMockExamTimers();
     try {
       await api.logout();
     } catch {}
@@ -621,6 +624,7 @@ function renderMainShell() {
             <button class="drawer-item ${state.activeTab === "theory" ? "active" : ""}" data-drawer-tab="theory">${ICONS.book}<span>1. Lý thuyết &amp; Video YouTube</span></button>
             <button class="drawer-item ${state.activeTab === "knowledge" ? "active" : ""}" data-drawer-tab="knowledge">${ICONS.layers}<span>2. Hệ thống kiến thức</span></button>
             <button class="drawer-item ${state.activeTab === "review" ? "active" : ""}" data-drawer-tab="review">${ICONS.checkSquare}<span>3. Hệ thống ôn tập (3 phần)</span></button>
+            <button class="drawer-item ${state.activeTab === "mock_exam" ? "active" : ""}" data-drawer-tab="mock_exam">${ICONS.award}<span>Thi thử Tốt nghiệp THPT</span></button>
             ${
               !effectiveStudentView
                 ? `<button class="drawer-item ${state.activeTab === "teacher" ? "active" : ""}" data-drawer-tab="teacher">${ICONS.barChart}<span>${isAdmin ? "Quản trị &amp; Quản lý lớp" : "Quản lý lớp học"}</span></button>`
@@ -708,13 +712,19 @@ function renderMainShell() {
               const shortTitle = (t.title || "").replace(/^Chủ đề\s*\d+[\.\:]?\s*/i, "");
               const isLoadingThis = state.topicLoading && state.loadingTopicId === t.id;
               return `
-                <button class="topic-color-card ${themeCls} ${t.id === state.activeTopicId ? "active" : ""} ${isLoadingThis ? "is-loading" : ""}" data-select-topic="${t.id}">
+                <button class="topic-color-card ${themeCls} ${t.id === state.activeTopicId && state.activeTab !== "mock_exam" ? "active" : ""} ${isLoadingThis ? "is-loading" : ""}" data-select-topic="${t.id}">
                   <span class="topic-color-badge">Chủ đề ${num}${isLoadingThis ? `<span class="topic-card-spinner" aria-hidden="true"></span>` : ""}</span>
                   <span class="topic-color-title">${escapeHtml(shortTitle || t.title)}</span>
                 </button>
               `;
             })
             .join("")}
+
+          <div class="topics-rail-heading" style="margin-top:10px;">Kỳ thi &amp; Luyện đề</div>
+          <button class="topic-color-card topic-theme-mock ${state.activeTab === "mock_exam" ? "active" : ""}" data-tab="mock_exam">
+            <span class="topic-color-badge">PHÒNG LUYỆN TẬP · 45 PHÚT</span>
+            <span class="topic-color-title">Thi thử Tốt nghiệp THPT</span>
+          </button>
         </aside>
 
         <section class="center-stage">
@@ -728,6 +738,9 @@ function renderMainShell() {
             </button>
             <button class="center-tab-card ctab-review ${state.activeTab === "review" ? "active" : ""}" data-tab="review">
               ${ICONS.checkSquare}<span>3. Hệ thống ôn tập</span>
+            </button>
+            <button class="center-tab-card ctab-mock ${state.activeTab === "mock_exam" ? "active" : ""}" data-tab="mock_exam">
+              ${ICONS.award}<span>Thi thử TN THPT</span>
             </button>
             ${
               !effectiveStudentView
@@ -763,12 +776,17 @@ function renderMainShell() {
 
   document.querySelectorAll("[data-select-topic]").forEach((btn) => {
     btn.addEventListener("click", () => {
+      stopMockExamTimers();
+      if (state.activeTab === "mock_exam") {
+        state.activeTab = "theory";
+      }
       switchTopicSmoothly(btn.dataset.selectTopic);
     });
   });
 
   document.querySelectorAll("[data-drawer-lesson]").forEach((btn) => {
     btn.addEventListener("click", () => {
+      stopMockExamTimers();
       state.mobileMenuOpen = false;
       state.activeTab = "theory";
       state.theoryMode = "lessons";
@@ -779,8 +797,12 @@ function renderMainShell() {
 
   document.querySelectorAll("[data-tab], [data-drawer-tab]").forEach((btn) => {
     btn.addEventListener("click", () => {
+      const nextTab = btn.dataset.tab || btn.dataset.drawerTab;
+      if (state.activeTab === "mock_exam" && nextTab !== "mock_exam") {
+        stopMockExamTimers();
+      }
       state.mobileMenuOpen = false;
-      state.activeTab = btn.dataset.tab || btn.dataset.drawerTab;
+      state.activeTab = nextTab;
       sendThrottledHeartbeat(state.activeTopicId, state.activeTab);
       render();
     });
@@ -831,7 +853,13 @@ function renderMainShell() {
   if (state.activeTab === "theory") renderTheoryTab(tabView);
   else if (state.activeTab === "knowledge") renderKnowledgeTab(tabView);
   else if (state.activeTab === "review") renderReviewTab(tabView);
-  else if (state.activeTab === "teacher") {
+  else if (state.activeTab === "mock_exam") {
+    mountMockExamSection(tabView, {
+      currentUser: state.user,
+      effectiveStudentView,
+      showToast,
+    });
+  } else if (state.activeTab === "teacher") {
     mountTeacherDashboard(
       tabView,
       state.activeTopic,

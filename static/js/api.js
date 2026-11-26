@@ -452,6 +452,47 @@ export const api = {
     const cls = className ? `&class_name=${encodeURIComponent(className)}` : "";
     return withBase(`/api/teacher/sessions/export?token=${token}${cls}`);
   },
+
+  // ------------------ THI THỬ TỐT NGHIỆP THPT ------------------
+  getMockExams: () => apiRequest("/api/mock-exams"),
+
+  getMockExam: (examId, includeKeys = false) =>
+    apiRequest(`/api/mock-exams/${encodeURIComponent(examId)}${includeKeys ? "?include_keys=1" : ""}`),
+
+  parseMockExamBinary: (file, onProgress = null) => {
+    const q = new URLSearchParams({ filename: file.name || "de-thi.docx" });
+    return apiBinaryUpload(`/api/mock-exams/parse?${q.toString()}`, file, onProgress);
+  },
+
+  createMockExam: (payload) =>
+    apiRequest("/api/mock-exams", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+
+  updateMockExam: (examId, payload) =>
+    apiRequest(`/api/mock-exams/${encodeURIComponent(examId)}`, {
+      method: "PUT",
+      body: JSON.stringify(payload),
+    }),
+
+  deleteMockExam: (examId) =>
+    apiRequest(`/api/mock-exams/${encodeURIComponent(examId)}/delete`, {
+      method: "POST",
+      body: JSON.stringify({}),
+    }),
+
+  submitMockExam: (examId, payload) =>
+    apiRequest(`/api/mock-exams/${encodeURIComponent(examId)}/submit`, {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+
+  getMockExamAttempts: (examId) =>
+    apiRequest(`/api/mock-exams/${encodeURIComponent(examId)}/attempts`),
+
+  getMockExamAttemptDetail: (attemptId) =>
+    apiRequest(`/api/mock-exams/attempts/${encodeURIComponent(attemptId)}`),
 };
 
 /**
