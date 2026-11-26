@@ -23,10 +23,12 @@ from urllib.parse import parse_qs, urlparse
 
 from database import (
     ADMIN_USERNAME,
+    DB_BACKEND,
     DB_LOCK,
     DEFAULT_USER_PASSWORD,
     TEACHER_INVITE_CODE,
     create_token,
+    describe_db,
     export_sessions_csv,
     get_conn,
     get_user_by_token,
@@ -37,6 +39,8 @@ from database import (
     record_login,
     record_password_change,
     sanitize_user,
+    upsert_lesson_progress,
+    upsert_topic,
     verify_password,
 )
 from cache_layer import app_cache
@@ -309,7 +313,10 @@ class Bio12Handler(BaseHTTPRequestHandler):
     def handle_api_get(self, path, qs):
         # 1. Các route KHÔNG cần mở SQLite khi đã có sẵn trong L1 RAM Cache (tốc độ < 1ms, không khóa DB)
         if path == "/api/health":
-            return self.send_json(200, {"ok": True, "time": now_iso(), "app": "Sinh học 12"})
+            return self.send_json(
+                200,
+                {"ok": True, "time": now_iso(), "app": "Sinh học 12", "db": DB_BACKEND},
+            )
 
         if path == "/api/topics":
             def _load_topics_list():
@@ -417,15 +424,20 @@ class Bio12Handler(BaseHTTPRequestHandler):
                 # Auto-close stale sessions whose last heartbeat was > 10 minutes ago
                 cutoff = datetime.now().timestamp() - 600
                 active_rows = conn.execute("SELECT * FROM study_sessions WHERE status = 'active'").fetchall()
+                stale_updates = []
                 for ar in active_rows:
                     hb = parse_iso_seconds(ar["last_heartbeat"])
                     if hb and hb.timestamp() < cutoff:
                         dur = calc_duration_seconds(ar["enter_time"], ar["last_heartbeat"])
-                        conn.execute(
-                            "UPDATE study_sessions SET status = 'completed', leave_time = ?, duration_seconds = ? WHERE id = ?",
-                            (ar["last_heartbeat"], dur, ar["id"]),
-                        )
-                conn.commit()
+                        stale_updates.append((ar["last_heartbeat"], dur, ar["id"]))
+                if stale_updates:
+                    with DB_LOCK:
+                        for hb_ts, dur, sid in stale_updates:
+                            conn.execute(
+                                "UPDATE study_sessions SET status = 'completed', leave_time = ?, duration_seconds = ? WHERE id = ?",
+                                (hb_ts, dur, sid),
+                            )
+                        conn.commit()
 
                 students = conn.execute(
                     "SELECT * FROM users WHERE role = 'student' ORDER BY class_name, full_name"
@@ -957,17 +969,7 @@ class Bio12Handler(BaseHTTPRequestHandler):
                 if not lesson_id:
                     return self.send_json(400, {"error": "Thiếu lesson_id."})
 
-                conn.execute(
-                    """
-                    INSERT INTO lesson_progress (user_id, topic_id, lesson_id, completed, checkpoint_score, updated_at)
-                    VALUES (?, ?, ?, ?, ?, ?)
-                    ON CONFLICT(user_id, topic_id, lesson_id)
-                    DO UPDATE SET completed = excluded.completed,
-                                  checkpoint_score = MAX(lesson_progress.checkpoint_score, excluded.checkpoint_score),
-                                  updated_at = excluded.updated_at
-                    """,
-                    (user["id"], topic_id, lesson_id, completed, checkpoint_score, ts),
-                )
+                upsert_lesson_progress(conn, user["id"], topic_id, lesson_id, completed, checkpoint_score, ts)
                 conn.commit()
                 return self.send_json(200, {"ok": True})
 
@@ -1001,21 +1003,16 @@ class Bio12Handler(BaseHTTPRequestHandler):
                 content["title"] = title
                 content["subtitle"] = subtitle
                 ts = now_iso()
-                conn.execute(
-                    """
-                    INSERT OR REPLACE INTO topics (id, order_index, title, subtitle, status, content_json, updated_by, updated_at)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-                    """,
-                    (
-                        tid,
-                        order_index,
-                        title,
-                        subtitle,
-                        content.get("status", "published"),
-                        json.dumps(content, ensure_ascii=False),
-                        teacher["id"],
-                        ts,
-                    ),
+                upsert_topic(
+                    conn,
+                    tid,
+                    order_index,
+                    title,
+                    subtitle,
+                    content.get("status", "published"),
+                    json.dumps(content, ensure_ascii=False),
+                    teacher["id"],
+                    ts,
                 )
                 conn.commit()
                 app_cache.invalidate_topics(tid)
@@ -1116,12 +1113,16 @@ class Bio12Handler(BaseHTTPRequestHandler):
                 topic_obj.setdefault("review", {"mcq": [], "true_false": [], "short_answer": []})
 
                 ts = now_iso()
-                conn.execute(
-                    """
-                    INSERT OR REPLACE INTO topics (id, order_index, title, subtitle, status, content_json, updated_by, updated_at)
-                    VALUES (?, ?, ?, ?, 'published', ?, ?, ?)
-                    """,
-                    (tid, order_index, title, subtitle, json.dumps(topic_obj, ensure_ascii=False), teacher["id"], ts),
+                upsert_topic(
+                    conn,
+                    tid,
+                    order_index,
+                    title,
+                    subtitle,
+                    "published",
+                    json.dumps(topic_obj, ensure_ascii=False),
+                    teacher["id"],
+                    ts,
                 )
                 conn.commit()
                 app_cache.invalidate_topics(tid)
@@ -1803,7 +1804,7 @@ def main():
     print(f"  WEB APP GIẢNG DẠY SINH HỌC 12 (CT GDPT 2018)")
     print(f"  Địa chỉ nội bộ:   http://localhost{port_suffix}{base_display or '/'}")
     print(f"  Địa chỉ tên miền: http://{PUBLIC_HOST}{port_suffix}{base_display or '/'}")
-    print(f"  Cơ sở dữ liệu:    {os.environ.get('DB_PATH') or 'data/sinhhoc12.db'}")
+    print(f"  Cơ sở dữ liệu:    {describe_db()}")
     print(f"  Mã đăng ký Giáo viên mặc định: {TEACHER_INVITE_CODE}")
     print(f"  Tối ưu tải cao:   ThreadPool({max_workers}) + Gzip + L1 Prewarm")
     print(f"============================================================")

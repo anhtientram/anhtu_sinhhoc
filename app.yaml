@@ -1,6 +1,7 @@
 kind: wasmer.io/App.v0
 name: sinhhoc12
 owner: anhtientram
+enableDatabase: true
 env:
   PORT: "8080"
   BASE_PATH: "/"

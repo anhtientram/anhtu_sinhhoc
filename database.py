@@ -3,11 +3,18 @@ import hashlib
 import io
 import json
 import os
+import queue
 import secrets
 import sqlite3
+import ssl
 import threading
 import time
 from datetime import datetime, timedelta
+
+try:
+    import pymysql
+except ImportError:
+    pymysql = None
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 BUNDLED_TOPICS_DIR = os.path.join(BASE_DIR, "data", "topics")
@@ -20,15 +27,47 @@ ADMIN_DEFAULT_PASSWORD = os.environ.get("ADMIN_DEFAULT_PASSWORD", "123456789@")
 DEFAULT_USER_PASSWORD = os.environ.get("DEFAULT_USER_PASSWORD", "123456@")
 TEACHER_INVITE_CODE = os.environ.get("TEACHER_INVITE_CODE", "GV-SINH12")
 
-# Khoá đồng bộ tiến trình tránh lỗi "database is locked" khi nhiều học sinh gửi yêu cầu cùng lúc
-DB_LOCK = threading.RLock()
-_DB_DIR_READY = False
+# Tự động nhận diện MySQL (trên Wasmer Edge khi bật Enable Database) hoặc SQLite (local)
+DB_HOST = (os.environ.get("DB_HOST") or "").strip()
+DB_ENGINE = (os.environ.get("DB_ENGINE") or "").strip().lower()
+IS_MYSQL = (DB_ENGINE == "mysql") or (
+    DB_ENGINE != "sqlite" and bool(DB_HOST) and not DB_HOST.startswith("${")
+)
+DB_BACKEND = "mysql" if IS_MYSQL else "sqlite"
 
-# Bộ nhớ đệm nhẹ cho auth token (TTL 30s) giúp giảm >80% truy vấn SQLite khi lớp đông học sinh
+DB_PORT = int(os.environ.get("DB_PORT") or "3306")
+DB_NAME = (os.environ.get("DB_NAME") or os.environ.get("DB_DATABASE") or "").strip()
+DB_USER = (os.environ.get("DB_USERNAME") or os.environ.get("DB_USER") or "").strip()
+DB_PASSWORD = os.environ.get("DB_PASSWORD") or ""
+DB_SSL = (os.environ.get("DB_SSL") or "auto").strip().lower()
+
+
+class _NoOpLock:
+    """Không cần khóa tiến trình khi chạy MySQL Server để tối đa xử lý song song."""
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        return False
+
+
+# Khoá đồng bộ tiến trình cho SQLite tránh lỗi "database is locked"
+DB_LOCK = _NoOpLock() if IS_MYSQL else threading.RLock()
+_DB_DIR_READY = False
+_MYSQL_POOL = queue.LifoQueue(maxsize=16)
+
+# Bộ nhớ đệm nhẹ cho auth token (TTL 30s) giúp giảm >80% truy vấn DB khi lớp đông học sinh
 _TOKEN_CACHE_LOCK = threading.Lock()
 _TOKEN_CACHE = {}  # token -> (expire_ts, user_dict)
 _TOKEN_CACHE_TTL = 30.0
 _TOKEN_CACHE_MAX = 512
+
+
+def describe_db() -> str:
+    if IS_MYSQL:
+        return f"MySQL ({DB_HOST}:{DB_PORT}/{DB_NAME})"
+    return f"SQLite ({DB_PATH})"
 
 
 def invalidate_token_cache(token: str = None, user_id: int = None):
@@ -46,11 +85,196 @@ def now_iso():
     return datetime.now().isoformat(timespec="seconds")
 
 
+class CompatRow(dict):
+    """Hỗ trợ truy cập cả row['col'], row[0], dict(row) và row.keys() giống sqlite3.Row."""
+
+    def __init__(self, columns, values):
+        self._values = tuple(values)
+        super().__init__(zip(columns, self._values))
+
+    def __getitem__(self, key):
+        if isinstance(key, (int, slice)):
+            return self._values[key]
+        return super().__getitem__(key)
+
+
+def _translate_qmarks_to_mysql(sql: str, has_params: bool) -> str:
+    """Chuyển placeholder '?' của SQLite sang '%s' của PyMySQL, giữ nguyên '?' trong chuỗi literal."""
+    out = []
+    in_single = False
+    i = 0
+    n = len(sql)
+    while i < n:
+        ch = sql[i]
+        if in_single:
+            if ch == "'":
+                if i + 1 < n and sql[i + 1] == "'":
+                    out.append("''")
+                    i += 2
+                    continue
+                in_single = False
+                out.append(ch)
+            elif ch == "%" and has_params:
+                out.append("%%")
+            else:
+                out.append(ch)
+        else:
+            if ch == "'":
+                in_single = True
+                out.append(ch)
+            elif ch == "?":
+                out.append("%s")
+            elif ch == "%" and has_params:
+                out.append("%%")
+            else:
+                out.append(ch)
+        i += 1
+    return "".join(out)
+
+
+class MySQLCompatCursor:
+    def __init__(self, raw_cursor):
+        self._cur = raw_cursor
+
+    def execute(self, sql: str, params=None):
+        has_params = bool(params is not None and len(params) > 0)
+        translated = _translate_qmarks_to_mysql(sql, has_params)
+        if has_params:
+            self._cur.execute(translated, tuple(params))
+        else:
+            self._cur.execute(translated)
+        return self
+
+    def fetchone(self):
+        row = self._cur.fetchone()
+        if row is None:
+            return None
+        cols = [d[0] for d in (self._cur.description or ())]
+        return CompatRow(cols, row)
+
+    def fetchall(self):
+        rows = self._cur.fetchall()
+        if not rows:
+            return []
+        cols = [d[0] for d in (self._cur.description or ())]
+        return [CompatRow(cols, r) for r in rows]
+
+    @property
+    def lastrowid(self):
+        return self._cur.lastrowid
+
+    @property
+    def rowcount(self):
+        return self._cur.rowcount
+
+    def close(self):
+        try:
+            self._cur.close()
+        except Exception:
+            pass
+
+
+class MySQLCompatConnection:
+    def __init__(self, raw_conn):
+        self._raw = raw_conn
+        self._cursors = []
+        self._closed = False
+
+    def cursor(self):
+        cur = MySQLCompatCursor(self._raw.cursor())
+        self._cursors.append(cur)
+        return cur
+
+    def execute(self, sql: str, params=None):
+        cur = self.cursor()
+        cur.execute(sql, params)
+        return cur
+
+    def commit(self):
+        self._raw.commit()
+
+    def rollback(self):
+        self._raw.rollback()
+
+    def close(self):
+        if self._closed:
+            return
+        self._closed = True
+        for cur in self._cursors:
+            cur.close()
+        self._cursors.clear()
+        try:
+            # Xoá snapshot/giao dịch dở để kết nối trong pool luôn thấy dữ liệu mới nhất
+            self._raw.rollback()
+            _MYSQL_POOL.put_nowait(self._raw)
+        except Exception:
+            try:
+                self._raw.close()
+            except Exception:
+                pass
+
+
+def _build_mysql_ssl_context():
+    use_ssl = DB_SSL in ("1", "true", "yes", "require", "required") or (
+        DB_SSL == "auto" and DB_HOST not in ("localhost", "127.0.0.1")
+    )
+    if not use_ssl:
+        return None
+    ctx = ssl.create_default_context()
+    ctx.check_hostname = False
+    ctx.verify_mode = ssl.CERT_NONE
+    return ctx
+
+
+def _open_mysql_raw_conn():
+    if pymysql is None:
+        raise RuntimeError(
+            "Thiếu thư viện PyMySQL để kết nối MySQL. Hãy cài đặt 'PyMySQL>=1.1.0'."
+        )
+    kwargs = {
+        "host": DB_HOST,
+        "port": DB_PORT,
+        "database": DB_NAME,
+        "user": DB_USER,
+        "password": DB_PASSWORD,
+        "charset": "utf8mb4",
+        "autocommit": False,
+        "connect_timeout": 10,
+        "read_timeout": 20,
+        "write_timeout": 20,
+    }
+    ssl_ctx = _build_mysql_ssl_context()
+    if ssl_ctx is not None:
+        kwargs["ssl"] = ssl_ctx
+    return pymysql.connect(**kwargs)
+
+
+def _get_mysql_conn() -> MySQLCompatConnection:
+    while True:
+        try:
+            raw = _MYSQL_POOL.get_nowait()
+        except queue.Empty:
+            break
+        try:
+            raw.ping(reconnect=True)
+            return MySQLCompatConnection(raw)
+        except Exception:
+            try:
+                raw.close()
+            except Exception:
+                pass
+    return MySQLCompatConnection(_open_mysql_raw_conn())
+
+
 def get_conn():
     """
-    Mở kết nối SQLite an toàn, KHÔNG chạy PRAGMA journal_mode trên mỗi request
-    (tránh deadlock / khóa WAL -shm khi chạy đồng thời trên Wasmer Edge /data).
+    Trả về kết nối DB tương thích cả hai môi trường:
+    - Wasmer Edge (có DB_HOST): dùng MySQL v8.4 qua pool kết nối PyMySQL.
+    - Máy local: dùng SQLite (data/sinhhoc12.db).
     """
+    if IS_MYSQL:
+        return _get_mysql_conn()
+
     global _DB_DIR_READY
     if not _DB_DIR_READY:
         os.makedirs(os.path.dirname(os.path.abspath(DB_PATH)), exist_ok=True)
@@ -64,12 +288,11 @@ def get_conn():
 
 
 def _configure_sqlite_once(conn):
-    """Cấu hình journal_mode & synchronous 1 lần duy nhất lúc khởi động server."""
+    """Cấu hình journal_mode & synchronous 1 lần duy nhất lúc khởi động server SQLite."""
     env_mode = (os.environ.get("SQLITE_JOURNAL_MODE") or "").strip().upper()
     if env_mode in ("DELETE", "TRUNCATE", "PERSIST", "MEMORY", "WAL", "OFF"):
         target_mode = env_mode
     elif os.path.abspath(DB_PATH).startswith("/data"):
-        # Trên Wasmer Edge WASI volume (/data), DELETE ổn định tuyệt đối, không treo khoá -shm của WAL
         target_mode = "DELETE"
     else:
         target_mode = "WAL"
@@ -210,14 +433,133 @@ CREATE TABLE IF NOT EXISTS password_change_logs (
 CREATE INDEX IF NOT EXISTS idx_pw_logs_time ON password_change_logs(changed_at DESC);
 """
 
+MYSQL_SCHEMA_STATEMENTS = [
+    """
+    CREATE TABLE IF NOT EXISTS users (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        username VARCHAR(191) UNIQUE NOT NULL,
+        email VARCHAR(191) UNIQUE NOT NULL,
+        password_hash VARCHAR(255) NOT NULL,
+        full_name VARCHAR(255) NOT NULL,
+        role VARCHAR(32) NOT NULL,
+        class_name VARCHAR(120) NOT NULL DEFAULT '',
+        school_name VARCHAR(255) NOT NULL DEFAULT '',
+        phone VARCHAR(64) NOT NULL DEFAULT '',
+        bio VARCHAR(1000) NOT NULL DEFAULT '',
+        avatar_color VARCHAR(32) NOT NULL DEFAULT '#0f766e',
+        must_change_password TINYINT(1) NOT NULL DEFAULT 0,
+        created_by INT NULL,
+        created_at VARCHAR(40) NOT NULL,
+        updated_at VARCHAR(40) NOT NULL
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+    """,
+    """
+    CREATE TABLE IF NOT EXISTS auth_tokens (
+        token VARCHAR(191) PRIMARY KEY,
+        user_id INT NOT NULL,
+        created_at VARCHAR(40) NOT NULL,
+        expires_at VARCHAR(40) NOT NULL,
+        INDEX idx_auth_tokens_user (user_id),
+        CONSTRAINT fk_auth_tokens_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+    """,
+    """
+    CREATE TABLE IF NOT EXISTS topics (
+        id VARCHAR(120) PRIMARY KEY,
+        order_index INT NOT NULL DEFAULT 1,
+        title VARCHAR(500) NOT NULL,
+        subtitle VARCHAR(500) NOT NULL DEFAULT '',
+        status VARCHAR(32) NOT NULL DEFAULT 'published',
+        content_json LONGTEXT NOT NULL,
+        updated_by INT NULL,
+        updated_at VARCHAR(40) NOT NULL,
+        CONSTRAINT fk_topics_updated_by FOREIGN KEY (updated_by) REFERENCES users(id) ON DELETE SET NULL
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+    """,
+    """
+    CREATE TABLE IF NOT EXISTS study_sessions (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        user_id INT NOT NULL,
+        topic_id VARCHAR(120) NOT NULL DEFAULT 'chu-de-1',
+        enter_time VARCHAR(40) NOT NULL,
+        last_heartbeat VARCHAR(40) NOT NULL,
+        leave_time VARCHAR(40) NULL,
+        duration_seconds INT NOT NULL DEFAULT 0,
+        last_tab VARCHAR(64) NOT NULL DEFAULT 'theory',
+        status VARCHAR(32) NOT NULL DEFAULT 'active',
+        INDEX idx_sessions_user (user_id, enter_time),
+        CONSTRAINT fk_sessions_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+    """,
+    """
+    CREATE TABLE IF NOT EXISTS quiz_attempts (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        user_id INT NOT NULL,
+        topic_id VARCHAR(120) NOT NULL,
+        quiz_type VARCHAR(64) NOT NULL,
+        score DOUBLE NOT NULL,
+        max_score DOUBLE NOT NULL,
+        correct_count INT NOT NULL DEFAULT 0,
+        total_questions INT NOT NULL DEFAULT 0,
+        duration_seconds INT NOT NULL DEFAULT 0,
+        answers_json LONGTEXT NOT NULL,
+        submitted_at VARCHAR(40) NOT NULL,
+        INDEX idx_quiz_user (user_id, submitted_at),
+        CONSTRAINT fk_quiz_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+    """,
+    """
+    CREATE TABLE IF NOT EXISTS lesson_progress (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        user_id INT NOT NULL,
+        topic_id VARCHAR(120) NOT NULL,
+        lesson_id VARCHAR(120) NOT NULL,
+        completed TINYINT(1) NOT NULL DEFAULT 0,
+        checkpoint_score INT NOT NULL DEFAULT 0,
+        updated_at VARCHAR(40) NOT NULL,
+        UNIQUE KEY uq_lesson_progress (user_id, topic_id, lesson_id),
+        CONSTRAINT fk_progress_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+    """,
+    """
+    CREATE TABLE IF NOT EXISTS login_logs (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        user_id INT NOT NULL,
+        login_time VARCHAR(40) NOT NULL,
+        ip_address VARCHAR(120) NOT NULL DEFAULT '',
+        user_agent VARCHAR(255) NOT NULL DEFAULT '',
+        INDEX idx_login_logs_user (user_id, login_time),
+        CONSTRAINT fk_login_logs_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+    """,
+    """
+    CREATE TABLE IF NOT EXISTS password_change_logs (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        user_id INT NOT NULL,
+        username VARCHAR(191) NOT NULL,
+        full_name VARCHAR(255) NOT NULL,
+        role VARCHAR(32) NOT NULL,
+        school_name VARCHAR(255) NOT NULL DEFAULT '',
+        class_name VARCHAR(120) NOT NULL DEFAULT '',
+        phone VARCHAR(64) NOT NULL DEFAULT '',
+        changed_at VARCHAR(40) NOT NULL,
+        reason VARCHAR(64) NOT NULL DEFAULT 'user_update',
+        is_read TINYINT(1) NOT NULL DEFAULT 0,
+        INDEX idx_pw_logs_time (changed_at),
+        CONSTRAINT fk_pw_logs_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+    """,
+]
+
 
 def _ensure_admin_account(conn):
     ts = now_iso()
     admin = conn.execute("SELECT id FROM users WHERE lower(username) = ?", (ADMIN_USERNAME,)).fetchone()
     if not admin:
+        insert_prefix = "INSERT IGNORE INTO" if IS_MYSQL else "INSERT INTO"
         conn.execute(
-            """
-            INSERT INTO users
+            f"""
+            {insert_prefix} users
             (username, email, password_hash, full_name, role, class_name, school_name, phone, bio, avatar_color, must_change_password, created_at, updated_at)
             VALUES (?, ?, ?, ?, 'admin', 'Quản trị hệ thống', 'Sinh học 12', '', 'Quản trị viên hệ thống Sinh học 12', '#0f766e', 0, ?, ?)
             """,
@@ -240,42 +582,66 @@ def wipe_all_access_data_and_migrate():
     và khởi tạo duy nhất tài khoản Quản trị viên: bachanhtu / 123456789@.
     """
     conn = get_conn()
-    conn.execute("PRAGMA foreign_keys = OFF;")
-    cur = conn.cursor()
+    try:
+        cur = conn.cursor()
+        if IS_MYSQL:
+            cur.execute("SET FOREIGN_KEY_CHECKS = 0")
+            has_topics = cur.execute("SHOW TABLES LIKE 'topics'").fetchone()
+            if has_topics:
+                cur.execute("UPDATE topics SET updated_by = NULL")
+            for tbl in (
+                "password_change_logs",
+                "login_logs",
+                "lesson_progress",
+                "quiz_attempts",
+                "study_sessions",
+                "auth_tokens",
+                "users",
+            ):
+                cur.execute(f"DROP TABLE IF EXISTS {tbl}")
+            for stmt in MYSQL_SCHEMA_STATEMENTS:
+                cur.execute(stmt)
+            conn.commit()
+            cur.execute("SET FOREIGN_KEY_CHECKS = 1")
+        else:
+            conn.execute("PRAGMA foreign_keys = OFF;")
+            has_topics = cur.execute(
+                "SELECT name FROM sqlite_master WHERE type='table' AND name='topics'"
+            ).fetchone()
+            if has_topics:
+                cur.execute("UPDATE topics SET updated_by = NULL")
+            for tbl in (
+                "password_change_logs",
+                "login_logs",
+                "lesson_progress",
+                "quiz_attempts",
+                "study_sessions",
+                "auth_tokens",
+                "users",
+            ):
+                cur.execute(f"DROP TABLE IF EXISTS {tbl}")
+            cur.executescript(SCHEMA_SQL)
+            conn.commit()
+            conn.execute("PRAGMA foreign_keys = ON;")
 
-    # Giữ nguyên bảng topics, chỉ đặt updated_by = NULL trước khi tạo lại users
-    has_topics = cur.execute(
-        "SELECT name FROM sqlite_master WHERE type='table' AND name='topics'"
-    ).fetchone()
-    if has_topics:
-        cur.execute("UPDATE topics SET updated_by = NULL")
-
-    for tbl in (
-        "password_change_logs",
-        "login_logs",
-        "lesson_progress",
-        "quiz_attempts",
-        "study_sessions",
-        "auth_tokens",
-        "users",
-    ):
-        cur.execute(f"DROP TABLE IF EXISTS {tbl}")
-
-    cur.executescript(SCHEMA_SQL)
-    conn.commit()
-    conn.execute("PRAGMA foreign_keys = ON;")
-    seed_initial_data(conn)
-    conn.close()
+        seed_initial_data(conn)
+    finally:
+        conn.close()
 
 
 def init_db():
     with DB_LOCK:
         conn = get_conn()
         try:
-            _configure_sqlite_once(conn)
             cur = conn.cursor()
-            cur.executescript(SCHEMA_SQL)
-            conn.commit()
+            if IS_MYSQL:
+                for stmt in MYSQL_SCHEMA_STATEMENTS:
+                    cur.execute(stmt)
+                conn.commit()
+            else:
+                _configure_sqlite_once(conn)
+                cur.executescript(SCHEMA_SQL)
+                conn.commit()
             seed_initial_data(conn)
         finally:
             conn.close()
@@ -294,6 +660,7 @@ def seed_initial_data(conn):
         )
     else:
         json_files = []
+    insert_prefix = "INSERT IGNORE INTO" if IS_MYSQL else "INSERT INTO"
     for idx, fn in enumerate(json_files, 1):
         tpath = os.path.join(topics_dir, fn)
         if os.path.exists(tpath):
@@ -304,8 +671,8 @@ def seed_initial_data(conn):
             ).fetchone()
             if not existing:
                 cur.execute(
-                    """
-                    INSERT INTO topics (id, order_index, title, subtitle, status, content_json, updated_at)
+                    f"""
+                    {insert_prefix} topics (id, order_index, title, subtitle, status, content_json, updated_at)
                     VALUES (?, ?, ?, ?, ?, ?, ?)
                     """,
                     (
@@ -350,6 +717,62 @@ def seed_initial_data(conn):
 
     conn.commit()
     _ensure_admin_account(conn)
+
+
+def upsert_lesson_progress(conn, user_id: int, topic_id: str, lesson_id: str, completed: int, checkpoint_score: int, ts: str):
+    """Lưu hoặc cập nhật tiến độ bài học tương thích cả SQLite và MySQL."""
+    if IS_MYSQL:
+        conn.execute(
+            """
+            INSERT INTO lesson_progress (user_id, topic_id, lesson_id, completed, checkpoint_score, updated_at)
+            VALUES (?, ?, ?, ?, ?, ?)
+            ON DUPLICATE KEY UPDATE
+                completed = VALUES(completed),
+                checkpoint_score = GREATEST(checkpoint_score, VALUES(checkpoint_score)),
+                updated_at = VALUES(updated_at)
+            """,
+            (user_id, topic_id, lesson_id, completed, checkpoint_score, ts),
+        )
+    else:
+        conn.execute(
+            """
+            INSERT INTO lesson_progress (user_id, topic_id, lesson_id, completed, checkpoint_score, updated_at)
+            VALUES (?, ?, ?, ?, ?, ?)
+            ON CONFLICT(user_id, topic_id, lesson_id)
+            DO UPDATE SET completed = excluded.completed,
+                          checkpoint_score = MAX(lesson_progress.checkpoint_score, excluded.checkpoint_score),
+                          updated_at = excluded.updated_at
+            """,
+            (user_id, topic_id, lesson_id, completed, checkpoint_score, ts),
+        )
+
+
+def upsert_topic(conn, tid: str, order_index: int, title: str, subtitle: str, status: str, content_json_str: str, updated_by, ts: str):
+    """Thêm mới hoặc ghi đè Chủ đề tương thích cả SQLite và MySQL."""
+    if IS_MYSQL:
+        conn.execute(
+            """
+            INSERT INTO topics (id, order_index, title, subtitle, status, content_json, updated_by, updated_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            ON DUPLICATE KEY UPDATE
+                order_index = VALUES(order_index),
+                title = VALUES(title),
+                subtitle = VALUES(subtitle),
+                status = VALUES(status),
+                content_json = VALUES(content_json),
+                updated_by = VALUES(updated_by),
+                updated_at = VALUES(updated_at)
+            """,
+            (tid, order_index, title, subtitle, status, content_json_str, updated_by, ts),
+        )
+    else:
+        conn.execute(
+            """
+            INSERT OR REPLACE INTO topics (id, order_index, title, subtitle, status, content_json, updated_by, updated_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (tid, order_index, title, subtitle, status, content_json_str, updated_by, ts),
+        )
 
 
 def sanitize_user(row):
