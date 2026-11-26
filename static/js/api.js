@@ -113,6 +113,32 @@ export const api = {
       body: JSON.stringify(payload),
     }),
 
+  previewNewTopicFile: (payload) =>
+    apiRequest("/api/topics/preview-new-file", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+
+  publishNewTopic: (payload) =>
+    apiRequest("/api/topics/publish-new", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+
+  deleteTopic: (id) =>
+    apiRequest(`/api/topics/${encodeURIComponent(id)}/delete`, {
+      method: "POST",
+      body: JSON.stringify({}),
+    }),
+
+  cacheStatus: () => apiRequest("/api/admin/cache-status"),
+
+  cacheClear: () =>
+    apiRequest("/api/admin/cache-clear", {
+      method: "POST",
+      body: JSON.stringify({}),
+    }),
+
   checkinSession: (topic_id, tab) =>
     apiRequest("/api/sessions/checkin", {
       method: "POST",

@@ -394,29 +394,77 @@ def extract_body_items_from_docx(file_bytes: bytes, topic_id: str) -> Dict:
     }
 
 
-def extract_body_items_from_pdf(file_bytes: bytes) -> Dict:
+def extract_body_items_from_pdf(file_bytes: bytes, topic_id: str = "chu-de-new") -> Dict:
     if PdfReader is None:
         raise RuntimeError("Thiếu thư viện pypdf trên máy chủ.")
     reader = PdfReader(io.BytesIO(file_bytes))
+    topic_upload_dir = os.path.join(UPLOADS_DIR, topic_id)
+    os.makedirs(topic_upload_dir, exist_ok=True)
+
     items = []
-    for page in reader.pages:
+    extracted_images = []
+    seen_hashes = set()
+
+    for page_idx, page in enumerate(reader.pages):
+        page_imgs = []
+        try:
+            for img_obj in getattr(page, "images", []) or []:
+                img_bytes = getattr(img_obj, "data", None)
+                if not img_bytes or len(img_bytes) < 512:
+                    continue
+                h = hashlib.sha1(img_bytes).hexdigest()[:10]
+                if h in seen_hashes:
+                    continue
+                seen_hashes.add(h)
+                raw_name = getattr(img_obj, "name", "") or f"pdf_p{page_idx + 1}.png"
+                ext = os.path.splitext(raw_name)[1].lower()
+                if ext not in (".png", ".jpg", ".jpeg", ".gif", ".webp"):
+                    ext = ".png"
+                fname = f"img_{h}{ext}"
+                dst = os.path.join(topic_upload_dir, fname)
+                with open(dst, "wb") as f:
+                    f.write(img_bytes)
+                url = f"/uploads/{topic_id}/{fname}"
+                page_imgs.append(url)
+                extracted_images.append(url)
+        except Exception:
+            pass
+
         raw = page.extract_text() or ""
-        for ln in raw.splitlines():
-            txt = _clean(ln)
-            if txt:
-                items.append(
-                    {
-                        "type": "p",
-                        "text": txt,
-                        "raw_text": txt,
-                        "style": "Normal",
-                        "heading_level": 0,
-                        "is_bold": False,
-                        "marked_letters": [],
-                        "images": [],
-                    }
-                )
-    return {"items": items, "images": [], "tables_count": 0}
+        lines = [ln for ln in (_clean(l) for l in raw.splitlines()) if ln]
+        for li, txt in enumerate(lines):
+            # Tự nhận diện dòng tiêu đề trên PDF (chữ in hoa hoặc bắt đầu bằng BÀI / CHỦ ĐỀ / 5.1.)
+            is_upper_heading = len(txt) >= 6 and len(txt) <= 120 and txt == txt.upper() and any(ch.isalpha() for ch in txt)
+            is_bold = bool(
+                is_upper_heading
+                or re.match(r"^(?:CHỦ\s*ĐỀ|BÀI\s*\d+|PHẦN\s+[I1-3ABC]|I+\.|[1-9]\.\d+\.)", txt, re.IGNORECASE)
+            )
+            items.append(
+                {
+                    "type": "p",
+                    "text": txt,
+                    "raw_text": txt,
+                    "style": "Heading 1" if is_upper_heading else "Normal",
+                    "heading_level": 1 if is_upper_heading else 0,
+                    "is_bold": is_bold,
+                    "marked_letters": [],
+                    "images": page_imgs if (li == len(lines) - 1 and page_imgs) else [],
+                }
+            )
+        if not lines and page_imgs:
+            items.append(
+                {
+                    "type": "p",
+                    "text": "",
+                    "raw_text": "",
+                    "style": "Normal",
+                    "heading_level": 0,
+                    "is_bold": False,
+                    "marked_letters": [],
+                    "images": page_imgs,
+                }
+            )
+    return {"items": items, "images": extracted_images, "tables_count": 0}
 
 
 def extract_body_items_from_txt(file_bytes: bytes) -> Dict:
@@ -460,9 +508,9 @@ RE_SA_MARKER = re.compile(
     re.IGNORECASE,
 )
 
-# Nhận diện tiêu đề Bài học mới (phân biệt chữ HOA/thường để không nhầm đáp án A., B., C., D. hay tiểu mục 4.1. Quá trình...)
+# Nhận diện tiêu đề Bài học mới (phân biệt chữ HOA/thường để không nhầm đáp án A., B., C., D. hay tiểu mục)
 RE_BAI_LESSON = re.compile(r"^(?:BÀI\s*\d+\s*[:\.\-]|CHỦ\s*ĐỀ\s*BÀI\s*TẬP\b)", re.IGNORECASE)
-RE_UPPER_SECTION_LESSON = re.compile(r"^(?:[A-B]\.\s+[A-ZÀ-ỸĐ]|4\.\d+\.\s+[A-ZÀ-ỸĐ])")
+RE_UPPER_SECTION_LESSON = re.compile(r"^(?:[A-B]\.\s+[A-ZÀ-ỸĐ]|[1-9]\.\d+[\.:]?\s+[A-ZÀ-ỸĐ]{2,})")
 
 RE_QUESTION_START = re.compile(r"^(?:Câu|Question)\s*([lI]?\d+)\s*[:\.\)]\s*(.*)$", re.IGNORECASE)
 RE_OPT_LINE = re.compile(r"^([A-D])\s*[\.\)]\s*(.+)$")
@@ -1088,7 +1136,7 @@ def parse_document_to_topic(
     if ext == ".docx":
         raw = extract_body_items_from_docx(file_bytes, topic_id)
     elif ext == ".pdf":
-        raw = extract_body_items_from_pdf(file_bytes)
+        raw = extract_body_items_from_pdf(file_bytes, topic_id)
     elif ext in (".txt", ".md"):
         raw = extract_body_items_from_txt(file_bytes)
     else:
@@ -1269,6 +1317,35 @@ def parse_document_to_topic(
             }
         scenes.append(sc)
 
+    # Chuẩn hoá đánh số đề mục thống nhất (VD: Chủ đề 5 -> 5.1, 5.2, 5.3...) & gắn mức độ nhận thức
+    order_index = int(existing_topic.get("order_index") or 0)
+    if order_index <= 0:
+        m_ord = re.search(r"(\d+)", topic_id)
+        order_index = int(m_ord.group(1)) if m_ord else 1
+
+    try:
+        from classify_levels import classify_question as _classify_lv
+    except Exception:
+        _classify_lv = None
+
+    lesson_num_map = {}
+    for l_idx, ls in enumerate(lessons, 1):
+        new_num = f"{order_index}.{l_idx}"
+        ls["number"] = new_num
+        lesson_num_map[ls["id"]] = new_num
+    for u_idx, unit in enumerate(htkt_units, 1):
+        unit["lesson_number"] = f"{order_index}.{u_idx}"
+    for b_idx, br in enumerate(mindmap_branches, 1):
+        ls_title = lessons[b_idx - 1]["title"] if b_idx <= len(lessons) else br.get("title", "")
+        br["title"] = f"{order_index}.{b_idx}: {ls_title}"
+    for kind_key, q_list in (("mcq", all_mcq), ("true_false", all_tf), ("short_answer", all_sa)):
+        for q in q_list:
+            lid = q.get("lesson_id") or ""
+            if lid in lesson_num_map:
+                q["lesson"] = lesson_num_map[lid]
+            if _classify_lv and not q.get("cognitive_level"):
+                q["cognitive_level"] = _classify_lv(q, kind_key)
+
     subtitle = " • ".join(f"{l['number']}: {l['title']}" for l in lessons)
     if len(subtitle) > 180:
         subtitle = " • ".join(l["title"] for l in lessons)[:180]
@@ -1309,7 +1386,7 @@ def parse_document_to_topic(
         },
         "extracted": {
             "id": topic_id,
-            "order_index": existing_topic.get("order_index", 1),
+            "order_index": order_index,
             "title": detected_title,
             "subtitle": subtitle,
             "grade": "Sinh học 12 — Chương trình GDPT 2018",

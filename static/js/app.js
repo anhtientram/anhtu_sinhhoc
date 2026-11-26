@@ -666,7 +666,7 @@ function renderMainShell() {
           ${state.topicsList
             .map((t, i) => {
               const num = t.order_index || i + 1;
-              const themeCls = `topic-theme-${((num - 1) % 4) + 1}`;
+              const themeCls = `topic-theme-${((num - 1) % 8) + 1}`;
               const shortTitle = (t.title || "").replace(/^Chủ đề\s*\d+[\.\:]?\s*/i, "");
               const isLoadingThis = state.topicLoading && state.loadingTopicId === t.id;
               return `

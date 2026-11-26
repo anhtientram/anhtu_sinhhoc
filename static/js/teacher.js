@@ -6,6 +6,7 @@
 
 import { api, formatDateTimeVN, formatDuration, withBase } from "./api.js";
 import { escapeHtml } from "./format.js";
+import { openTopicPreviewModal } from "./topic_preview.js";
 import { mountYoutubeLibrary } from "./youtube_videos.js";
 
 export function mountTeacherDashboard(container, activeTopic, onTopicUpdated, showToast, opts = {}) {
@@ -39,9 +40,23 @@ export function mountTeacherDashboard(container, activeTopic, onTopicUpdated, sh
   let examResult = null; // { job_id, summary }
 
   // Trạng thái Chỉnh sửa / Thêm nội dung
-  let contentSubMode = "add_question"; // 'add_question' | 'edit_lesson' | 'add_topic' | 'youtube' | 'import'
+  let contentSubMode = "add_topic"; // 'add_topic' | 'add_question' | 'edit_lesson' | 'youtube' | 'import'
   let newQuestionType = "mcq";
   let editLessonId = (activeTopic?.lessons || [])[0]?.id || "__new__";
+
+  // Trạng thái Tạo Chủ đề mới từ file Word (.docx) / PDF (.pdf) kèm Xem trước & Đẩy dữ liệu
+  let newTopicDraft = {
+    order_index: 5,
+    title: "",
+    subtitle: "",
+    file: null,
+    loading: false,
+    publishing: false,
+    preview: null, // { stats, detected_title, extracted }
+  };
+
+  let cacheInfo = null;
+  let cacheClearing = false;
 
   let importState = {
     file: null,
@@ -67,7 +82,17 @@ export function mountTeacherDashboard(container, activeTopic, onTopicUpdated, sh
 
   async function loadOverview() {
     try {
-      overview = await api.teacherOverview();
+      const [ov, cs, tlist] = await Promise.all([
+        api.teacherOverview(),
+        api.cacheStatus().catch(() => null),
+        api.listTopics().catch(() => null),
+      ]);
+      overview = ov;
+      if (cs?.cache) cacheInfo = cs.cache;
+      if (tlist?.topics?.length && !newTopicDraft.preview) {
+        const maxIdx = Math.max(...tlist.topics.map((x) => Number(x.order_index || 0)), tlist.topics.length);
+        newTopicDraft.order_index = maxIdx + 1;
+      }
       render();
     } catch (err) {
       container.innerHTML = `<div class="card"><p style="color:var(--red);">${escapeHtml(err.message)}</p></div>`;
@@ -558,12 +583,30 @@ export function mountTeacherDashboard(container, activeTopic, onTopicUpdated, sh
     return `
       <div style="display:flex;flex-direction:column;gap:16px;">
         <div class="segmented" style="flex-wrap:wrap;">
+          <button class="seg-btn ${contentSubMode === "add_topic" ? "active" : ""}" data-csub="add_topic">Thêm Chủ đề mới (Word/PDF)</button>
           <button class="seg-btn ${contentSubMode === "add_question" ? "active" : ""}" data-csub="add_question">Thêm câu hỏi mới</button>
           <button class="seg-btn ${contentSubMode === "edit_lesson" ? "active" : ""}" data-csub="edit_lesson">Sửa / Thêm bài Lý thuyết</button>
-          <button class="seg-btn ${contentSubMode === "add_topic" ? "active" : ""}" data-csub="add_topic">Thêm Chủ đề mới</button>
           <button class="seg-btn ${contentSubMode === "youtube" ? "active" : ""}" data-csub="youtube">Video YouTube</button>
-          <button class="seg-btn ${contentSubMode === "import" ? "active" : ""}" data-csub="import">Nhập từ file Word/PDF</button>
+          <button class="seg-btn ${contentSubMode === "import" ? "active" : ""}" data-csub="import">Cập nhật Chủ đề hiện tại</button>
         </div>
+
+        ${
+          cacheInfo
+            ? `
+              <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;padding:11px 16px;border-radius:10px;border:1px solid var(--border);background:var(--surface);font-size:0.82rem;">
+                <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+                  <span class="pill ${cacheInfo.redis_connected ? "pill-green" : "pill-primary"}">Cache: ${escapeHtml(cacheInfo.backend)}</span>
+                  <span style="color:var(--text-secondary);">
+                    Tỉ lệ trúng cache: <strong>${cacheInfo.hit_rate_percent}%</strong> · Đang lưu: <strong>${cacheInfo.l1_entries}</strong> khoá (L1: ${cacheInfo.l1_hits} · Redis: ${cacheInfo.redis_hits})
+                  </span>
+                </div>
+                <button type="button" class="btn btn-secondary btn-sm" id="btn-clear-cache" ${cacheClearing ? "disabled" : ""}>
+                  ${cacheClearing ? "Đang làm mới..." : "Làm mới Cache"}
+                </button>
+              </div>
+            `
+            : ""
+        }
 
         ${
           contentSubMode === "add_question"
@@ -692,29 +735,99 @@ export function mountTeacherDashboard(container, activeTopic, onTopicUpdated, sh
               </div>
             `
             : contentSubMode === "add_topic"
-            ? `
-              <div class="card">
-                <h3 class="card-title">Tạo Chủ đề mới</h3>
-                <p style="font-size:0.84rem;color:var(--text-muted);margin-top:-6px;">Chủ đề mới sẽ xuất hiện ngay lập tức ở thanh Chủ đề bên trái.</p>
-                <form id="admin-add-topic-form">
-                  <div class="form-row-2">
-                    <div class="form-group">
-                      <label>Tên Chủ đề *</label>
-                      <input class="form-control" name="title" required placeholder="VD: Chủ đề 5. Di truyền học người" />
+            ? (() => {
+                const dp = newTopicDraft.preview;
+                const ds = dp?.stats;
+                const ord = newTopicDraft.order_index || 5;
+                return `
+                  <div class="card">
+                    <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap;margin-bottom:14px;">
+                      <div>
+                        <h3 class="card-title" style="margin:0 0 4px;">Thêm Chủ đề mới từ file Word (.docx) hoặc PDF (.pdf)</h3>
+                        <p style="margin:0;font-size:0.84rem;color:var(--text-muted);">
+                          Hệ thống tự động trích xuất Lý thuyết, Hình ảnh, Hệ thống kiến thức và Câu hỏi ôn tập 3 phần, tự đánh số (${ord}.1, ${ord}.2...) và tạo thẻ màu tương phản giống hệt các Chủ đề cũ.
+                        </p>
+                      </div>
+                      <a class="btn btn-secondary btn-sm" href="${withBase("/api/import-template")}" target="_blank">Tải file Word mẫu</a>
                     </div>
-                    <div class="form-group">
-                      <label>Thứ tự hiển thị</label>
-                      <input type="number" min="1" class="form-control" name="order_index" value="${(examPool?.length || 4) + 1}" />
+
+                    <!-- Bước 1: Thông tin cơ bản & Chọn file Word/PDF -->
+                    <div class="form-row-2">
+                      <div class="form-group">
+                        <label>Số thứ tự Chủ đề</label>
+                        <input type="number" min="1" max="50" class="form-control" id="new-topic-order" value="${ord}" />
+                      </div>
+                      <div class="form-group">
+                        <label>Tên Chủ đề (tự nhận diện từ file hoặc nhập thủ công)</label>
+                        <input class="form-control" id="new-topic-title" value="${escapeHtml(newTopicDraft.title)}" placeholder="VD: Chủ đề ${ord}. Di truyền học quần thể và Di truyền học người" />
+                      </div>
                     </div>
+
+                    <div class="form-group">
+                      <label>Mô tả ngắn (tuỳ chọn)</label>
+                      <input class="form-control" id="new-topic-subtitle" value="${escapeHtml(newTopicDraft.subtitle)}" placeholder="Tự động tổng hợp từ danh sách bài học nếu để trống" />
+                    </div>
+
+                    <div style="padding:16px;border:1.5px dashed var(--primary-border);border-radius:12px;background:var(--surface-tint);margin-bottom:16px;">
+                      <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+                        <label class="btn btn-primary" style="cursor:pointer;">
+                          ${newTopicDraft.loading ? "Đang đọc & thiết kế Chủ đề..." : "Chọn file Word (.docx) hoặc PDF (.pdf)"}
+                          <input type="file" id="new-topic-file-input" accept=".docx,.pdf,.txt,.md" style="display:none;" ${newTopicDraft.loading ? "disabled" : ""} />
+                        </label>
+                        <span style="font-size:0.85rem;color:var(--text-secondary);">
+                          ${
+                            newTopicDraft.loading
+                              ? "Đang phân tích cấu trúc bài học, hình ảnh, bảng biểu và câu hỏi..."
+                              : newTopicDraft.file
+                              ? `Đã đọc xong: <strong>${escapeHtml(newTopicDraft.file.name)}</strong>`
+                              : "Hỗ trợ tệp Word (.docx) và PDF (.pdf) chuẩn cấu trúc giảng dạy"
+                          }
+                        </span>
+                      </div>
+                    </div>
+
+                    ${
+                      dp && ds
+                        ? `
+                          <div style="padding:16px;border-radius:12px;border:1px solid var(--primary-border);background:#fff;margin-bottom:16px;">
+                            <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:12px;">
+                              <div>
+                                <span class="pill pill-green">Đã trích xuất sẵn sàng xem trước</span>
+                                <h4 style="margin:6px 0 2px;font-size:1rem;">${escapeHtml(newTopicDraft.title || dp.extracted?.title || dp.detected_title)}</h4>
+                                <div style="font-size:0.83rem;color:var(--text-secondary);">
+                                  <strong>${ds.lessons_count}</strong> bài học (${(dp.extracted?.lessons || []).map((l) => l.number).join(", ")}) ·
+                                  <strong>${ds.images_count}</strong> hình ảnh ·
+                                  <strong>${ds.tables_count}</strong> bảng ·
+                                  <strong>${ds.htkt_units_count}</strong> phiếu HTKT
+                                </div>
+                                <div style="font-size:0.83rem;color:var(--text-secondary);margin-top:2px;">
+                                  Ngân hàng ôn tập: <strong>${ds.mcq_count}</strong> câu 4 đáp án · <strong>${ds.true_false_count}</strong> câu Đúng/Sai · <strong>${ds.short_answer_count}</strong> câu Trả lời ngắn
+                                </div>
+                              </div>
+                            </div>
+
+                            <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;">
+                              <button type="button" class="btn btn-soft" id="btn-preview-new-topic">
+                                Xem trước nội dung &amp; giao diện
+                              </button>
+                              <button type="button" class="btn btn-primary" id="btn-publish-new-topic" ${newTopicDraft.publishing ? "disabled" : ""}>
+                                ${newTopicDraft.publishing ? "Đang cập nhật vào hệ thống..." : "Cập nhật & Đẩy lên dữ liệu"}
+                              </button>
+                              <button type="button" class="btn btn-ghost btn-sm" id="btn-reset-new-topic">Chọn lại file khác</button>
+                            </div>
+                          </div>
+                        `
+                        : `
+                          <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+                            <button type="button" class="btn btn-secondary btn-sm" id="btn-create-empty-topic">
+                              Hoặc tạo Chủ đề trống (nhập bài thủ công sau)
+                            </button>
+                          </div>
+                        `
+                    }
                   </div>
-                  <div class="form-group">
-                    <label>Mô tả ngắn</label>
-                    <input class="form-control" name="subtitle" placeholder="Tóm tắt trọng tâm chủ đề" />
-                  </div>
-                  <button type="submit" class="btn btn-primary">Tạo Chủ đề mới</button>
-                </form>
-              </div>
-            `
+                `;
+              })()
             : contentSubMode === "youtube"
             ? `
               <div class="card">
@@ -765,7 +878,10 @@ export function mountTeacherDashboard(container, activeTopic, onTopicUpdated, sh
                           <strong>${escapeHtml(prev.detected_title)}</strong><br/>
                           <span style="color:var(--text-secondary);">${st.lessons_count} bài · ${st.images_count} ảnh · ${st.mcq_count} MCQ · ${st.true_false_count} Đúng/Sai · ${st.short_answer_count} Trả lời ngắn</span>
                         </div>
-                        <button class="btn btn-primary btn-sm" id="btn-apply-doc-import" ${importState.loading ? "disabled" : ""}>Áp dụng cập nhật</button>
+                        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+                          <button type="button" class="btn btn-soft btn-sm" id="btn-preview-doc-import">Xem trước giao diện</button>
+                          <button type="button" class="btn btn-primary btn-sm" id="btn-apply-doc-import" ${importState.loading ? "disabled" : ""}>Cập nhật &amp; Đẩy lên dữ liệu</button>
+                        </div>
                       </div>
                     `
                     : ""
@@ -1438,16 +1554,134 @@ export function mountTeacherDashboard(container, activeTopic, onTopicUpdated, sh
         }
       });
 
-      container.querySelector("#admin-add-topic-form")?.addEventListener("submit", async (e) => {
-        e.preventDefault();
-        const fd = new FormData(e.target);
+      container.querySelector("#btn-clear-cache")?.addEventListener("click", async () => {
+        cacheClearing = true;
+        render();
+        try {
+          const res = await api.cacheClear();
+          cacheInfo = res.cache || cacheInfo;
+          examPool = null;
+          showToast(res.message || "Đã làm mới toàn bộ Cache!", "success");
+        } catch (err) {
+          showToast(err.message, "error");
+        } finally {
+          cacheClearing = false;
+          render();
+        }
+      });
+
+      const syncNewTopicMeta = () => {
+        const ordVal = parseInt(container.querySelector("#new-topic-order")?.value || "", 10);
+        if (!Number.isNaN(ordVal) && ordVal > 0) newTopicDraft.order_index = ordVal;
+        const titleEl = container.querySelector("#new-topic-title");
+        if (titleEl) newTopicDraft.title = titleEl.value.trim();
+        const subEl = container.querySelector("#new-topic-subtitle");
+        if (subEl) newTopicDraft.subtitle = subEl.value.trim();
+      };
+
+      const buildFinalDraftTopic = () => {
+        syncNewTopicMeta();
+        if (!newTopicDraft.preview?.extracted) return null;
+        const cloned = JSON.parse(JSON.stringify(newTopicDraft.preview.extracted));
+        cloned.order_index = newTopicDraft.order_index || cloned.order_index || 5;
+        if (newTopicDraft.title) cloned.title = newTopicDraft.title;
+        if (newTopicDraft.subtitle) cloned.subtitle = newTopicDraft.subtitle;
+        return cloned;
+      };
+
+      const doPublishNewTopic = async (topicPayload) => {
+        newTopicDraft.publishing = true;
+        render();
+        try {
+          const res = await api.publishNewTopic({ topic: topicPayload });
+          examPool = null;
+          newTopicDraft.file = null;
+          newTopicDraft.preview = null;
+          newTopicDraft.title = "";
+          newTopicDraft.subtitle = "";
+          showToast(res.message || `Đã xuất bản "${res.topic.title}"!`, "success");
+          await onTopicsReload(res.topic.id);
+        } catch (err) {
+          showToast(err.message, "error");
+          throw err;
+        } finally {
+          newTopicDraft.publishing = false;
+          render();
+        }
+      };
+
+      container.querySelector("#new-topic-file-input")?.addEventListener("change", async (e) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+        syncNewTopicMeta();
+        newTopicDraft.file = file;
+        newTopicDraft.loading = true;
+        newTopicDraft.preview = null;
+        render();
+        try {
+          const b64 = await fileToBase64(file);
+          const res = await api.previewNewTopicFile({
+            filename: file.name,
+            content_base64: b64,
+            order_index: newTopicDraft.order_index,
+            title: newTopicDraft.title,
+            subtitle: newTopicDraft.subtitle,
+          });
+          newTopicDraft.preview = res.preview;
+          newTopicDraft.order_index = res.order_index || newTopicDraft.order_index;
+          if (!newTopicDraft.title && res.preview?.extracted?.title) {
+            newTopicDraft.title = res.preview.extracted.title;
+          }
+          if (!newTopicDraft.subtitle && res.preview?.extracted?.subtitle) {
+            newTopicDraft.subtitle = res.preview.extracted.subtitle;
+          }
+          showToast(`Đã trích xuất xong "${file.name}". Bấm "Xem trước" hoặc "Cập nhật & Đẩy lên dữ liệu"!`, "success");
+        } catch (err) {
+          showToast(err.message, "error");
+        } finally {
+          newTopicDraft.loading = false;
+          render();
+        }
+      });
+
+      container.querySelector("#btn-preview-new-topic")?.addEventListener("click", () => {
+        const topicPayload = buildFinalDraftTopic();
+        if (!topicPayload) return;
+        openTopicPreviewModal(topicPayload, {
+          publishLabel: "Cập nhật & Đẩy lên dữ liệu",
+          onPublish: doPublishNewTopic,
+        });
+      });
+
+      container.querySelector("#btn-publish-new-topic")?.addEventListener("click", async () => {
+        const topicPayload = buildFinalDraftTopic();
+        if (!topicPayload) return;
+        await doPublishNewTopic(topicPayload);
+      });
+
+      container.querySelector("#btn-reset-new-topic")?.addEventListener("click", () => {
+        newTopicDraft.file = null;
+        newTopicDraft.preview = null;
+        newTopicDraft.title = "";
+        newTopicDraft.subtitle = "";
+        render();
+      });
+
+      container.querySelector("#btn-create-empty-topic")?.addEventListener("click", async () => {
+        syncNewTopicMeta();
+        if (!newTopicDraft.title) {
+          showToast("Vui lòng nhập Tên Chủ đề trước khi tạo Chủ đề trống.", "error");
+          return;
+        }
         try {
           const res = await api.createTopic({
-            title: String(fd.get("title") || "").trim(),
-            subtitle: String(fd.get("subtitle") || "").trim(),
-            order_index: Number(fd.get("order_index") || 5),
+            title: newTopicDraft.title,
+            subtitle: newTopicDraft.subtitle,
+            order_index: newTopicDraft.order_index || 5,
           });
           examPool = null;
+          newTopicDraft.title = "";
+          newTopicDraft.subtitle = "";
           showToast(`Đã tạo chủ đề "${res.topic.title}"!`, "success");
           await onTopicsReload(res.topic.id);
         } catch (err) {
@@ -1495,6 +1729,15 @@ export function mountTeacherDashboard(container, activeTopic, onTopicUpdated, sh
             importState.loading = false;
             render();
           }
+        });
+        container.querySelector("#btn-preview-doc-import")?.addEventListener("click", () => {
+          if (!importState.preview?.extracted) return;
+          openTopicPreviewModal(importState.preview.extracted, {
+            publishLabel: "Cập nhật vào Chủ đề hiện tại",
+            onPublish: async () => {
+              container.querySelector("#btn-apply-doc-import")?.click();
+            },
+          });
         });
         container.querySelector("#btn-apply-doc-import")?.addEventListener("click", async () => {
           if (!importState.file || !importState.base64) return;
