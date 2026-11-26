@@ -434,7 +434,7 @@ function renderFirstLoginSetupView() {
         <form id="first-login-form">
           <div class="form-group">
             <label>${isTeacher ? "Họ, tên GV *" : "Họ, tên HS *"}</label>
-            <input class="form-control" name="full_name" required placeholder="${isTeacher ? "VD: Nguyễn Thị Minh" : "VD: Trần Văn An"}" />
+            <input class="form-control" name="full_name" required value="${escapeHtml(/^(?:GV|HS)\s*\(/i.test(user.full_name || "") ? "" : user.full_name || "")}" placeholder="${isTeacher ? "VD: Nguyễn Thị Minh" : "VD: Trần Văn An"}" />
           </div>
 
           ${
@@ -443,11 +443,11 @@ function renderFirstLoginSetupView() {
                 <div class="form-row-2">
                   <div class="form-group">
                     <label>Trường *</label>
-                    <input class="form-control" name="school_name" required placeholder="VD: Trường THPT Lê Hồng Phong" />
+                    <input class="form-control" name="school_name" required value="${escapeHtml(user.school_name || "")}" placeholder="VD: Trường THPT Lê Hồng Phong" />
                   </div>
                   <div class="form-group">
                     <label>Số điện thoại *</label>
-                    <input type="tel" class="form-control" name="phone" required placeholder="09xx xxx xxx" />
+                    <input type="tel" class="form-control" name="phone" required value="${escapeHtml(user.phone || "")}" placeholder="09xx xxx xxx" />
                   </div>
                 </div>
               `
@@ -455,16 +455,16 @@ function renderFirstLoginSetupView() {
                 <div class="form-row-2">
                   <div class="form-group">
                     <label>Lớp *</label>
-                    <input class="form-control" name="class_name" required placeholder="VD: 12A1" />
+                    <input class="form-control" name="class_name" required value="${escapeHtml(user.class_name || "")}" placeholder="VD: 12A1" />
                   </div>
                   <div class="form-group">
                     <label>Số điện thoại *</label>
-                    <input type="tel" class="form-control" name="phone" required placeholder="09xx xxx xxx" />
+                    <input type="tel" class="form-control" name="phone" required value="${escapeHtml(user.phone || "")}" placeholder="09xx xxx xxx" />
                   </div>
                 </div>
                 <div class="form-group">
                   <label>Trường *</label>
-                  <input class="form-control" name="school_name" required placeholder="VD: Trường THPT Lê Hồng Phong" />
+                  <input class="form-control" name="school_name" required value="${escapeHtml(user.school_name || "")}" placeholder="VD: Trường THPT Lê Hồng Phong" />
                 </div>
               `
           }

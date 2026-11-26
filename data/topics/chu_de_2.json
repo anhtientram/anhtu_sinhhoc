@@ -9463,7 +9463,7 @@
         "orig_num": 3,
         "lesson_id": "chu-de-2-bai-2",
         "lesson": "2.2",
-        "stem": "Hai nhà khoa học Dyban A. và Baranov S.V. đã tạo ra một số con chuột tam nhiễm (2n + 1) về các nhiễm sắc thể khác nhau. Trong số này, chỉ các con chuột chứa ba nhiễm sắc thể số 19 (NST 19) mới có khả năng phát triển thành chuột con, còn các thể tam nhiễm khác (NST 1, NST 6, NST 10...) đều chết trong quá trình phát triển phôi. Phân tích mối quan hệ giữa độ dài thời gian phát triển phôi (số ngày phôi phát triển trước khi chết tính từ thời điểm hợp tử hình thành) với kích thước của cặp nhiễm sắc thể có thêm nhiễm sắc thể thứ ba ở một số chuột tam nhiễm này, hai nhà khoa học thu được kết quả như hình bên. Biết rằng các NST trong bộ NST được sắp xếp theo thứ tự từ lớn nhất đến nhỏ nhất. Mỗi phát biểu dưới đây về các vấn đề liên quan đến nghiên cứu này Đúng hay Sai?",
+        "stem": "Hai nhà khoa học Dyban A. và Baranov S.V. đã tạo ra một số con chuột tam nhiễm (2n + 1) về các nhiễm sắc thể khác nhau. Trong số này, chỉ các con chuột chứa ba nhiễm sắc thể số 19 (NST 19) mới có khả năng phát triển thành chuột con, còn các thể tam nhiễm khác (NST 1, NST 6, NST 10...) đều chết trong quá trình phát triển phôi. Phân tích mối quan hệ giữa độ dài thời gian phát triển phôi (số ngày phôi phát triển trước khi chết tính từ thời điểm hợp tử hình thành) với kích thước của cặp nhiễm sắc thể có thểm nhiễm sắc thể thứ ba ở một số chuột tam nhiễm này, hai nhà khoa học thu được kết quả như hình bên. Biết rằng các NST trong bộ NST được sắp xếp theo thứ tự từ lớn nhất đến nhỏ nhất. Mỗi phát biểu dưới đây về các vấn đề liên quan đến nghiên cứu này Đúng hay Sai?",
         "images": [
           "/uploads/chu-de-2/img_035ed48e4b.jpg"
         ],
@@ -10185,5 +10185,5 @@
       }
     ]
   },
-  "bundled_version": "2026.11.26-spelling-clean-v6"
+  "bundled_version": "2026.11.26-spelling-clean-v7"
 }
