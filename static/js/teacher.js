@@ -1127,8 +1127,11 @@ export function mountTeacherDashboard(container, activeTopic, onTopicUpdated, sh
                                         : `<span class="pill pill-green">Đã kích hoạt</span>`
                                     }
                                   </td>
-                                  <td>
-                                    <button type="button" class="btn btn-danger btn-sm" data-delete-user="${t.id}" data-delete-name="${escapeHtml(t.username)}">Xoá GV</button>
+                                  <td style="white-space:nowrap;">
+                                    <div style="display:flex;gap:6px;flex-wrap:wrap;">
+                                      <button type="button" class="btn btn-secondary btn-sm" data-reset-user="${t.id}" data-reset-name="${escapeHtml(t.full_name || t.username)}" data-reset-uname="${escapeHtml(t.username)}" title="Đặt lại mật khẩu về mặc định 123456@">Reset MK</button>
+                                      <button type="button" class="btn btn-danger btn-sm" data-delete-user="${t.id}" data-delete-name="${escapeHtml(t.username)}">Xoá GV</button>
+                                    </div>
                                   </td>
                                 </tr>
                               `
@@ -1249,7 +1252,12 @@ export function mountTeacherDashboard(container, activeTopic, onTopicUpdated, sh
                             </td>
                             ${
                               isAdmin
-                                ? `<td><button type="button" class="btn btn-ghost btn-sm" style="color:var(--red);" data-delete-user="${s.id}" data-delete-name="${escapeHtml(s.username)}">Xoá</button></td>`
+                                ? `<td style="white-space:nowrap;">
+                                     <div style="display:flex;gap:6px;flex-wrap:wrap;">
+                                       <button type="button" class="btn btn-secondary btn-sm" data-reset-user="${s.id}" data-reset-name="${escapeHtml(s.full_name || s.username)}" data-reset-uname="${escapeHtml(s.username)}" title="Đặt lại mật khẩu về mặc định 123456@">Reset MK</button>
+                                       <button type="button" class="btn btn-ghost btn-sm" style="color:var(--red);" data-delete-user="${s.id}" data-delete-name="${escapeHtml(s.username)}">Xoá</button>
+                                     </div>
+                                   </td>`
                                 : ""
                             }
                           </tr>
@@ -1273,6 +1281,7 @@ export function mountTeacherDashboard(container, activeTopic, onTopicUpdated, sh
     const reasonText = {
       first_login_setup: "Kích hoạt & đổi mật khẩu lần đầu",
       profile_change: "Đổi mật khẩu trong Hồ sơ",
+      admin_reset: "Admin reset về mặc định (123456@)",
     };
 
     return `
@@ -1346,6 +1355,27 @@ export function mountTeacherDashboard(container, activeTopic, onTopicUpdated, sh
         } catch (err) {
           showToast(err.message, "error");
         }
+      });
+
+      container.querySelectorAll("[data-reset-user]").forEach((btn) => {
+        btn.addEventListener("click", async () => {
+          const displayName = btn.dataset.resetName || btn.dataset.resetUname;
+          const uname = btn.dataset.resetUname;
+          if (
+            !window.confirm(
+              `Xác nhận đặt lại mật khẩu của "${displayName}" (@${uname}) về mật khẩu mặc định 123456@?\nThành viên này sẽ cần đăng nhập lại bằng mật khẩu 123456@ và đổi mật khẩu mới.`
+            )
+          ) {
+            return;
+          }
+          try {
+            const res = await api.adminResetUserPassword(btn.dataset.resetUser);
+            showToast(res.message || "Đã đặt lại mật khẩu về 123456@.", "success");
+            await loadOverview(true);
+          } catch (err) {
+            showToast(err.message, "error");
+          }
+        });
       });
 
       container.querySelectorAll("[data-delete-user]").forEach((btn) => {

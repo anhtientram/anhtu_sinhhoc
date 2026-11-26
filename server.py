@@ -1757,6 +1757,41 @@ class Bio12Handler(BaseHTTPRequestHandler):
                     },
                 )
 
+            # Admin ONLY: Đặt lại mật khẩu thành viên (Giáo viên / Học sinh) về mật khẩu mặc định 123456@
+            m_reset = re.match(r"^/api/admin/users/(\d+)/reset-password$", path)
+            if m_reset:
+                admin = self.require_admin(conn, qs, body)
+                if not admin:
+                    return
+                uid = int(m_reset.group(1))
+                target = conn.execute("SELECT * FROM users WHERE id = ?", (uid,)).fetchone()
+                if not target:
+                    return self.send_json(404, {"error": "Không tìm thấy thành viên."})
+                if target["role"] == "admin" or target["username"].lower() == ADMIN_USERNAME:
+                    return self.send_json(403, {"error": "Không thể reset mật khẩu tài khoản Quản trị viên tại đây."})
+                ts = now_iso()
+                conn.execute(
+                    """
+                    UPDATE users
+                    SET password_hash = ?, must_change_password = 1, updated_at = ?
+                    WHERE id = ?
+                    """,
+                    (hash_password(DEFAULT_USER_PASSWORD), ts, uid),
+                )
+                conn.execute("DELETE FROM auth_tokens WHERE user_id = ?", (uid,))
+                conn.commit()
+                invalidate_token_cache(user_id=uid)
+                updated_target = conn.execute("SELECT * FROM users WHERE id = ?", (uid,)).fetchone()
+                record_password_change(conn, updated_target, reason="admin_reset")
+                return self.send_json(
+                    200,
+                    {
+                        "ok": True,
+                        "default_password": DEFAULT_USER_PASSWORD,
+                        "message": f"Đã đặt lại mật khẩu của '{target['full_name']}' (@{target['username']}) về mật khẩu mặc định {DEFAULT_USER_PASSWORD}.",
+                    },
+                )
+
             # Admin ONLY: Xoá thành viên (Giáo viên hoặc Học sinh; không được xoá tài khoản Quản trị viên)
             m_del = re.match(r"^/api/admin/users/(\d+)/delete$", path)
             if m_del:

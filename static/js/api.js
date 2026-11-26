@@ -424,6 +424,12 @@ export const api = {
       body: JSON.stringify({}),
     }),
 
+  adminResetUserPassword: (userId) =>
+    apiRequest(`/api/admin/users/${encodeURIComponent(userId)}/reset-password`, {
+      method: "POST",
+      body: JSON.stringify({}),
+    }),
+
   adminMarkPasswordAlertsRead: () =>
     apiRequest("/api/admin/password-alerts/mark-read", {
       method: "POST",

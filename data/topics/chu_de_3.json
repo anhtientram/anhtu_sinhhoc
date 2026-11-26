@@ -5369,7 +5369,7 @@
         "tables": [],
         "options": [
           "Gene tạo ra được nhiều phân tử mRNA khác nhau.",
-          "Gene mà sản phẩm của nó ảnh hướng đến nhiều tính trạng.",
+          "Gene mà sản phẩm của nó ảnh hưởng đến nhiều tính trạng.",
           "Gene điều khiển sự hoạt động cùng một lúc nhiều gene khác nhau.",
           "Gene tạo ra sản phẩm với hiệu quả cao."
         ],
@@ -7690,5 +7690,5 @@
       }
     ]
   },
-  "bundled_version": "2026.11.26-spelling-clean-v6"
+  "bundled_version": "2026.11.26-spelling-clean-v7"
 }
