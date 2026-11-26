@@ -218,6 +218,60 @@ function formatScoreVN(n) {
   return num.toFixed(2).replace(".", ",");
 }
 
+// ================== CÔNG CỤ CHUẨN HOÁ KIỂU GENE CHUẨN SGK ==================
+export function standardizeGenotypeText(raw) {
+  if (!raw || typeof raw !== "string") return raw || "";
+  let s = raw;
+  // 1. Dấu lai giữa 2 kiểu gene (VD: AaBb x aabb, AB/ab x ab/ab, X^AX^a x X^AY)
+  s = s.replace(
+    /(\b(?:[A-Za-z]{2,6}(?:\/[A-Za-z]{2,6})?|[XYI]\^?[A-Za-z\{\}]{1,6}[XYI]?\^?[A-Za-z\{\}]{0,6}))\s+[xX]\s+(?=[A-Za-zXYI])/g,
+    "$1 × "
+  );
+  // 2. Liên kết / hoán vị viết sai dấu ngăn cách: AB//ab, AB\\ab, (AB)/(ab) -> AB/ab
+  s = s.replace(/\(([A-Za-z]{2,4})\)\s*\/\s*\(([A-Za-z]{2,4})\)/g, "$1/$2");
+  s = s.replace(/\b([A-Za-z]{2,4})\s*(?:\/\/|\\)\s*([A-Za-z]{2,4})\b/g, "$1/$2");
+  s = s.replace(/\b([A-Za-z]{2,4}\/[A-Za-z]{2,4})×/g, "$1 × ");
+  s = s.replace(/×([A-Za-z]{2,4}\/[A-Za-z]{2,4})\b/g, " × $1");
+  // 3. Kiểu hình viết bằng gạch dưới: A_B_, A_bb, aaB_ -> A-B-, A-bb, aaB-
+  s = s.replace(/\b([A-Z])_([A-Z])_(?![A-Za-z0-9])/g, "$1-$2-");
+  s = s.replace(/\b([A-Z])_([a-z]{2})(?![A-Za-z0-9])/g, "$1-$2");
+  s = s.replace(/\b([a-z]{2})([A-Z])_(?![A-Za-z0-9])/g, "$1$2-");
+  s = s.replace(/\b([A-Z])_(?=\s|,|\.|;|\)|$)/g, "$1-");
+  // 4. Nhóm máu ABO / gene đa allele: IAIB, IAIO, IBIO, IOIO, IA, IB, IO
+  s = s.replace(/\bI([ABO])\s*I([ABO])\b/g, "I^$1I^$2");
+  s = s.replace(/\bI([ABO])\b/g, "I^$1");
+  // 5. Liên kết giới tính (NST X, Y): XAXA, XAXa, XaXa, XAXaXa, XAY, XaY, XDE, Xde
+  s = s.replace(/\bX([ABDEHMRWabdehmrw])X([ABDEHMRWabdehmrw])X([ABDEHMRWabdehmrw])\b/g, "X^$1X^$2X^$3");
+  s = s.replace(/\bX([ABDEHMRWabdehmrw])X([ABDEHMRWabdehmrw])\b/g, "X^$1X^$2");
+  s = s.replace(/\bX([ABDEHMRWabdehmrw])Y([ABDEHMRWabdehmrw]?)\b/g, (_, a, b) => (b ? `X^${a}Y^${b}` : `X^${a}Y`));
+  s = s.replace(/\bX([A-Z][a-z]|[A-Z]{2}|[a-z]{2})X([A-Z][a-z]|[A-Z]{2}|[a-z]{2})\b/g, "X^{$1}X^{$2}");
+  s = s.replace(/\bX([A-Z][a-z]|[A-Z]{2}|[a-z]{2})Y\b/g, "X^{$1}Y");
+  // 6. Thuật ngữ GDPT 2018
+  s = s.replace(/\bADN\b/g, "DNA").replace(/\bARN\b/g, "RNA");
+  s = s.replace(/\bgen\b/g, "gene").replace(/\bGen\b/g, "Gene");
+  s = s.replace(/\balen\b/g, "allele").replace(/\bAlen\b/g, "Allele");
+  return s;
+}
+
+const GENOTYPE_GROUPS = {
+  linked: {
+    label: "Liên kết & Hoán vị gene",
+    chips: ["AB/ab", "Ab/aB", "AB/AB", "ab/ab", "BV/bv", "Bv/bV", "ABD/abd", "De/dE", "AB/ab × ab/ab", "Ab/aB × ab/ab", "f = 20%"],
+  },
+  sex: {
+    label: "Liên kết giới tính (X, Y)",
+    chips: ["X^AX^A", "X^AX^a", "X^aX^a", "X^AY", "X^aY", "X^AY^a", "X^aY^a", "X^{DE}X^{de}", "X^{De}X^{dE}", "X^{DE}Y", "X^{de}Y", "X^AX^a × X^AY"],
+  },
+  multi: {
+    label: "Gene đa allele (ABO...)",
+    chips: ["I^AI^A", "I^AI^O", "I^BI^B", "I^BI^O", "I^AI^B", "I^OI^O", "A_1 > A_2 > A_3 > A_4", "A_1A_2", "A_2A_3", "C^RC^W", "C^h"],
+  },
+  symbols: {
+    label: "Phép lai & Ký hiệu",
+    chips: ["P:", "F_1:", "F_2:", "G_P:", "×", "→", "A-B-", "A-bb", "aaB-", "aabb", "2n", "2n + 1", "2n - 1", "3n", "4n", "5' → 3'", "3' → 5'"],
+  },
+};
+
 // ================== MAIN MOUNT FUNCTION ==================
 export function mountMockExamSection(container, { currentUser, effectiveStudentView, showToast }) {
   stopMockExamTimers();
@@ -242,6 +296,8 @@ export function mountMockExamSection(container, { currentUser, effectiveStudentV
     draft: null,
     draftWarnings: [],
     editorFilter: "all", // 'all' | 'mcq' | 'true_false' | 'short_answer'
+    showGenotypeTool: true,
+    genoTab: "linked", // 'linked' | 'sex' | 'multi' | 'symbols'
     polishingAll: false,
     savingDraft: false,
 
@@ -542,6 +598,15 @@ export function mountMockExamSection(container, { currentUser, effectiveStudentV
                   <button type="button" class="btn btn-secondary" id="btn-create-blank-mock" ${st.uploading ? "disabled" : ""}>
                     + Tạo đề thủ công
                   </button>
+                </div>
+              </div>
+              <div class="mock-upload-guide">
+                <div class="mock-upload-guide-title">📌 Quy ước nhận diện đáp án &amp; lời giải tự động khi tải file Word / PDF:</div>
+                <div class="mock-upload-guide-grid">
+                  <div><strong>• Phần I (TN 4 lựa chọn):</strong> Gạch chân / tô màu đỏ nhãn <code>A.</code> <code>B.</code> <code>C.</code> <code>D.</code> hoặc bảng <code>ĐÁP ÁN</code> cuối đề.</div>
+                  <div><strong>• Phần II (Đúng/Sai):</strong> <u><strong>Gạch chân</strong></u> <code><u>a)</u></code> <code><u>b)</u></code> <code><u>c)</u></code> <code><u>d)</u></code> là đáp án <strong>Đúng</strong>; <strong>không gạch chân</strong> là đáp án <strong>Sai</strong> (VD: gạch chân <u>a)</u>, <u>c)</u> → tự nhận 2 ý đúng là a), c)).</div>
+                  <div><strong>• Phần III (Trả lời ngắn):</strong> Ghi <code>Đáp án:</code> / <code>Đáp số:</code> ngay dưới câu hoặc trong bảng đáp án cuối đề.</div>
+                  <div><strong>• Gợi ý đáp án:</strong> Tự động nhận diện mục <code>Hướng dẫn giải chi tiết</code> (ngay dưới từng câu hoặc ở cuối đề) đưa vào phần <strong>Đáp án gợi ý</strong>.</div>
                 </div>
               </div>
               ${
@@ -883,6 +948,12 @@ export function mountMockExamSection(container, { currentUser, effectiveStudentV
           </div>
           <div style="display:flex;gap:8px;flex-wrap:wrap;">
             <button type="button" class="btn btn-secondary" id="btn-ed-cancel">← Quay lại</button>
+            <button type="button" class="btn btn-secondary" id="btn-ed-toggle-geno">
+              ${st.showGenotypeTool ? "🧬 Ẩn công cụ Kiểu gene" : "🧬 Công cụ gõ Kiểu gene"}
+            </button>
+            <button type="button" class="btn btn-secondary" id="btn-ed-std-geno" title="Tự động chuẩn hoá AB/ab, X^AX^a, I^AI^O, A-B-, dấu × toàn đề">
+              🧬 Chuẩn hoá kiểu gene toàn đề
+            </button>
             ${
               stats.imgs > 0
                 ? `<button type="button" class="btn btn-secondary" id="btn-ed-polish-all" ${st.polishingAll ? "disabled" : ""}>
@@ -937,6 +1008,82 @@ export function mountMockExamSection(container, { currentUser, effectiveStudentV
       </div>
 
       ${
+        st.showGenotypeTool
+          ? `
+            <div class="card mock-geno-toolbar" id="mock-geno-toolbar">
+              <div class="mock-geno-head">
+                <div>
+                  <strong style="font-size:0.88rem;color:var(--primary);">🧬 Công cụ hỗ trợ nhập Kiểu gene chuẩn SGK</strong>
+                  <span style="font-size:0.77rem;color:var(--text-muted);margin-left:8px;">
+                    Đặt con trỏ vào bất kỳ ô câu hỏi / đáp án / lời giải nào bên dưới rồi bấm chèn ngay!
+                  </span>
+                </div>
+                <div class="mock-geno-tabs">
+                  ${Object.entries(GENOTYPE_GROUPS)
+                    .map(
+                      ([k, g]) => `
+                      <button type="button" class="btn btn-sm ${st.genoTab === k ? "btn-primary" : "btn-secondary"}" data-geno-tab="${k}">${g.label}</button>
+                    `
+                    )
+                    .join("")}
+                </div>
+              </div>
+
+              ${
+                st.genoTab === "linked"
+                  ? `
+                    <div class="mock-geno-builder">
+                      <span style="font-size:0.78rem;font-weight:700;color:var(--text-secondary);">Tạo phân số liên kết / hoán vị:</span>
+                      <input type="text" class="form-control mock-geno-mini-inp" id="geno-num" value="AB" placeholder="Tử (AB)" />
+                      <span style="font-weight:800;">/</span>
+                      <input type="text" class="form-control mock-geno-mini-inp" id="geno-den" value="ab" placeholder="Mẫu (ab)" />
+                      <span class="mock-geno-live-preview" id="geno-linked-preview">${formatBioHtml("AB/ab")}</span>
+                      <button type="button" class="btn btn-sm btn-primary" id="btn-insert-linked">Chèn vào ô đang nhập</button>
+                    </div>
+                  `
+                  : st.genoTab === "sex"
+                    ? `
+                      <div class="mock-geno-builder">
+                        <span style="font-size:0.78rem;font-weight:700;color:var(--text-secondary);">Tạo kiểu gene liên kết giới tính:</span>
+                        <select class="form-control mock-geno-mini-sel" id="geno-chr1"><option value="X">X</option><option value="Y">Y</option></select>
+                        <input type="text" class="form-control mock-geno-mini-inp" id="geno-sup1" value="A" placeholder="Mũ (A, DE)" />
+                        <select class="form-control mock-geno-mini-sel" id="geno-chr2"><option value="X">X</option><option value="Y">Y</option><option value="">(Đơn)</option></select>
+                        <input type="text" class="form-control mock-geno-mini-inp" id="geno-sup2" value="a" placeholder="Mũ (a, de)" />
+                        <span class="mock-geno-live-preview" id="geno-sex-preview">${formatBioHtml("X^AX^a")}</span>
+                        <button type="button" class="btn btn-sm btn-primary" id="btn-insert-sex">Chèn vào ô đang nhập</button>
+                      </div>
+                    `
+                    : st.genoTab === "multi"
+                      ? `
+                        <div class="mock-geno-builder">
+                          <span style="font-size:0.78rem;font-weight:700;color:var(--text-secondary);">Tạo kiểu gene đa allele:</span>
+                          <select class="form-control mock-geno-mini-sel" id="geno-ma-base"><option value="I">Nhóm máu I</option><option value="A">Allele A</option><option value="C">Màu lông C</option></select>
+                          <input type="text" class="form-control mock-geno-mini-inp" id="geno-ma-1" value="A" placeholder="Allele 1" />
+                          <input type="text" class="form-control mock-geno-mini-inp" id="geno-ma-2" value="B" placeholder="Allele 2" />
+                          <span class="mock-geno-live-preview" id="geno-multi-preview">${formatBioHtml("I^AI^B")}</span>
+                          <button type="button" class="btn btn-sm btn-primary" id="btn-insert-multi">Chèn vào ô đang nhập</button>
+                        </div>
+                      `
+                      : ""
+              }
+
+              <div class="mock-geno-chips">
+                ${(GENOTYPE_GROUPS[st.genoTab]?.chips || [])
+                  .map(
+                    (tok) => `
+                    <button type="button" class="mock-geno-chip" data-insert-geno="${escapeHtml(tok)}" title="Chèn ${escapeHtml(tok)}">
+                      ${formatBioHtml(tok)}
+                    </button>
+                  `
+                  )
+                  .join("")}
+              </div>
+            </div>
+          `
+          : ""
+      }
+
+      ${
         showMcq
           ? `
             <div class="mock-part-heading-bar">
@@ -971,17 +1118,22 @@ export function mountMockExamSection(container, { currentUser, effectiveStudentV
 
                   <div class="mock-ed-opts-grid">
                     ${[0, 1, 2, 3]
-                      .map(
-                        (oi) => `
-                        <div class="mock-ed-opt-row ${q.correct_index === oi ? "is-correct" : ""}">
-                          <label class="mock-ed-opt-radio" title="Chọn làm đáp án đúng">
-                            <input type="radio" name="mcq-ans-${idx}" value="${oi}" ${q.correct_index === oi ? "checked" : ""} data-mcq-ans="${idx}:${oi}" />
-                            <strong>${LETTERS[oi]}</strong>
-                          </label>
-                          <input type="text" class="form-control" value="${escapeHtml((q.options || [])[oi] || "")}" data-mcq-opt="${idx}:${oi}" placeholder="Phương án ${LETTERS[oi]}" />
+                      .map((oi) => {
+                        const optVal = (q.options || [])[oi] || "";
+                        const hasBio = /[\/^_×]/.test(optVal);
+                        return `
+                        <div class="mock-ed-opt-row ${q.correct_index === oi ? "is-correct" : ""}" style="flex-direction:column;align-items:stretch;">
+                          <div style="display:flex;align-items:center;gap:8px;">
+                            <label class="mock-ed-opt-radio" title="Chọn làm đáp án đúng">
+                              <input type="radio" name="mcq-ans-${idx}" value="${oi}" ${q.correct_index === oi ? "checked" : ""} data-mcq-ans="${idx}:${oi}" />
+                              <strong>${LETTERS[oi]}</strong>
+                            </label>
+                            <input type="text" class="form-control" value="${escapeHtml(optVal)}" data-mcq-opt="${idx}:${oi}" placeholder="Phương án ${LETTERS[oi]}" />
+                          </div>
+                          <div class="mock-ed-mini-bio" data-opt-prev="${idx}:${oi}" style="${hasBio ? "" : "display:none;"}">${formatBioHtml(optVal)}</div>
                         </div>
-                      `
-                      )
+                      `;
+                      })
                       .join("")}
                   </div>
 
@@ -1123,6 +1275,139 @@ export function mountMockExamSection(container, { currentUser, effectiveStudentV
         st.editorFilter = btn.dataset.edFilter;
         render();
       });
+    });
+
+    // Bật/tắt & vận hành Công cụ hỗ trợ Kiểu gene chuẩn SGK
+    let lastFocusedField = null;
+    container.querySelectorAll("textarea[data-q-field], input[data-mcq-opt], input[data-tf-text], input[data-sa-ans]").forEach((el) => {
+      el.addEventListener("focus", () => {
+        lastFocusedField = el;
+      });
+    });
+
+    const insertAtFocusedField = (snippet) => {
+      const target =
+        lastFocusedField && document.body.contains(lastFocusedField)
+          ? lastFocusedField
+          : container.querySelector("textarea[data-q-field]");
+      if (!target) {
+        showToast("Hãy đặt con trỏ vào một ô câu hỏi hoặc đáp án trước khi chèn.", "info");
+        return;
+      }
+      const start = target.selectionStart ?? target.value.length;
+      const end = target.selectionEnd ?? target.value.length;
+      const before = target.value.slice(0, start);
+      const after = target.value.slice(end);
+      const sepL = before && !/[\s(\[:]$/.test(before) && !/^[\s,.;:\)]/.test(snippet) ? " " : "";
+      const sepR = after && !/^[\s,.;:\)]/.test(after) ? " " : "";
+      const ins = `${sepL}${snippet}${sepR}`;
+      target.value = before + ins + after;
+      const pos = start + ins.length;
+      target.focus();
+      try {
+        target.setSelectionRange(pos, pos);
+      } catch {}
+      target.dispatchEvent(new Event("input", { bubbles: true }));
+    };
+
+    document.getElementById("btn-ed-toggle-geno")?.addEventListener("click", () => {
+      st.showGenotypeTool = !st.showGenotypeTool;
+      render();
+    });
+
+    document.querySelectorAll("[data-geno-tab]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        st.genoTab = btn.dataset.genoTab;
+        render();
+      });
+    });
+
+    document.querySelectorAll("[data-insert-geno]").forEach((btn) => {
+      btn.addEventListener("mousedown", (e) => e.preventDefault());
+      btn.addEventListener("click", () => insertAtFocusedField(btn.dataset.insertGeno));
+    });
+
+    // Builder 1: Liên kết / Hoán vị (AB/ab)
+    const syncLinkedPreview = () => {
+      const num = (document.getElementById("geno-num")?.value || "").trim();
+      const den = (document.getElementById("geno-den")?.value || "").trim();
+      const pv = document.getElementById("geno-linked-preview");
+      if (pv) pv.innerHTML = formatBioHtml(num && den ? `${num}/${den}` : num || den || "AB/ab");
+    };
+    document.getElementById("geno-num")?.addEventListener("input", syncLinkedPreview);
+    document.getElementById("geno-den")?.addEventListener("input", syncLinkedPreview);
+    document.getElementById("btn-insert-linked")?.addEventListener("mousedown", (e) => e.preventDefault());
+    document.getElementById("btn-insert-linked")?.addEventListener("click", () => {
+      const num = (document.getElementById("geno-num")?.value || "").trim();
+      const den = (document.getElementById("geno-den")?.value || "").trim();
+      if (!num || !den) return showToast("Nhập đủ tử số và mẫu số (VD: AB và ab).", "error");
+      insertAtFocusedField(`${num}/${den}`);
+    });
+
+    // Builder 2: Liên kết giới tính (X^AX^a, X^{DE}X^{de})
+    const buildSexCode = () => {
+      const c1 = document.getElementById("geno-chr1")?.value || "X";
+      const s1 = (document.getElementById("geno-sup1")?.value || "").trim();
+      const c2 = document.getElementById("geno-chr2")?.value || "";
+      const s2 = (document.getElementById("geno-sup2")?.value || "").trim();
+      const fmtSup = (s) => (!s ? "" : s.length > 1 ? `^{${s}}` : `^${s}`);
+      return `${c1}${fmtSup(s1)}${c2 ? c2 + fmtSup(s2) : ""}`;
+    };
+    const syncSexPreview = () => {
+      const pv = document.getElementById("geno-sex-preview");
+      if (pv) pv.innerHTML = formatBioHtml(buildSexCode());
+    };
+    ["geno-chr1", "geno-sup1", "geno-chr2", "geno-sup2"].forEach((id) => {
+      document.getElementById(id)?.addEventListener("input", syncSexPreview);
+      document.getElementById(id)?.addEventListener("change", syncSexPreview);
+    });
+    document.getElementById("btn-insert-sex")?.addEventListener("mousedown", (e) => e.preventDefault());
+    document.getElementById("btn-insert-sex")?.addEventListener("click", () => insertAtFocusedField(buildSexCode()));
+
+    // Builder 3: Gene đa allele (I^AI^B, A_1A_2, C^RC^W)
+    const buildMultiCode = () => {
+      const base = document.getElementById("geno-ma-base")?.value || "I";
+      const a1 = (document.getElementById("geno-ma-1")?.value || "").trim();
+      const a2 = (document.getElementById("geno-ma-2")?.value || "").trim();
+      const sep = base === "A" ? "_" : "^";
+      const p1 = a1 ? `${base}${sep}${a1}` : "";
+      const p2 = a2 ? `${base}${sep}${a2}` : "";
+      return p1 + p2 || "I^AI^B";
+    };
+    const syncMultiPreview = () => {
+      const pv = document.getElementById("geno-multi-preview");
+      if (pv) pv.innerHTML = formatBioHtml(buildMultiCode());
+    };
+    ["geno-ma-base", "geno-ma-1", "geno-ma-2"].forEach((id) => {
+      document.getElementById(id)?.addEventListener("input", syncMultiPreview);
+      document.getElementById(id)?.addEventListener("change", syncMultiPreview);
+    });
+    document.getElementById("btn-insert-multi")?.addEventListener("mousedown", (e) => e.preventDefault());
+    document.getElementById("btn-insert-multi")?.addEventListener("click", () => insertAtFocusedField(buildMultiCode()));
+
+    // Chuẩn hoá kiểu gene toàn đề 1 chạm
+    document.getElementById("btn-ed-std-geno")?.addEventListener("click", () => {
+      let changed = 0;
+      const fix = (s) => {
+        const out = standardizeGenotypeText(s || "");
+        if (out !== (s || "")) changed += 1;
+        return out;
+      };
+      for (const pk of ["mcq", "true_false", "short_answer"]) {
+        for (const q of d.content[pk] || []) {
+          q.question = fix(q.question);
+          q.explanation = fix(q.explanation);
+          if (q.options) q.options = q.options.map(fix);
+          if (q.statements) q.statements.forEach((stItem) => { stItem.text = fix(stItem.text); });
+        }
+      }
+      showToast(
+        changed > 0
+          ? `Đã tự động chuẩn hoá ${changed} vị trí kiểu gene & thuật ngữ chuẩn SGK!`
+          : "Toàn bộ kiểu gene trong đề đã chuẩn SGK!",
+        "success"
+      );
+      render();
     });
 
     // Chau chuốt tất cả ảnh 1 chạm
@@ -1267,6 +1552,12 @@ export function mountMockExamSection(container, { currentUser, effectiveStudentV
       el.addEventListener("input", () => {
         const [idxS, oiS] = el.dataset.mcqOpt.split(":");
         d.content.mcq[Number(idxS)].options[Number(oiS)] = el.value;
+        const pv = container.querySelector(`[data-opt-prev="${idxS}:${oiS}"]`);
+        if (pv) {
+          const hasBio = /[\/^_×]/.test(el.value);
+          pv.style.display = hasBio ? "" : "none";
+          pv.innerHTML = formatBioHtml(el.value);
+        }
       });
     });
 

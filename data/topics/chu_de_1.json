@@ -3396,7 +3396,7 @@
                   "grade_type": "exact",
                   "exact": [
                     "amino acid",
-                    "axit amin"
+                    "amino acid"
                   ]
                 },
                 {
@@ -5272,7 +5272,7 @@
         "lesson_id": "chu-de-1-bai-1",
         "lesson": "1.1",
         "level": "2. Tái bản DNA (DNA replication)",
-        "question": "Đặc điểm nào là không đúng đối với tái bản DNA trong nhân ở tế bảo nhân thực?",
+        "question": "Đặc điểm nào là không đúng đối với tái bản DNA trong nhân ở tế bào nhân thực?",
         "images": [],
         "tables": [],
         "options": [
@@ -5438,7 +5438,7 @@
         "lesson_id": "chu-de-1-bai-1",
         "lesson": "1.1",
         "level": "2. Tái bản DNA (DNA replication)",
-        "question": "Cho các sự kiện sau đây:\nI. Enzyme DNA ligase nối các đoạn Okazaki đề tạo thành mạch liên tục.\nII. Nhờ các enzyme tháo xoắn, phân tử DNA được tách ra tạo chạc chữ Y.\nIII. Hình thành 2 phân tử DNA con, mỗi phân tử chứa 1 mạch cũ của DNA ban đầu và 1 mạch mới.\nIV. Enzyme DNA polymerase dựa trên mạch khuôn của DNA để tổng hợp mạch mới theo nguyên tắc bổ sung.\nThứ tự đúng của các sự kiện xảy ra trong quá trình tái bản DNA là",
+        "question": "Cho các sự kiện sau đây:\nI. Enzyme DNA ligase nối các đoạn Okazaki để tạo thành mạch liên tục.\nII. Nhờ các enzyme tháo xoắn, phân tử DNA được tách ra tạo chạc chữ Y.\nIII. Hình thành 2 phân tử DNA con, mỗi phân tử chứa 1 mạch cũ của DNA ban đầu và 1 mạch mới.\nIV. Enzyme DNA polymerase dựa trên mạch khuôn của DNA để tổng hợp mạch mới theo nguyên tắc bổ sung.\nThứ tự đúng của các sự kiện xảy ra trong quá trình tái bản DNA là",
         "images": [],
         "tables": [],
         "options": [
@@ -6811,7 +6811,7 @@
         "tables": [],
         "options": [
           "Diễn ra theo nguyên tắc bổ sung.",
-          "Chỉ có mạch gốc của gene được dùng để làm khuôn tổnghợp RNA.",
+          "Chỉ có mạch gốc của gene được dùng để làm khuôn tổng hợp RNA.",
           "Sau phiên mã, phân tử mRNA được cắt bỏ các đoạn intron.",
           "Chịu sự điều khiển của hệ thống điều hòa phiên mã."
         ],
@@ -8106,7 +8106,7 @@
         "options": [
           "TAG, GAA, ATA, ATG.",
           "AGG, GTT, TCC, CAA.",
-          "ATC, TẠG, GCA, GAA .",
+          "ATC, TAG, GCA, GAA .",
           "AAA, CCA, TAA, TCC."
         ],
         "correct_index": 0,
@@ -9491,7 +9491,7 @@
         "lesson_id": "chu-de-1-bai-4",
         "lesson": "1.4",
         "level": "1. Khái quát về đột biến gene",
-        "question": "Hình bên mô tả sự ảnh hưởng của một loại đột biến điểm đến chuỗi polypeptide. Đột biên này thuộc dạng nào sau đây?",
+        "question": "Hình bên mô tả sự ảnh hưởng của một loại đột biến điểm đến chuỗi polypeptide. Đột biến này thuộc dạng nào sau đây?",
         "images": [
           "/uploads/chu-de-1/img_77514384e2.jpg"
         ],
@@ -10500,7 +10500,7 @@
           "Bị tiêu diệt hoàn toàn.",
           "Sinh trưởng và phát triển bình thường.",
           "Tồn tại một thời gian nhưng không sinh trưởng và phát triển.",
-          "Sinh trưởng và phát triển bình thường khi thêm vào môi trườņg một loại thuốc kháng sinh khác."
+          "Sinh trưởng và phát triển bình thường khi thêm vào môi trường một loại thuốc kháng sinh khác."
         ],
         "correct_index": null,
         "answer_key_ready": false,
@@ -11450,16 +11450,16 @@
         "orig_num": 6,
         "lesson_id": "chu-de-1-bai-1",
         "lesson": "1.1",
-        "stem": "Khi nghiên cứu DNA của 4 chủng vi khuẩn thu được bảng sau:\nDựa vào thông tin của bảng trên. Các nhận xét dưới đây là đúng hay sai?",
+        "stem": "Khi nghiên cứu DNA của 4 chủng vi khuẩn thu được bảng sau:\nDựa vào thông tin của bảng trên. Các nhận xét dưới đây là đúng hay sai?",
         "images": [],
         "tables": [
           [
             [
-              "Chủng",
-              "Số lượng nitrogenous base (đơn vị: nucleotide)"
+              "Chủng",
+              "Số lượng nitrogenous base (đơn vị: nucleotide)"
             ],
             [
-              "Chủng",
+              "Chủng",
               "A",
               "T",
               "G",
@@ -11498,25 +11498,25 @@
         "statements": [
           {
             "key": "a",
-            "text": "Tổng số nucleotide của chủng I nhiều hơn chủng II.",
+            "text": "Tổng số nucleotide của chủng I nhiều hơn chủng II.",
             "answer": null,
             "explanation": ""
           },
           {
             "key": "b",
-            "text": "Chủng I và chủng IV có chiều dài phân tử bằng nhau.",
+            "text": "Chủng I và chủng IV có chiều dài phân tử bằng nhau.",
             "answer": null,
             "explanation": ""
           },
           {
             "key": "c",
-            "text": "Phân tử DNA của Chủng II có số liên kết hidrogen ít hơn phân tử DNA của chủng IV.",
+            "text": "Phân tử DNA của Chủng II có số liên kết hidrogen ít hơn phân tử DNA của chủng IV.",
             "answer": null,
             "explanation": ""
           },
           {
             "key": "d",
-            "text": "Phân tử DNA của chủng IV có nhiệt độ nóng chảy cao nhất.",
+            "text": "Phân tử DNA của chủng IV có nhiệt độ nóng chảy cao nhất.",
             "answer": null,
             "explanation": ""
           }
@@ -12129,7 +12129,7 @@
         "orig_num": 8,
         "lesson_id": "chu-de-1-bai-2",
         "lesson": "1.2",
-        "stem": "Hình dưới đây là sơ đồ khái quát quá trình phiên mã. Dựa vào hình ảnh (bên dưới) hãy cho biết các nhận định sau đây là đúng hay sai ?",
+        "stem": "Hình dưới đây là sơ đồ khái quát quá trình phiên mã. Dựa vào hình ảnh (bên dưới) hãy cho biết các nhận định sau đây là đúng hay sai ?",
         "images": [
           "/uploads/chu-de-1/img_a95e993756.png"
         ],
@@ -12168,7 +12168,7 @@
         "orig_num": 9,
         "lesson_id": "chu-de-1-bai-2",
         "lesson": "1.2",
-        "stem": "Một gene rất ngắn của sinh vật nhân sơ được tổng hợp nhân tạo trong ống nghiệm có trình tự Nucleotide như sau:\nMạch I: (2) TAC ATG ATC ATT TCA ACT AAT TTC TAG CAT GTA (1).\nMạch II: (1) ATG TAC TAG TAA AGT TGA TTA AAG ATC GTA CAT (2).\nGene này dịch mã trong ống nghiệm cho ra một chuỗi polypeptit hoàn chỉnh.\nDựa vào những thông tin trên hãy cho biết các phát biểu dưới đây là đúng hay sai ?",
+        "stem": "Một gene rất ngắn của sinh vật nhân sơ được tổng hợp nhân tạo trong ống nghiệm có trình tự Nucleotide như sau:\nMạch I: (2) TAC ATG ATC ATT TCA ACT AAT TTC TAG CAT GTA (1).\nMạch II: (1) ATG TAC TAG TAA AGT TGA TTA AAG ATC GTA CAT (2).\nGene này dịch mã trong ống nghiệm cho ra một chuỗi polypeptit hoàn chỉnh.\nDựa vào những thông tin trên hãy cho biết các phát biểu dưới đây là đúng hay sai ?",
         "images": [],
         "tables": [],
         "statements": [
@@ -12205,13 +12205,13 @@
         "orig_num": 10,
         "lesson_id": "chu-de-1-bai-2",
         "lesson": "1.2",
-        "stem": "Khi nói về điểm khác nhau cơ bản giữa enzyme DNA polymerase và RNA polymerase, các nhận định dưới đây là đúng hay sai?",
+        "stem": "Khi nói về điểm khác nhau cơ bản giữa enzyme DNA polymerase và RNA polymerase, các nhận định dưới đây là đúng hay sai?",
         "images": [],
         "tables": [],
         "statements": [
           {
             "key": "a",
-            "text": "DNA polymerase xúc tác kéo dài chuỗi polynucleotide theo cả hai chiều còn RNA polymerase chỉ xúc tác kéo dài chuỗi theo 1 chiều",
+            "text": "DNA polymerase xúc tác kéo dài chuỗi polynucleotide theo cả hai chiều còn RNA polymerase chỉ xúc tác kéo dài chuỗi theo 1 chiều",
             "answer": null,
             "explanation": ""
           },
@@ -12551,7 +12551,7 @@
         "orig_num": 7,
         "lesson_id": "chu-de-1-bai-3",
         "lesson": "1.3",
-        "stem": "Dưới đây là sơ đồ operon lac và gene điều hòa. Quan quát sơ đồ và cho biết các kết luận dưới đây là đúng hay sai?",
+        "stem": "Dưới đây là sơ đồ operon lac và gene điều hòa. Quan quát sơ đồ và cho biết các kết luận dưới đây là đúng hay sai?",
         "images": [
           "/uploads/chu-de-1/img_348f45b885.png"
         ],
@@ -12559,25 +12559,25 @@
         "statements": [
           {
             "key": "a",
-            "text": "I là gene điều hòa mã hóa protein ức chế.",
+            "text": "I là gene điều hòa mã hóa protein ức chế.",
             "answer": null,
             "explanation": ""
           },
           {
             "key": "b",
-            "text": "Plac trình tự vận hành có vị trí bám của protein ức chế.",
+            "text": "Plac trình tự vận hành có vị trí bám của protein ức chế.",
             "answer": null,
             "explanation": ""
           },
           {
             "key": "c",
-            "text": "O là là trình tự khởi động phiên mã các gene cấu trúc.",
+            "text": "O là là trình tự khởi động phiên mã các gene cấu trúc.",
             "answer": null,
             "explanation": ""
           },
           {
             "key": "d",
-            "text": "Z, Y, A là các gene cấu trúc tương ứng mã hóa cho các enzyme beta – galactosidase, permease, transacetylase.",
+            "text": "Z, Y, A là các gene cấu trúc tương ứng mã hóa cho các enzyme beta – galactosidase, permease, transacetylase.",
             "answer": null,
             "explanation": ""
           }
@@ -13020,7 +13020,7 @@
         "orig_num": 9,
         "lesson_id": "chu-de-1-bai-4",
         "lesson": "1.4",
-        "stem": "Một tế bào vi khuẩn vô cùng mẫn cảm với tetracyclin (một loại chất kháng sinh) nhưng trong tế bào chất của chúng lại mang những gene kháng với ampicillin (một loại kháng sinh khác). Người ta tiến hành chuyển đoạn gene kháng tetraxilin từ một loài sinh vật khác vào trong tế bào vi khuẩn bằng phương pháp biến nạp. Sau khi thao tác xong, người ta cho vào môi trường nuôi cấy tetracyclin sau đó lại thêm vào ampicillin. Những vi khuẩn còn sống tiến hành sinh trưởng và phát triển, đồng thời tạo ra lượng sản phẩm.\nTừ những thông tin ở trên hãy cho biết các nhận định sau đây là đúng hay sai khi nói về hệ gene của vi khuẩn này?",
+        "stem": "Một tế bào vi khuẩn vô cùng mẫn cảm với tetracyclin (một loại chất kháng sinh) nhưng trong tế bào chất của chúng lại mang những gene kháng với ampicillin (một loại kháng sinh khác). Người ta tiến hành chuyển đoạn gene kháng tetraxilin từ một loài sinh vật khác vào trong tế bào vi khuẩn bằng phương pháp biến nạp. Sau khi thao tác xong, người ta cho vào môi trường nuôi cấy tetracyclin sau đó lại thêm vào ampicillin. Những vi khuẩn còn sống tiến hành sinh trưởng và phát triển, đồng thời tạo ra lượng sản phẩm.\nTừ những thông tin ở trên hãy cho biết các nhận định sau đây là đúng hay sai khi nói về hệ gene của vi khuẩn này?",
         "images": [],
         "tables": [],
         "statements": [
@@ -13057,7 +13057,7 @@
         "orig_num": 10,
         "lesson_id": "chu-de-1-bai-4",
         "lesson": "1.4",
-        "stem": "Dưới đây là sơ đồ công nghệ DNA tái tổ hợp. Khi nói về công nghệ tạo DNA tái tổ hợp, các nhận định dưới đây là đúng hay sai?",
+        "stem": "Dưới đây là sơ đồ công nghệ DNA tái tổ hợp. Khi nói về công nghệ tạo DNA tái tổ hợp, các nhận định dưới đây là đúng hay sai?",
         "images": [
           "/uploads/chu-de-1/img_276047770f.png"
         ],
@@ -13098,7 +13098,7 @@
         "orig_num": 1,
         "lesson_id": "chu-de-1-bai-1",
         "lesson": "1.1",
-        "question": "Một đoạn gene có trình tự nucleotide trên một chuỗi polynucleotide như sau:\nTính số liên kết hydrogen của đoạn gene trên?",
+        "question": "Một đoạn gene có trình tự nucleotide trên một chuỗi polynucleotide như sau:\nTính số liên kết hydrogen của đoạn gene trên?",
         "images": [],
         "tables": [
           [
@@ -13415,7 +13415,7 @@
         "orig_num": 6,
         "lesson_id": "chu-de-1-bai-2",
         "lesson": "1.2",
-        "question": "Cho các enzyme sau đây: helicase, topoisomerase, DNA polymerase, DNA ligase, RNA\npolymerase, aminoacyl tRNA synthetase, permease. Có bao nhiều loại enzyme tham gia quá trình phiên mã ở tế bảo sinh vật nhân sơ.",
+        "question": "Cho các enzyme sau đây: helicase, topoisomerase, DNA polymerase, DNA ligase, RNA\npolymerase, aminoacyl tRNA synthetase, permease. Có bao nhiều loại enzyme tham gia quá trình phiên mã ở tế bào sinh vật nhân sơ.",
         "images": [],
         "tables": [],
         "placeholder": "Nhập kết quả của bạn...",
@@ -13763,5 +13763,5 @@
       }
     ]
   },
-  "bundled_version": "2026.11.26-dna-geno-v4"
+  "bundled_version": "2026.11.26-spelling-clean-v6"
 }

@@ -2077,6 +2077,118 @@ body.presentation-mode .center-tabs-bar {
   gap: 14px;
   flex-wrap: wrap;
 }
+.mock-upload-guide {
+  margin-top: 10px;
+  padding: 12px 14px;
+  border-radius: 10px;
+  background: #f0fdfa;
+  border: 1px solid var(--primary-border);
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+}
+.mock-upload-guide-title {
+  font-weight: 700;
+  color: var(--primary);
+  margin-bottom: 6px;
+}
+.mock-upload-guide-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px 14px;
+  line-height: 1.48;
+}
+
+/* Genotype Helper Toolkit */
+.mock-geno-toolbar {
+  position: sticky;
+  top: 58px;
+  z-index: 35;
+  padding: 12px 16px;
+  margin-bottom: 14px;
+  background: rgba(255, 255, 255, 0.97);
+  backdrop-filter: blur(8px);
+  border: 1.5px solid var(--primary-border);
+  box-shadow: 0 6px 18px rgba(15, 118, 110, 0.08);
+}
+.mock-geno-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 10px;
+}
+.mock-geno-tabs {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.mock-geno-builder {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding: 8px 10px;
+  margin-bottom: 10px;
+  border-radius: 10px;
+  background: #f8fafc;
+  border: 1px solid var(--border);
+}
+.mock-geno-mini-inp {
+  width: 78px !important;
+  padding: 5px 8px !important;
+  font-size: 0.84rem !important;
+  text-align: center;
+  font-weight: 700;
+}
+.mock-geno-mini-sel {
+  width: auto !important;
+  padding: 5px 8px !important;
+  font-size: 0.82rem !important;
+}
+.mock-geno-live-preview {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 58px;
+  padding: 4px 12px;
+  border-radius: 8px;
+  background: #ffffff;
+  border: 1px solid var(--primary-border);
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--primary);
+}
+.mock-geno-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.mock-geno-chip {
+  padding: 5px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: #ffffff;
+  font-size: 0.86rem;
+  font-weight: 600;
+  color: var(--text);
+  cursor: pointer;
+  transition: border-color 0.14s, background 0.14s, transform 0.12s;
+}
+.mock-geno-chip:hover {
+  border-color: var(--primary);
+  background: #f0fdfa;
+  transform: translateY(-1px);
+}
+.mock-ed-mini-bio {
+  margin-top: 5px;
+  padding: 4px 8px;
+  border-radius: 6px;
+  background: #f8fafc;
+  border: 1px dashed var(--border);
+  font-size: 0.85rem;
+  color: var(--primary);
+}
 .mock-upload-progress {
   margin-top: 10px;
   height: 7px;

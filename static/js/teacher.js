@@ -19,6 +19,9 @@ export function mountTeacherDashboard(container, activeTopic, onTopicUpdated, sh
   const cachedTeacher = clientCache.getTeacherData();
 
   let subtab = cachedTeacher.subtab || "members"; // 'members' | 'attendance' | 'exam_mixer' | 'content' | 'scores' | 'pw_alerts'
+  if (!isAdmin && (subtab === "content" || subtab === "pw_alerts")) {
+    subtab = "members";
+  }
   let overview = cachedTeacher.overview || null;
   let classFilter = "";
   let searchFilter = "";
@@ -176,8 +179,8 @@ export function mountTeacherDashboard(container, activeTopic, onTopicUpdated, sh
           <h1>${isAdmin ? "Quản trị hệ thống &amp; Quản lý lớp học" : "Quản lý lớp học (Giáo viên)"}</h1>
           <p>${
             isAdmin
-              ? "Toàn quyền quản trị: thêm/xoá giáo viên, thêm học sinh (Excel/thủ công), nhận báo cáo đổi mật khẩu, trộn đề Ma trận 3×3"
-              : "Quản lý lớp học: thêm học sinh (Excel/thủ công), theo dõi truy cập, trộn đề Ma trận 3×3 và biên soạn nội dung"
+              ? "Toàn quyền quản trị: thêm/xoá giáo viên, thêm học sinh (Excel/thủ công), nhận báo cáo đổi mật khẩu, trộn đề Ma trận 3×3 và biên soạn nội dung"
+              : "Quản lý lớp học: thêm học sinh (Excel/thủ công), theo dõi truy cập, xem kết quả ôn tập và trộn đề Ma trận 3×3"
           }</p>
         </div>
         <button class="btn btn-secondary btn-sm" id="teacher-refresh-btn">Làm mới dữ liệu</button>
@@ -213,7 +216,11 @@ export function mountTeacherDashboard(container, activeTopic, onTopicUpdated, sh
           <button class="seg-btn ${subtab === "members" ? "active" : ""}" data-tsub="members">Quản lý thành viên</button>
           <button class="seg-btn ${subtab === "attendance" ? "active" : ""}" data-tsub="attendance">Nhật ký &amp; Lượt truy cập</button>
           <button class="seg-btn ${subtab === "exam_mixer" ? "active" : ""}" data-tsub="exam_mixer">Trộn đề (Ma trận)</button>
-          <button class="seg-btn ${subtab === "content" ? "active" : ""}" data-tsub="content">Chỉnh sửa &amp; Thêm nội dung</button>
+          ${
+            isAdmin
+              ? `<button class="seg-btn ${subtab === "content" ? "active" : ""}" data-tsub="content">Chỉnh sửa &amp; Thêm nội dung</button>`
+              : ""
+          }
           <button class="seg-btn ${subtab === "scores" ? "active" : ""}" data-tsub="scores">Kết quả Ôn tập</button>
           ${
             isAdmin
@@ -231,7 +238,7 @@ export function mountTeacherDashboard(container, activeTopic, onTopicUpdated, sh
             ? renderAttendanceView(classes)
             : subtab === "exam_mixer"
             ? renderExamMixerView()
-            : subtab === "content"
+            : subtab === "content" && isAdmin
             ? renderContentStudio()
             : subtab === "scores"
             ? renderScoresView(classes)
