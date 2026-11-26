@@ -1,5 +1,5 @@
 // Chuẩn hóa hiển thị công thức phân tử hóa học, đồng vị phóng xạ và ký hiệu Sinh học 12
-// (An toàn HTML: luôn escape trước, sau đó mới gắn thẻ <sub>/<sup> chuẩn xác)
+// (An toàn HTML: luôn escape trước, sau đó mới gắn thẻ <sub>/<sup> và phân số kiểu gene chuẩn SGK)
 
 export function escapeHtml(str) {
   return String(str || "")
@@ -9,18 +9,33 @@ export function escapeHtml(str) {
     .replace(/"/g, "&quot;");
 }
 
+function isLinkedGenotypePair(top, bot) {
+  if (top.length !== bot.length || top.length < 2 || top.length > 4) return false;
+  // Loại trừ các viết tắt sinh học phổ biến không phải kiểu gene liên kết
+  const bad = /^(DNA|RNA|ATP|ADP|NAD|FAD|PCR|EMS|NST|UV|OK|PH|MG|KG|CM|MM|NM|ML)$/i;
+  if (bad.test(top) || bad.test(bot)) return false;
+  // Chỉ chứa các chữ cái ký hiệu allele quen thuộc (A-Z, a-z)
+  if (!/^[A-Za-z]+$/.test(top) || !/^[A-Za-z]+$/.test(bot)) return false;
+  // Phải có ít nhất 1 ký tự thường hoặc cả hai viết cùng tập chữ cái (VD: AB/AB, BV/bv, Ab/aB, ABD/abd, BB/dd)
+  const hasLower = /[a-z]/.test(top + bot);
+  const sameLetters = top.toLowerCase() === bot.toLowerCase();
+  return hasLower || sameLetters;
+}
+
 /**
- * Chuyển đổi văn bản Sinh học / Hóa sinh thành HTML có chỉ số dưới (sub) và chỉ số trên (sup) chuẩn xác:
- * - Công thức phân tử: C5H10O4, C5H10O5, C6H12O6, H2O, CO2, O2, N2, NH3, H2SO4, H3PO4, PO4, SO4, NO3, CaCO3, NaHCO3, H2O2...
- * - Đồng vị phóng xạ: 15N, 14N, 32P, 35S, 14C, 18O
- * - Ion sinh học: Ca2+, Mg2+, Fe2+, Fe3+, K+, Na+, Cl-, OH-, H+, PO4^3-
- * - Ký hiệu di truyền: F1, F2, F3, P1, P2, B1, B2, G1, G2, M1, M2, IA, IB, IO, X^A, X^a, Y^A, 2^k, 2^n, C^k_n
+ * Chuyển đổi văn bản Sinh học / Hóa sinh thành HTML chuẩn SGK GDPT 2018:
+ * - Kiểu gene liên kết dạng phân số 2 gạch ngang: AB/ab, BV/bv, ABD/abd, De/dE
+ * - Kiểu gene liên kết NST giới tính: X^{DE}X^{de}, X^A X^a, X^A Y, XAXa, XAY, DdXHY
+ * - Nhóm máu ABO: I^A, I^B, I^O, I^A I^B
+ * - Công thức phân tử, đồng vị phóng xạ (15N, 14N, 32P...), thế hệ lai (F1, F2...)
  */
 export function formatBioHtml(raw) {
   let s = escapeHtml(raw);
   if (!s) return "";
 
-  // 1. Ký hiệu lũy thừa tường minh từ công thức OMML: X^A, X^a, 2^n, 2^k, 10^-6, PO4^3-
+  // 1. Ký hiệu lũy thừa có ngoặc nhọn: X^{DE}, Y^{Hd}, 10^{-6}
+  s = s.replace(/([A-Za-z0-9\)])\^\{([A-Za-z0-9\+\-]+)\}/g, "$1<sup>$2</sup>");
+  // Ký hiệu lũy thừa/chỉ số tường minh từ OMML: X^A, X^a, 2^n, 2^k, 10^-6, PO4^3-
   s = s.replace(/([A-Za-z0-9\)])\^([A-Za-z0-9\+\-]+)/g, "$1<sup>$2</sup>");
   s = s.replace(/([A-Za-z])_([A-Za-z0-9]+)/g, "$1<sub>$2</sub>");
 
@@ -80,18 +95,31 @@ export function formatBioHtml(raw) {
   s = s.replace(/\b(14)C\b/g, "<sup>$1</sup>C");
   s = s.replace(/\b(18)O\b/g, "<sup>$1</sup>O");
 
-  // 4. Thế hệ lai (F1, F2, F3, Fa, Fb, P1, P2, B1, B2) & pha phân bào (G1, G2)
+  // 4. Thế hệ lai (F1, F2, F3, Fa, Fb, P1, P2, B1, B2) & pha phân bào (G1, G2) & allele chỉ số (A1, A2, D1, D2, D3)
   s = s.replace(/\b(F|P|B|G)([1-4ab])\b/g, "$1<sub>$2</sub>");
+  s = s.replace(/\b(P)(tc|t\/c)\b/g, "P<sub>tc</sub>");
 
-  // 5. Nhóm máu ABO (IA, IB, IO) và NST giới tính (XAXA, XAXa, XaXa, XAY, XaY, XBXb...)
+  // 5. Nhóm máu ABO (IA, IB, IO) và NST giới tính (XAXA, XAXa, XaXa, XAY, XaY, DdXHY, XA, Xa...)
   s = s.replace(/\bI([ABO])\b/g, "I<sup>$1</sup>");
   s = s.replace(/\bI([ABO])I([ABO])\b/g, "I<sup>$1</sup>I<sup>$2</sup>");
-  s = s.replace(/\bX([ABDEHMRabdehmr])X([ABDEHMRabdehmr])\b/g, "X<sup>$1</sup>X<sup>$2</sup>");
-  s = s.replace(/\bX([ABDEHMRabdehmr])Y([ABDEHMRabdehmr]?)\b/g, (_, a, b) =>
-    b ? `X<sup>${a}</sup>Y<sup>${b}</sup>` : `X<sup>${a}</sup>Y`
+  s = s.replace(
+    /\b((?:[A-Za-z]{2})*)X([ABDEHMRWabdehmrw])X([ABDEHMRWabdehmrw])\b/g,
+    "$1X<sup>$2</sup>X<sup>$3</sup>"
   );
+  s = s.replace(
+    /\b((?:[A-Za-z]{2})*)X([ABDEHMRWabdehmrw])Y([ABDEHMRWabdehmrw]?)\b/g,
+    (_, pre, a, b) => (b ? `${pre}X<sup>${a}</sup>Y<sup>${b}</sup>` : `${pre}X<sup>${a}</sup>Y`)
+  );
+  // Allele đơn trên NST X (VD: XA quy định mắt đỏ, Xa quy định mắt trắng)
+  s = s.replace(/\bX([ABDEHMRWabdehmrw])\b/g, "X<sup>$1</sup>");
 
-  // 6. Ký hiệu mạch 5' và 3' thống nhất đẹp
+  // 6. Kiểu gene liên kết dạng phân số 2 gạch ngang chuẩn SGK (VD: AB/ab, BV/bv, Ab/aB, ABD/abd)
+  s = s.replace(/(?<![A-Za-z0-9<\/])([A-Za-z]{2,4})\/([A-Za-z]{2,4})(?![A-Za-z0-9>])/g, (full, top, bot) => {
+    if (!isLinkedGenotypePair(top, bot)) return full;
+    return `<span class="geno-linked"><span class="geno-top">${top}</span><span class="geno-bot">${bot}</span></span>`;
+  });
+
+  // 7. Ký hiệu mạch 5' và 3' thống nhất đẹp
   s = s.replace(/([35])’/g, "$1'");
 
   return s;

@@ -243,7 +243,9 @@ def seed_initial_data(conn):
         if os.path.exists(tpath):
             with open(tpath, "r", encoding="utf-8") as f:
                 tdata = json.load(f)
-            existing = cur.execute("SELECT id FROM topics WHERE id = ?", (tdata["id"],)).fetchone()
+            existing = cur.execute(
+                "SELECT id, content_json FROM topics WHERE id = ?", (tdata["id"],)
+            ).fetchone()
             if not existing:
                 cur.execute(
                     """
@@ -260,6 +262,35 @@ def seed_initial_data(conn):
                         ts,
                     ),
                 )
+            else:
+                # Tự động đồng bộ dữ liệu SGK mới khi phiên bản bundled_version trong JSON tăng lên
+                # (vẫn giữ nguyên danh sách youtube_videos giáo viên đã nhúng trên máy chủ)
+                bundled_ver = tdata.get("bundled_version")
+                if bundled_ver:
+                    try:
+                        old_data = json.loads(existing["content_json"])
+                    except Exception:
+                        old_data = {}
+                    if old_data.get("bundled_version") != bundled_ver:
+                        merged = dict(tdata)
+                        if old_data.get("youtube_videos") and not merged.get("youtube_videos"):
+                            merged["youtube_videos"] = old_data["youtube_videos"]
+                        cur.execute(
+                            """
+                            UPDATE topics
+                            SET order_index = ?, title = ?, subtitle = ?, status = ?, content_json = ?, updated_at = ?
+                            WHERE id = ?
+                            """,
+                            (
+                                merged.get("order_index", idx),
+                                merged["title"],
+                                merged.get("subtitle", ""),
+                                merged.get("status", "published"),
+                                json.dumps(merged, ensure_ascii=False),
+                                ts,
+                                merged["id"],
+                            ),
+                        )
 
     conn.commit()
     _ensure_admin_account(conn)

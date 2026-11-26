@@ -32,6 +32,9 @@ const ICONS = {
 const state = {
   user: null,
   topicsList: [],
+  topicCache: {},
+  topicLoading: false,
+  loadingTopicId: "",
   activeTopicId: "chu-de-1",
   activeTopic: null,
   activeTab: "theory", // 'theory' | 'knowledge' | 'review' | 'teacher' | 'profile'
@@ -169,15 +172,65 @@ window.addEventListener("pagehide", () => {
 });
 
 // ================== DATA LOADERS ==================
-async function loadTopicsAndActive(topicId = state.activeTopicId) {
-  const listRes = await api.listTopics();
-  state.topicsList = listRes.topics || [];
+async function loadTopicsAndActive(topicId = state.activeTopicId, forceRefresh = false) {
+  if (!state.topicsList.length || forceRefresh) {
+    const listRes = await api.listTopics();
+    state.topicsList = listRes.topics || [];
+  }
   const chosenId = topicId || state.topicsList[0]?.id || "chu-de-1";
   state.activeTopicId = chosenId;
-  const detailRes = await api.getTopic(chosenId);
-  state.activeTopic = detailRes.topic;
+
+  if (!forceRefresh && state.topicCache[chosenId]) {
+    state.activeTopic = state.topicCache[chosenId];
+  } else {
+    const detailRes = await api.getTopic(chosenId);
+    state.activeTopic = detailRes.topic;
+    state.topicCache[chosenId] = detailRes.topic;
+  }
+
   if (state.activeTopic?.lessons?.length) {
     state.activeLessonId = state.activeTopic.lessons[0].id;
+  } else {
+    state.activeLessonId = "";
+  }
+}
+
+async function switchTopicSmoothly(targetId) {
+  if (!targetId) return;
+  if (targetId === state.activeTopicId && state.activeTopic && !state.topicLoading) return;
+
+  state.mobileMenuOpen = false;
+  state.activeTopicId = targetId;
+  state.loadingTopicId = targetId;
+  state.topicLoading = true;
+  renderMainShell();
+
+  try {
+    // Luôn tạo cảm giác chuyển cảnh mượt với biểu tượng loading rõ ràng (kể cả khi đã có trong cache)
+    const fetchPromise = state.topicCache[targetId]
+      ? Promise.resolve({ topic: state.topicCache[targetId] })
+      : api.getTopic(targetId);
+    const minDelay = new Promise((resolve) => setTimeout(resolve, 180));
+    const [detailRes] = await Promise.all([fetchPromise, minDelay]);
+
+    // Tránh race-condition nếu người dùng bấm đổi sang chủ đề khác trong lúc đang tải
+    if (state.activeTopicId !== targetId) return;
+
+    state.activeTopic = detailRes.topic;
+    state.topicCache[targetId] = detailRes.topic;
+    state.activeLessonId = detailRes.topic?.lessons?.[0]?.id || "";
+    if (state.activeSession) {
+      api.heartbeatSession(state.activeSession.id, targetId, state.activeTab).catch(() => {});
+    }
+  } catch (err) {
+    showToast(err.message, "error");
+  } finally {
+    if (state.activeTopicId === targetId) {
+      state.topicLoading = false;
+      state.loadingTopicId = "";
+      renderMainShell();
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
   }
 }
 
@@ -467,6 +520,7 @@ function renderMainShell() {
 
   appEl.innerHTML = `
     <div class="app-root">
+      ${state.topicLoading ? `<div class="topic-progress-bar" aria-hidden="true"></div>` : ""}
       <!-- Top Header with Menu Toggle -->
       <header class="app-topbar">
         <div class="topbar-left-group">
@@ -614,9 +668,10 @@ function renderMainShell() {
               const num = t.order_index || i + 1;
               const themeCls = `topic-theme-${((num - 1) % 4) + 1}`;
               const shortTitle = (t.title || "").replace(/^Chủ đề\s*\d+[\.\:]?\s*/i, "");
+              const isLoadingThis = state.topicLoading && state.loadingTopicId === t.id;
               return `
-                <button class="topic-color-card ${themeCls} ${t.id === state.activeTopicId ? "active" : ""}" data-select-topic="${t.id}">
-                  <span class="topic-color-badge">Chủ đề ${num}</span>
+                <button class="topic-color-card ${themeCls} ${t.id === state.activeTopicId ? "active" : ""} ${isLoadingThis ? "is-loading" : ""}" data-select-topic="${t.id}">
+                  <span class="topic-color-badge">Chủ đề ${num}${isLoadingThis ? `<span class="topic-card-spinner" aria-hidden="true"></span>` : ""}</span>
                   <span class="topic-color-title">${escapeHtml(shortTitle || t.title)}</span>
                 </button>
               `;
@@ -669,14 +724,8 @@ function renderMainShell() {
   });
 
   document.querySelectorAll("[data-select-topic]").forEach((btn) => {
-    btn.addEventListener("click", async () => {
-      state.mobileMenuOpen = false;
-      try {
-        await loadTopicsAndActive(btn.dataset.selectTopic);
-        render();
-      } catch (err) {
-        showToast(err.message, "error");
-      }
+    btn.addEventListener("click", () => {
+      switchTopicSmoothly(btn.dataset.selectTopic);
     });
   });
 
@@ -731,6 +780,18 @@ function renderMainShell() {
   });
 
   const tabView = document.getElementById("tab-view");
+  if (state.topicLoading) {
+    const targetMeta = state.topicsList.find((t) => t.id === state.loadingTopicId);
+    tabView.innerHTML = `
+      <div class="topic-loading-card" role="status" aria-live="polite">
+        <div class="topic-loading-spinner"></div>
+        <div>Đang tải ${escapeHtml(targetMeta?.title || "chủ đề mới")}...</div>
+      </div>
+    `;
+    return;
+  }
+
+  tabView.classList.add("center-stage-fade");
   if (state.activeTab === "theory") renderTheoryTab(tabView);
   else if (state.activeTab === "knowledge") renderKnowledgeTab(tabView);
   else if (state.activeTab === "review") renderReviewTab(tabView);
@@ -740,12 +801,14 @@ function renderMainShell() {
       state.activeTopic,
       (updatedTopic) => {
         state.activeTopic = updatedTopic;
+        if (updatedTopic?.id) state.topicCache[updatedTopic.id] = updatedTopic;
       },
       showToast,
       {
         currentUser: state.user,
         onTopicsReload: async (newTopicId) => {
-          await loadTopicsAndActive(newTopicId || state.activeTopicId);
+          state.topicCache = {};
+          await loadTopicsAndActive(newTopicId || state.activeTopicId, true);
           render();
         },
       }
@@ -869,6 +932,7 @@ function renderTheoryTab(container) {
       canManage: canManageYt,
       onTopicUpdated: (updated) => {
         state.activeTopic = updated;
+        if (updated?.id) state.topicCache[updated.id] = updated;
       },
       showToast,
     });
@@ -902,9 +966,10 @@ function renderTheoryTab(container) {
       </div>
 
       ${(activeLesson.sections || [])
-        .map(
-          (sec) => `
-          <section class="theory-section">
+        .map((sec) => {
+          const isYccd = /yêu cầu cần đạt/i.test(sec.heading || "");
+          return `
+          <section class="theory-section ${isYccd ? "yccd-box" : ""}">
             <h3>${formatBioHtml(sec.heading)}</h3>
             ${
               (sec.blocks || []).length
@@ -912,8 +977,8 @@ function renderTheoryTab(container) {
                 : `<ul style="margin:0;padding-left:20px;color:var(--text-secondary);">${(sec.points || []).map((pt) => `<li>${formatBioHtml(pt)}</li>`).join("")}</ul>`
             }
           </section>
-        `
-        )
+        `;
+        })
         .join("")}
 
       <div id="lesson-interactive-sim"></div>
