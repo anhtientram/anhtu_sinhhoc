@@ -430,6 +430,12 @@ export const api = {
       body: JSON.stringify({}),
     }),
 
+  adminResetPasswordByUsername: (username) =>
+    apiRequest("/api/admin/users/reset-by-username", {
+      method: "POST",
+      body: JSON.stringify({ username }),
+    }),
+
   adminMarkPasswordAlertsRead: () =>
     apiRequest("/api/admin/password-alerts/mark-read", {
       method: "POST",

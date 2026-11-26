@@ -1074,13 +1074,44 @@ export function mountTeacherDashboard(container, activeTopic, onTopicUpdated, sh
         ${
           isAdmin
             ? `
-              <!-- CHỈ QUẢN TRỊ VIÊN: THÊM & XOÁ GIÁO VIÊN -->
+              <!-- CHỈ QUẢN TRỊ VIÊN: RESET MẬT KHẨU NHANH VỀ MẶC ĐỊNH 123456@ -->
+              <div class="card" style="border:1.5px solid #fcd34d;background:linear-gradient(135deg,#fffbeb 0%,#ffffff 100%);">
+                <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap;margin-bottom:10px;">
+                  <div>
+                    <h3 class="card-title" style="margin:0 0 2px;color:#92400e;">🔑 Reset mật khẩu thành viên về mặc định (123456@)</h3>
+                    <p style="margin:0;font-size:0.83rem;color:var(--text-secondary);">
+                      Dành riêng cho Quản trị viên: chọn thành viên (Giáo viên hoặc Học sinh) bên dưới hoặc bấm trực tiếp nút <strong>Reset MK</strong> ở từng dòng trong bảng để đưa mật khẩu về <code>123456@</code>.
+                    </p>
+                  </div>
+                </div>
+                <form id="admin-quick-reset-form" style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;">
+                  <div class="form-group" style="margin:0;min-width:240px;flex:1;">
+                    <label>Chọn nhanh thành viên hoặc gõ tên đăng nhập</label>
+                    <input class="form-control form-control-sm" name="username" list="all-members-datalist" required placeholder="Chọn từ danh sách hoặc nhập @username (VD: gv_an, hs_binh)..." />
+                    <datalist id="all-members-datalist">
+                      ${[...teachers, ...students]
+                        .map(
+                          (m) =>
+                            `<option value="${escapeHtml(m.username)}">${escapeHtml(m.full_name)} (${m.role === "teacher" ? "Giáo viên" : `HS ${m.class_name || ""}`})</option>`
+                        )
+                        .join("")}
+                    </datalist>
+                  </div>
+                  <div class="form-group" style="margin:0;width:155px;">
+                    <label>Mật khẩu sau reset</label>
+                    <input class="form-control form-control-sm" value="123456@" readonly style="font-weight:700;background:#fff;text-align:center;" />
+                  </div>
+                  <button type="submit" class="btn btn-primary btn-sm" id="btn-quick-reset-mk">🔑 Reset MK về mặc định</button>
+                </form>
+              </div>
+
+              <!-- CHỈ QUẢN TRỊ VIÊN: THÊM, RESET MK & XOÁ GIÁO VIÊN -->
               <div class="card">
                 <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap;margin-bottom:12px;">
                   <div>
                     <h3 class="card-title" style="margin:0 0 2px;">Quản lý Giáo viên sử dụng (${teachers.length})</h3>
                     <p style="margin:0;font-size:0.83rem;color:var(--text-muted);">
-                      Chỉ Quản trị viên có quyền thêm hoặc xoá Giáo viên. Giáo viên được cấp tài khoản sẽ bắt buộc cập nhật Họ tên, Trường, SĐT và đổi mật khẩu mới ngay khi đăng nhập lần đầu.
+                      Chỉ Quản trị viên có quyền thêm, reset mật khẩu về mặc định (<code>123456@</code>) hoặc xoá Giáo viên. Giáo viên sẽ bắt buộc cập nhật thông tin và đổi mật khẩu mới khi đăng nhập.
                     </p>
                   </div>
                 </div>
@@ -1129,7 +1160,7 @@ export function mountTeacherDashboard(container, activeTopic, onTopicUpdated, sh
                                   </td>
                                   <td style="white-space:nowrap;">
                                     <div style="display:flex;gap:6px;flex-wrap:wrap;">
-                                      <button type="button" class="btn btn-secondary btn-sm" data-reset-user="${t.id}" data-reset-name="${escapeHtml(t.full_name || t.username)}" data-reset-uname="${escapeHtml(t.username)}" title="Đặt lại mật khẩu về mặc định 123456@">Reset MK</button>
+                                      <button type="button" class="btn btn-soft btn-sm" data-reset-user="${t.id}" data-reset-name="${escapeHtml(t.full_name || t.username)}" data-reset-uname="${escapeHtml(t.username)}" title="Đặt lại mật khẩu về mặc định 123456@">🔑 Reset MK</button>
                                       <button type="button" class="btn btn-danger btn-sm" data-delete-user="${t.id}" data-delete-name="${escapeHtml(t.username)}">Xoá GV</button>
                                     </div>
                                   </td>
@@ -1254,7 +1285,7 @@ export function mountTeacherDashboard(container, activeTopic, onTopicUpdated, sh
                               isAdmin
                                 ? `<td style="white-space:nowrap;">
                                      <div style="display:flex;gap:6px;flex-wrap:wrap;">
-                                       <button type="button" class="btn btn-secondary btn-sm" data-reset-user="${s.id}" data-reset-name="${escapeHtml(s.full_name || s.username)}" data-reset-uname="${escapeHtml(s.username)}" title="Đặt lại mật khẩu về mặc định 123456@">Reset MK</button>
+                                       <button type="button" class="btn btn-soft btn-sm" data-reset-user="${s.id}" data-reset-name="${escapeHtml(s.full_name || s.username)}" data-reset-uname="${escapeHtml(s.username)}" title="Đặt lại mật khẩu về mặc định 123456@">🔑 Reset MK</button>
                                        <button type="button" class="btn btn-ghost btn-sm" style="color:var(--red);" data-delete-user="${s.id}" data-delete-name="${escapeHtml(s.username)}">Xoá</button>
                                      </div>
                                    </td>`
@@ -1344,6 +1375,31 @@ export function mountTeacherDashboard(container, activeTopic, onTopicUpdated, sh
   function bindSubviewEvents() {
     // ---- MEMBERS & PASSWORD ALERTS EVENTS ----
     if (subtab === "members") {
+      container.querySelector("#admin-quick-reset-form")?.addEventListener("submit", async (e) => {
+        e.preventDefault();
+        const fd = new FormData(e.target);
+        const uname = String(fd.get("username") || "").trim().replace(/^@/, "");
+        if (!uname) {
+          showToast("Vui lòng nhập hoặc chọn tên đăng nhập thành viên cần reset mật khẩu.", "error");
+          return;
+        }
+        if (
+          !window.confirm(
+            `Xác nhận đặt lại mật khẩu của tài khoản "@${uname}" về mật khẩu mặc định 123456@?`
+          )
+        ) {
+          return;
+        }
+        try {
+          const res = await api.adminResetPasswordByUsername(uname);
+          showToast(res.message || "Đã đặt lại mật khẩu về 123456@.", "success");
+          e.target.reset();
+          await loadOverview(true);
+        } catch (err) {
+          showToast(err.message, "error");
+        }
+      });
+
       container.querySelector("#admin-add-teacher-form")?.addEventListener("submit", async (e) => {
         e.preventDefault();
         const fd = new FormData(e.target);

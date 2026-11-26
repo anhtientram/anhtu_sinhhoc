@@ -1757,6 +1757,38 @@ class Bio12Handler(BaseHTTPRequestHandler):
                     },
                 )
 
+            # Admin ONLY: Đặt lại mật khẩu thành viên theo tên đăng nhập về mặc định 123456@
+            if path == "/api/admin/users/reset-by-username":
+                admin = self.require_admin(conn, qs, body)
+                if not admin:
+                    return
+                uname = (body.get("username") or "").strip().lstrip("@").lower()
+                if not uname:
+                    return self.send_json(400, {"error": "Vui lòng nhập hoặc chọn tên đăng nhập thành viên cần reset mật khẩu."})
+                target = conn.execute("SELECT * FROM users WHERE lower(username) = ?", (uname,)).fetchone()
+                if not target:
+                    return self.send_json(404, {"error": f"Không tìm thấy thành viên có tên đăng nhập '@{uname}'."})
+                if target["role"] == "admin" or target["username"].lower() == ADMIN_USERNAME:
+                    return self.send_json(403, {"error": "Không thể reset mật khẩu tài khoản Quản trị viên tại đây."})
+                ts = now_iso()
+                conn.execute(
+                    "UPDATE users SET password_hash = ?, must_change_password = 1, updated_at = ? WHERE id = ?",
+                    (hash_password(DEFAULT_USER_PASSWORD), ts, target["id"]),
+                )
+                conn.execute("DELETE FROM auth_tokens WHERE user_id = ?", (target["id"],))
+                conn.commit()
+                invalidate_token_cache(user_id=target["id"])
+                updated_target = conn.execute("SELECT * FROM users WHERE id = ?", (target["id"],)).fetchone()
+                record_password_change(conn, updated_target, reason="admin_reset")
+                return self.send_json(
+                    200,
+                    {
+                        "ok": True,
+                        "default_password": DEFAULT_USER_PASSWORD,
+                        "message": f"Đã đặt lại mật khẩu của '{target['full_name']}' (@{target['username']}) về mật khẩu mặc định {DEFAULT_USER_PASSWORD}.",
+                    },
+                )
+
             # Admin ONLY: Đặt lại mật khẩu thành viên (Giáo viên / Học sinh) về mật khẩu mặc định 123456@
             m_reset = re.match(r"^/api/admin/users/(\d+)/reset-password$", path)
             if m_reset:
@@ -2418,7 +2450,7 @@ class Bio12Handler(BaseHTTPRequestHandler):
             is_upload_img = rel.startswith("uploads/")
             if is_upload_img:
                 cache_hdr = "public, max-age=604800, immutable"
-            elif rel == "index.html":
+            elif rel == "index.html" or rel.endswith(".js") or rel.endswith(".css"):
                 cache_hdr = "no-cache"
             else:
                 cache_hdr = "public, max-age=60, must-revalidate"
