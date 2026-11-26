@@ -291,6 +291,7 @@ def main():
 
         # 1. Clean spelling & genotype notation across entire topic
         topic = walk_and_clean(topic)
+        topic["bundled_version"] = "2026.11.26-sgk-v2"
 
         # 2. Unify lesson numbering to X.1, X.2, X.3... & inject Yêu cầu cần đạt where missing
         lesson_num_map = {}

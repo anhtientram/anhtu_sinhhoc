@@ -687,7 +687,7 @@
             },
             {
               "type": "text",
-              "text": "- Ở chuột, lông màu nâu (lông Agouti) là kiểu hình trội so với lông đen. Trong đó, A- tạo ra lông màu xám, trong khi aa tạo ra màu lông đen. Khi một đột biến lặn ở một locus khác ở trạng thái đồng hợp tử bb nó sẽ loại bỏ hoàn toàn sắc tố và tạo ra chuột bạch tạng. Nếu cho lai cặp chuột xám dị hợp 2 cặp gene → F1 có tỉ lệ kiểu hình : 9 xám : 3 đen: 4 trắng (Hình 7.7). Hiện tượng này cũng gặp ở giống chó tha mồi Labradorr.",
+              "text": "- Ở chuột, lông màu nâu (lông Agouti) là kiểu hình trội so với lông đen. Trong đó, A- tạo ra lông màu xám, trong khi aa tạo ra màu lông đen. Khi một đột biến lặn ở một locus khác ở trạng thái đồng hợp tử bb nó sẽ loại bỏ hoàn toàn sắc tố và tạo ra chuột bạch tạng. Nếu cho lai cặp chuột xám dị hợp 2 cặp gene → F1 có tỉ lệ kiểu hình : 9 xám : 3 đen: 4 trắng (Hình 7.7). Hiện tượng này cũng gặp ở giống chó tha mồi Labradorrr.",
               "is_bold": false
             },
             {
@@ -713,7 +713,7 @@
             "- Hình dạng mào gà do hai cặp gene R, r và P, p phân li độc lập cùng quy định theo sơ đồ sinh hóa bên dưới. Nếu cho lai cặp bố mẹ dị hợp 2 cặp gene → F1 có kiểu hình theo tỉ lệ: 9 óc chó : 3 hoa hồng: 3 hạt đậu : 1 đơn (Hình 7.4).",
             "- Ở một giống ngô (Zea mays) có màu tím do xuất hiện sắc tố anthocyanin trong vỏ hạt. Sắc tố anthocyanin là sản phẩm của quá trình sinh hoá dưới sự tác động của các enzyme như hình bên. Nếu cho lai cặp bố mẹ dị hợp 2 cặp gene → F1: có tỉ lệ kiểu hình 9 tím: 7 trắng. Hiện tượng này cũng gặp ở tính trạng màu sắc hoa đậu ngọt (Lathyrus odoratus) (Hình 7.5).",
             "- Ở bí (Cucurbita pepo) cả hai cặp gene A, a và B, b đều ảnh hưởng như nhau đến hình dạng quả. Một allele trội ở một trong hai locus đảm bảo quả có hình cầu. Khi không có allele trội quả hình dài nhưng có mặt cả hai allele trội (A và B) quả sẽ có dạng đĩa dẹt Nếu cho lai cặp bố mẹ dị hợp 2 cặp gene → F1 có tỉ lệ kiểu hình 9 dẹt: 6 cầu: 1 dài (Hình 7.6).",
-            "- Ở chuột, lông màu nâu (lông Agouti) là kiểu hình trội so với lông đen. Trong đó, A- tạo ra lông màu xám, trong khi aa tạo ra màu lông đen. Khi một đột biến lặn ở một locus khác ở trạng thái đồng hợp tử bb nó sẽ loại bỏ hoàn toàn sắc tố và tạo ra chuột bạch tạng. Nếu cho lai cặp chuột xám dị hợp 2 cặp gene → F1 có tỉ lệ kiểu hình : 9 xám : 3 đen: 4 trắng (Hình 7.7). Hiện tượng này cũng gặp ở giống chó tha mồi Labradorr.",
+            "- Ở chuột, lông màu nâu (lông Agouti) là kiểu hình trội so với lông đen. Trong đó, A- tạo ra lông màu xám, trong khi aa tạo ra màu lông đen. Khi một đột biến lặn ở một locus khác ở trạng thái đồng hợp tử bb nó sẽ loại bỏ hoàn toàn sắc tố và tạo ra chuột bạch tạng. Nếu cho lai cặp chuột xám dị hợp 2 cặp gene → F1 có tỉ lệ kiểu hình : 9 xám : 3 đen: 4 trắng (Hình 7.7). Hiện tượng này cũng gặp ở giống chó tha mồi Labradorrr.",
             "- Ở bí (Cucurbita pepo) allele trội A tạo ra màu quả trắng bất kể kiểu gene nào ở locus thứ hai (B, b). Khi không có allele A trội (kiểu gene aa) thì BB hoặc Bb tạo ra màu vàng còn bb tạo ra màu xanh lục. Nếu cho lai cặp bố mẹ dị hợp 2 cặp gene F1 : 12 trắng : 3 vàng: 1 lục (Hình 7.8)."
           ]
         },
@@ -6285,5 +6285,6 @@
         "cognitive_level": "van_dung"
       }
     ]
-  }
+  },
+  "bundled_version": "2026.11.26-sgk-v2"
 }
