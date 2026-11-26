@@ -236,10 +236,17 @@ def seed_initial_data(conn):
     cur = conn.cursor()
     ts = now_iso()
 
-    # Seed all available topics from data/topics/chu_de_*.json
+    # Seed all available topics from data/topics/chu_de_*.json (hỗ trợ mở rộng Chủ đề 5, 6, 7...)
     topics_dir = BUNDLED_TOPICS_DIR
-    for idx in range(1, 5):
-        tpath = os.path.join(topics_dir, f"chu_de_{idx}.json")
+    if os.path.isdir(topics_dir):
+        json_files = sorted(
+            [fn for fn in os.listdir(topics_dir) if fn.startswith("chu_de_") and fn.endswith(".json")],
+            key=lambda fn: int("".join(ch for ch in fn if ch.isdigit()) or "999"),
+        )
+    else:
+        json_files = []
+    for idx, fn in enumerate(json_files, 1):
+        tpath = os.path.join(topics_dir, fn)
         if os.path.exists(tpath):
             with open(tpath, "r", encoding="utf-8") as f:
                 tdata = json.load(f)

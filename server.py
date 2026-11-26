@@ -31,6 +31,7 @@ from database import (
     sanitize_user,
     verify_password,
 )
+from cache_layer import app_cache
 from exam_generator import build_exam_pool_summary, generate_shuffled_exam_package
 from importer import build_sample_docx_template, parse_document_to_topic
 from student_excel import (
@@ -90,10 +91,43 @@ class Bio12Handler(BaseHTTPRequestHandler):
         self.send_header("Content-Type", "application/json; charset=utf-8")
         self.send_header("Content-Length", str(len(payload)))
         self.send_header("Access-Control-Allow-Origin", "*")
-        self.send_header("Access-Control-Allow-Headers", "Content-Type, Authorization")
+        self.send_header("Access-Control-Allow-Headers", "Content-Type, Authorization, If-None-Match")
         self.send_header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
         self.end_headers()
         self.wfile.write(payload)
+
+    def send_cached_json(self, cache_key: str, builder_fn, ttl: int = 300):
+        """Phục vụ JSON qua bộ nhớ đệm đa tầng L1 + Redis kèm HTTP ETag (304 Not Modified)."""
+        payload, etag, source = app_cache.get_payload(cache_key)
+        if payload is None:
+            data = builder_fn()
+            if data is None:
+                return False
+            payload, etag = app_cache.set_json(cache_key, data, ttl=ttl)
+            source = "MISS"
+
+        req_etag = (self.headers.get("If-None-Match") or "").strip()
+        if req_etag and etag and req_etag == etag:
+            self.send_response(304)
+            self.send_header("ETag", etag)
+            self.send_header("X-Cache", source)
+            self.send_header("Cache-Control", "private, max-age=0, must-revalidate")
+            self.send_header("Access-Control-Allow-Origin", "*")
+            self.end_headers()
+            return True
+
+        self.send_response(200)
+        self.send_header("Content-Type", "application/json; charset=utf-8")
+        self.send_header("Content-Length", str(len(payload)))
+        self.send_header("ETag", etag)
+        self.send_header("X-Cache", source)
+        self.send_header("Cache-Control", "private, max-age=0, must-revalidate")
+        self.send_header("Access-Control-Allow-Origin", "*")
+        self.send_header("Access-Control-Allow-Headers", "Content-Type, Authorization, If-None-Match")
+        self.send_header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
+        self.end_headers()
+        self.wfile.write(payload)
+        return True
 
     def send_text(self, status: int, content: str, content_type="text/plain; charset=utf-8", extra_headers=None):
         payload = content.encode("utf-8")
@@ -204,20 +238,31 @@ class Bio12Handler(BaseHTTPRequestHandler):
                 )
 
             if path == "/api/topics":
-                rows = conn.execute(
-                    "SELECT id, order_index, title, subtitle, status, updated_at FROM topics ORDER BY order_index ASC"
-                ).fetchall()
-                return self.send_json(200, {"topics": [dict(r) for r in rows]})
+                def _load_topics_list():
+                    rows = conn.execute(
+                        "SELECT id, order_index, title, subtitle, status, updated_at FROM topics ORDER BY order_index ASC"
+                    ).fetchall()
+                    return {"topics": [dict(r) for r in rows]}
+
+                self.send_cached_json("topics:list", _load_topics_list, ttl=300)
+                return
 
             m = re.match(r"^/api/topics/([a-zA-Z0-9_-]+)$", path)
             if m:
                 tid = m.group(1)
-                row = conn.execute("SELECT * FROM topics WHERE id = ?", (tid,)).fetchone()
-                if not row:
+
+                def _load_topic_detail():
+                    row = conn.execute("SELECT * FROM topics WHERE id = ?", (tid,)).fetchone()
+                    if not row:
+                        return None
+                    content = json.loads(row["content_json"])
+                    content["updated_at"] = row["updated_at"]
+                    return {"topic": content}
+
+                found = self.send_cached_json(f"topic:{tid}", _load_topic_detail, ttl=600)
+                if not found:
                     return self.send_json(404, {"error": "Không tìm thấy chủ đề."})
-                content = json.loads(row["content_json"])
-                content["updated_at"] = row["updated_at"]
-                return self.send_json(200, {"topic": content})
+                return
 
             if path == "/api/sessions/my":
                 user = self.require_user(conn, qs)
@@ -428,9 +473,20 @@ class Bio12Handler(BaseHTTPRequestHandler):
                 teacher = self.require_teacher(conn, qs)
                 if not teacher:
                     return
-                rows = conn.execute("SELECT content_json FROM topics ORDER BY order_index ASC").fetchall()
-                topics_data = [json.loads(r["content_json"]) for r in rows]
-                return self.send_json(200, {"topics": build_exam_pool_summary(topics_data)})
+
+                def _load_exam_pool():
+                    rows = conn.execute("SELECT content_json FROM topics ORDER BY order_index ASC").fetchall()
+                    topics_data = [json.loads(r["content_json"]) for r in rows]
+                    return {"topics": build_exam_pool_summary(topics_data)}
+
+                self.send_cached_json("admin:exam_pool", _load_exam_pool, ttl=300)
+                return
+
+            if path == "/api/admin/cache-status":
+                teacher = self.require_teacher(conn, qs)
+                if not teacher:
+                    return
+                return self.send_json(200, {"ok": True, "cache": app_cache.stats()})
 
             m_ex_dl = re.match(r"^/api/admin/exam-download/([a-zA-Z0-9_-]+)/(docx|xlsx)$", path)
             if m_ex_dl:
@@ -841,7 +897,147 @@ class Bio12Handler(BaseHTTPRequestHandler):
                     ),
                 )
                 conn.commit()
+                app_cache.invalidate_topics(tid)
                 return self.send_json(201, {"topic": content})
+
+            # Staff: Import & Xem trước Chủ đề MỚI từ file Word (.docx) hoặc PDF (.pdf) — chưa lưu DB
+            if path == "/api/topics/preview-new-file":
+                teacher = self.require_teacher(conn, qs, body)
+                if not teacher:
+                    return
+                filename = (body.get("filename") or "").strip()
+                content_b64 = body.get("content_base64") or ""
+                if not filename or not content_b64:
+                    return self.send_json(400, {"error": "Vui lòng chọn file Word (.docx) hoặc PDF (.pdf)."})
+
+                ext = os.path.splitext(filename)[1].lower()
+                if ext not in (".docx", ".pdf", ".txt", ".md"):
+                    return self.send_json(400, {"error": "Chỉ hỗ trợ file Word (.docx), PDF (.pdf) hoặc văn bản (.txt)."})
+
+                max_ord = conn.execute("SELECT COALESCE(MAX(order_index), 0) FROM topics").fetchone()[0]
+                order_index = int(body.get("order_index") or (max_ord + 1))
+                tid = (body.get("id") or "").strip()
+                if not tid:
+                    base_tid = f"chu-de-{order_index}"
+                    if conn.execute("SELECT id FROM topics WHERE id = ?", (base_tid,)).fetchone():
+                        tid = f"{base_tid}-{secrets.token_hex(2)}"
+                    else:
+                        tid = base_tid
+
+                custom_title = (body.get("title") or "").strip()
+                custom_subtitle = (body.get("subtitle") or "").strip()
+
+                try:
+                    file_bytes = base64.b64decode(content_b64)
+                    parsed = parse_document_to_topic(
+                        file_bytes,
+                        filename,
+                        tid,
+                        {"id": tid, "order_index": order_index, "title": custom_title},
+                    )
+                except Exception as e:
+                    return self.send_json(400, {"error": f"Lỗi khi đọc & trích xuất file: {e}"})
+
+                extracted = parsed["extracted"]
+                extracted["id"] = tid
+                extracted["order_index"] = order_index
+                if custom_title:
+                    extracted["title"] = custom_title
+                elif not re.match(r"^Chủ đề\s*\d+", extracted["title"], re.IGNORECASE):
+                    extracted["title"] = f"Chủ đề {order_index}. {extracted['title']}"
+                if custom_subtitle:
+                    extracted["subtitle"] = custom_subtitle
+
+                return self.send_json(
+                    200,
+                    {
+                        "ok": True,
+                        "topic_id": tid,
+                        "order_index": order_index,
+                        "preview": parsed,
+                    },
+                )
+
+            # Staff: Cập nhật & Lưu Chủ đề MỚI đã xem trước vào SQLite + xoá cache
+            if path == "/api/topics/publish-new":
+                teacher = self.require_teacher(conn, qs, body)
+                if not teacher:
+                    return
+                topic_obj = body.get("topic")
+                if not isinstance(topic_obj, dict):
+                    return self.send_json(400, {"error": "Thiếu dữ liệu Chủ đề cần lưu."})
+
+                title = (topic_obj.get("title") or "").strip()
+                if not title:
+                    return self.send_json(400, {"error": "Vui lòng nhập tên Chủ đề."})
+
+                max_ord = conn.execute("SELECT COALESCE(MAX(order_index), 0) FROM topics").fetchone()[0]
+                order_index = int(topic_obj.get("order_index") or (max_ord + 1))
+                tid = (topic_obj.get("id") or "").strip()
+                if not tid:
+                    tid = f"chu-de-{order_index}"
+                    if conn.execute("SELECT id FROM topics WHERE id = ?", (tid,)).fetchone():
+                        tid = f"{tid}-{secrets.token_hex(2)}"
+
+                subtitle = (topic_obj.get("subtitle") or "").strip()
+                topic_obj["id"] = tid
+                topic_obj["order_index"] = order_index
+                topic_obj["title"] = title
+                topic_obj["subtitle"] = subtitle
+                topic_obj["status"] = "published"
+                topic_obj["source_note"] = ""
+                topic_obj.setdefault("lessons", [])
+                topic_obj.setdefault(
+                    "knowledge_system",
+                    {"overview": "", "units": [], "mindmap": {"root": title.upper(), "branches": []}, "comparison_tables": [], "formulas": [], "flashcards": []},
+                )
+                topic_obj.setdefault("youtube_videos", [])
+                topic_obj.setdefault("review", {"mcq": [], "true_false": [], "short_answer": []})
+
+                ts = now_iso()
+                conn.execute(
+                    """
+                    INSERT OR REPLACE INTO topics (id, order_index, title, subtitle, status, content_json, updated_by, updated_at)
+                    VALUES (?, ?, ?, ?, 'published', ?, ?, ?)
+                    """,
+                    (tid, order_index, title, subtitle, json.dumps(topic_obj, ensure_ascii=False), teacher["id"], ts),
+                )
+                conn.commit()
+                app_cache.invalidate_topics(tid)
+                return self.send_json(
+                    201,
+                    {
+                        "ok": True,
+                        "topic": topic_obj,
+                        "message": f"Đã lưu và xuất bản '{title}' lên hệ thống!",
+                    },
+                )
+
+            # Admin ONLY: Xoá Chủ đề
+            m_del_tp = re.match(r"^/api/topics/([a-zA-Z0-9_-]+)/delete$", path)
+            if m_del_tp:
+                admin = self.require_admin(conn, qs, body)
+                if not admin:
+                    return
+                tid = m_del_tp.group(1)
+                row = conn.execute("SELECT id, title FROM topics WHERE id = ?", (tid,)).fetchone()
+                if not row:
+                    return self.send_json(404, {"error": "Không tìm thấy chủ đề."})
+                conn.execute("DELETE FROM topics WHERE id = ?", (tid,))
+                conn.commit()
+                app_cache.invalidate_topics(tid)
+                return self.send_json(200, {"ok": True, "message": f"Đã xoá '{row['title']}'."})
+
+            # Staff: Xoá toàn bộ cache Redis + L1 Memory thủ công
+            if path == "/api/admin/cache-clear":
+                teacher = self.require_teacher(conn, qs, body)
+                if not teacher:
+                    return
+                app_cache.clear_all()
+                return self.send_json(
+                    200,
+                    {"ok": True, "cache": app_cache.stats(), "message": "Đã làm mới toàn bộ bộ nhớ đệm (Cache)!"},
+                )
 
             # Teacher: Import & extract topic content from .docx / .pdf / .txt
             m_imp = re.match(r"^/api/topics/([a-zA-Z0-9_-]+)/import-file$", path)
@@ -891,7 +1087,7 @@ class Bio12Handler(BaseHTTPRequestHandler):
                     ks = ext_data["knowledge_system"]
                     if ks.get("mindmap", {}).get("branches") or ks.get("comparison_tables"):
                         merged["knowledge_system"] = ks
-                if sections.get("video") and ext_data["interactive_video"].get("scenes"):
+                if sections.get("video") and (ext_data.get("interactive_video") or {}).get("scenes"):
                     merged["interactive_video"] = ext_data["interactive_video"]
                 if sections.get("review"):
                     rev = ext_data["review"]
@@ -914,6 +1110,7 @@ class Bio12Handler(BaseHTTPRequestHandler):
                     (merged["title"], json.dumps(merged, ensure_ascii=False), teacher["id"], ts, tid),
                 )
                 conn.commit()
+                app_cache.invalidate_topics(tid)
                 return self.send_json(
                     200,
                     {
@@ -1305,6 +1502,7 @@ class Bio12Handler(BaseHTTPRequestHandler):
                     (title, subtitle, status, json.dumps(content, ensure_ascii=False), teacher["id"], ts, tid),
                 )
                 conn.commit()
+                app_cache.invalidate_topics(tid)
                 return self.send_json(200, {"ok": True, "topic": content, "updated_at": ts})
 
             return self.send_json(404, {"error": "API endpoint không tồn tại."})
