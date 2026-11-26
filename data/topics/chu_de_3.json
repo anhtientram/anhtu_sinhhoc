@@ -769,7 +769,7 @@
         "blocks": [
           {
             "type": "text",
-            "text": "Câu 1: Đề nắm vững kiến thức phần quy luật phân li di truyền, học sinh cần hiểu rõ một số khái niệm cơ bản. Dựa vào nội dùng bài học, hãy giải nghĩa và cho ví dụ tương ứng từng khái niệm ở bảng bên dưới:",
+            "text": "Câu 1: Để nắm vững kiến thức phần quy luật phân li di truyền, học sinh cần hiểu rõ một số khái niệm cơ bản. Dựa vào nội dung bài học, hãy giải nghĩa và cho ví dụ tương ứng từng khái niệm ở bảng bên dưới:",
             "is_bold": false
           },
           {
@@ -866,7 +866,153 @@
                 ""
               ]
             ],
-            "images": []
+            "images": [],
+            "interactive": {
+              "id": "cd3-ks-3.1-c1",
+              "mode": "fill",
+              "answers": {
+                "1:2": {
+                  "answer": "Là 1 đoạn của phân tử DNA mang thông tin quy định trình tự amino acid của chuỗi polypeptide hoặc trình tự nucleotide của RNA",
+                  "grade_type": "compare",
+                  "multiline": true
+                },
+                "1:3": {
+                  "answer": "Gene quy định màu sắc hoa",
+                  "grade_type": "compare",
+                  "multiline": false
+                },
+                "2:2": {
+                  "answer": "Các trạng thái khác nhau của cùng một gene",
+                  "grade_type": "compare",
+                  "multiline": false
+                },
+                "2:3": {
+                  "answer": "Allele A quy định hoa đỏ, allele a quy định hoa trắng",
+                  "grade_type": "compare",
+                  "multiline": true
+                },
+                "3:2": {
+                  "answer": "Là tổ hợp tất cả các gene trong tế bào của cơ thể sinh vật",
+                  "grade_type": "compare",
+                  "multiline": true
+                },
+                "3:3": {
+                  "answer": "AA, Aa, aa",
+                  "grade_type": "compare",
+                  "multiline": false
+                },
+                "4:2": {
+                  "answer": "Là kiểu gene chứa các allele có trạng thái giống nhau của cùng một gene",
+                  "grade_type": "compare",
+                  "multiline": true
+                },
+                "4:3": {
+                  "answer": "AA, aa",
+                  "grade_type": "compare",
+                  "multiline": false
+                },
+                "5:2": {
+                  "answer": "Là kiểu gene đồng hợp về tất cả các gene",
+                  "grade_type": "compare",
+                  "multiline": false
+                },
+                "5:3": {
+                  "answer": "AA, aa",
+                  "grade_type": "compare",
+                  "multiline": false
+                },
+                "6:2": {
+                  "answer": "Là kiểu gene chứa các allele có trạng thái khác nhau của cùng một gene",
+                  "grade_type": "compare",
+                  "multiline": true
+                },
+                "6:3": {
+                  "answer": "Aa",
+                  "grade_type": "compare",
+                  "multiline": false
+                },
+                "7:2": {
+                  "answer": "Là những đặc điểm về hình thái, cấu tạo và sinh lý riêng biệt của cơ thể sinh vật",
+                  "grade_type": "compare",
+                  "multiline": true
+                },
+                "7:3": {
+                  "answer": "Màu sắc hoa, hình dạng quả, màu sắc hạt...",
+                  "grade_type": "compare",
+                  "multiline": true
+                },
+                "8:2": {
+                  "answer": "Là kiểu hình do allele trội quy định và luôn được biểu hiện thành kiểu hình",
+                  "grade_type": "compare",
+                  "multiline": true
+                },
+                "8:3": {
+                  "answer": "A quy định hoa đỏ → kiểu gene AA, Aa → hoa đỏ",
+                  "grade_type": "compare",
+                  "multiline": true
+                },
+                "9:2": {
+                  "answer": "Là kiểu hình do allele lặn quy định và chỉ được biểu hiện ở cơ thể có kiểu gene đồng hợp lặn",
+                  "grade_type": "compare",
+                  "multiline": true
+                },
+                "9:3": {
+                  "answer": "Kiểu gene aa → hoa trắng",
+                  "grade_type": "compare",
+                  "multiline": false
+                },
+                "10:2": {
+                  "answer": "Là hiện tượng hạt phấn thụ phấn cho nhụy của cùng một hoa hoặc cho nhụy của các hoa khác cùng cây",
+                  "grade_type": "compare",
+                  "multiline": true
+                },
+                "10:3": {
+                  "answer": "Ở đậu Hà Lan, hạt phấn chỉ thụ phấn cho nhụy của cùng một hoa",
+                  "grade_type": "compare",
+                  "multiline": true
+                },
+                "11:2": {
+                  "answer": "Là hiện tượng hạt phấn của hoa này thụ phấn cho hoa ở cây khác",
+                  "grade_type": "compare",
+                  "multiline": true
+                },
+                "11:3": {
+                  "answer": "Hạt phấn của cây A thụ phấn cho cây B",
+                  "grade_type": "compare",
+                  "multiline": true
+                },
+                "12:2": {
+                  "answer": "Giao phối giữa các cá thể có cùng huyết thống hoặc có họ hàng gần nhau",
+                  "grade_type": "compare",
+                  "multiline": true
+                },
+                "12:3": {
+                  "answer": "Những con gà cùng bố mẹ giao phối với nhau",
+                  "grade_type": "compare",
+                  "multiline": true
+                },
+                "13:2": {
+                  "answer": "Là phép lai đổi vai trò của bố và mẹ",
+                  "grade_type": "compare",
+                  "multiline": false
+                },
+                "13:3": {
+                  "answer": "Lai thuận: ♀AA × ♂aa; Lai nghịch: ♀aa × ♂AA",
+                  "grade_type": "compare",
+                  "multiline": true
+                },
+                "14:2": {
+                  "answer": "Lai giữa cá thể có kiểu hình trội (chưa biết kiểu gene) với cá thể đồng hợp lặn",
+                  "grade_type": "compare",
+                  "multiline": true
+                },
+                "14:3": {
+                  "answer": "AA × aa hoặc Aa × aa",
+                  "grade_type": "compare",
+                  "multiline": false
+                }
+              }
+            }
           },
           {
             "type": "text",
@@ -933,31 +1079,121 @@
                 ""
               ]
             ],
-            "images": []
+            "images": [],
+            "interactive": {
+              "id": "cd3-ks-3.1-c2-tbl",
+              "mode": "fill",
+              "answers": {
+                "1:2": {
+                  "answer": "A",
+                  "grade_type": "compare",
+                  "multiline": false
+                },
+                "2:2": {
+                  "answer": "a",
+                  "grade_type": "compare",
+                  "multiline": false
+                },
+                "3:2": {
+                  "answer": "A, a",
+                  "grade_type": "compare",
+                  "multiline": false
+                },
+                "4:2": {
+                  "answer": "AB",
+                  "grade_type": "compare",
+                  "multiline": false
+                },
+                "5:2": {
+                  "answer": "Ab",
+                  "grade_type": "compare",
+                  "multiline": false
+                },
+                "6:2": {
+                  "answer": "aB",
+                  "grade_type": "compare",
+                  "multiline": false
+                },
+                "1:5": {
+                  "answer": "ab",
+                  "grade_type": "compare",
+                  "multiline": false
+                },
+                "2:5": {
+                  "answer": "Ab, ab",
+                  "grade_type": "compare",
+                  "multiline": false
+                },
+                "3:5": {
+                  "answer": "aB, ab",
+                  "grade_type": "compare",
+                  "multiline": false
+                },
+                "4:5": {
+                  "answer": "AB, aB",
+                  "grade_type": "compare",
+                  "multiline": false
+                },
+                "5:5": {
+                  "answer": "AB, Ab",
+                  "grade_type": "compare",
+                  "multiline": false
+                },
+                "6:5": {
+                  "answer": "AB, Ab, aB, ab",
+                  "grade_type": "compare",
+                  "multiline": false
+                }
+              }
+            }
           },
           {
             "type": "text",
-            "text": "Trong số cá kiểu gene trên, hãy liệt kê:",
+            "text": "Trong số các kiểu gene trên, hãy liệt kê:",
             "is_bold": false
           },
           {
             "type": "text",
             "text": "Kiểu gene đồng hợp (thuần chủng):",
-            "is_bold": false
+            "is_bold": false,
+            "exercise": {
+              "id": "cd3-ks-3.1-c2-dh",
+              "group": "cd3-ks-3.1-c2-list",
+              "mode": "input",
+              "answer": "AA, aa, AABB, AAbb, aaBB, aabb",
+              "grade_type": "compare"
+            }
           },
           {
             "type": "text",
             "text": "Kiểu gene dị hợp 1 cặp gene:",
-            "is_bold": false
+            "is_bold": false,
+            "exercise": {
+              "id": "cd3-ks-3.1-c2-dh1",
+              "group": "cd3-ks-3.1-c2-list",
+              "mode": "input",
+              "answer": "Aa, Aabb, aaBb, AaBB, AABb",
+              "grade_type": "compare"
+            }
           },
           {
             "type": "text",
             "text": "Kiểu gene dị hợp 2 cặp gene:",
-            "is_bold": false
+            "is_bold": false,
+            "exercise": {
+              "id": "cd3-ks-3.1-c2-dh2",
+              "group": "cd3-ks-3.1-c2-list",
+              "mode": "input",
+              "answer": "AaBb",
+              "grade_type": "exact",
+              "exact": [
+                "aabb"
+              ]
+            }
           },
           {
             "type": "text",
-            "text": "Câu 3: Biết rằng allele A quy định hoa tím trội hoàn toàn so với allele a quy định hoa trắng. Cho sờ đồ lai bên dưới:",
+            "text": "Câu 3: Biết rằng allele A quy định hoa tím trội hoàn toàn so với allele a quy định hoa trắng. Cho sơ đồ lai bên dưới:",
             "is_bold": false
           },
           {
@@ -987,7 +1223,7 @@
           },
           {
             "type": "text",
-            "text": "Dựa vào sơ đồ lai phía trên dể xác định kết quả phép lai ở F2 theo các yêu cầu của bảng bên dưới:",
+            "text": "Dựa vào sơ đồ lai phía trên để xác định kết quả phép lai ở F2 theo các yêu cầu của bảng bên dưới:",
             "is_bold": false
           },
           {
@@ -1037,8 +1273,8 @@
                 "5",
                 "Tỉ lệ kiểu hình lặn",
                 "",
-                "10",
-                "Tỉ lệ kiểu gene đồng hợp trong số cá thể có số kiểu hình trội",
+                "",
+                "",
                 ""
               ],
               [
@@ -1050,7 +1286,116 @@
                 ""
               ]
             ],
-            "images": []
+            "images": [],
+            "interactive": {
+              "id": "cd3-ks-3.1-c3-1",
+              "mode": "fill",
+              "answers": {
+                "1:2": {
+                  "answer": "4",
+                  "grade_type": "exact",
+                  "multiline": false,
+                  "exact": [
+                    "4"
+                  ]
+                },
+                "2:2": {
+                  "answer": "2",
+                  "grade_type": "exact",
+                  "multiline": false,
+                  "exact": [
+                    "2"
+                  ]
+                },
+                "3:2": {
+                  "answer": "3 : 1",
+                  "grade_type": "exact",
+                  "multiline": false,
+                  "exact": [
+                    "3:1"
+                  ]
+                },
+                "4:2": {
+                  "answer": "3/4",
+                  "grade_type": "exact",
+                  "multiline": false,
+                  "exact": [
+                    "3/4",
+                    "75%",
+                    "0,75",
+                    "0.75"
+                  ]
+                },
+                "5:2": {
+                  "answer": "1/4",
+                  "grade_type": "exact",
+                  "multiline": false,
+                  "exact": [
+                    "1/4",
+                    "25%",
+                    "0,25",
+                    "0.25"
+                  ]
+                },
+                "6:2": {
+                  "answer": "3",
+                  "grade_type": "exact",
+                  "multiline": false,
+                  "exact": [
+                    "3"
+                  ]
+                },
+                "1:5": {
+                  "answer": "1 : 2 : 1",
+                  "grade_type": "exact",
+                  "multiline": false,
+                  "exact": [
+                    "1:2:1"
+                  ]
+                },
+                "2:5": {
+                  "answer": "1/2",
+                  "grade_type": "exact",
+                  "multiline": false,
+                  "exact": [
+                    "1/2",
+                    "50%",
+                    "0,5",
+                    "0.5"
+                  ]
+                },
+                "3:5": {
+                  "answer": "1/2",
+                  "grade_type": "exact",
+                  "multiline": false,
+                  "exact": [
+                    "1/2",
+                    "50%",
+                    "0,5",
+                    "0.5"
+                  ]
+                },
+                "4:5": {
+                  "answer": "1/3",
+                  "grade_type": "exact",
+                  "multiline": false,
+                  "exact": [
+                    "1/3"
+                  ]
+                },
+                "6:5": {
+                  "answer": "3/4",
+                  "grade_type": "exact",
+                  "multiline": false,
+                  "exact": [
+                    "3/4",
+                    "75%",
+                    "0,75",
+                    "0.75"
+                  ]
+                }
+              }
+            }
           },
           {
             "type": "text",
@@ -1196,7 +1541,220 @@
                 ""
               ]
             ],
-            "images": []
+            "images": [],
+            "interactive": {
+              "id": "cd3-ks-3.1-c3-2",
+              "mode": "fill",
+              "answers": {
+                "1:2": {
+                  "answer": "16",
+                  "grade_type": "exact",
+                  "multiline": false,
+                  "exact": [
+                    "16"
+                  ]
+                },
+                "1:3": {
+                  "answer": "4 × 4",
+                  "grade_type": "compare",
+                  "multiline": false
+                },
+                "2:2": {
+                  "answer": "4",
+                  "grade_type": "exact",
+                  "multiline": false,
+                  "exact": [
+                    "4"
+                  ]
+                },
+                "2:3": {
+                  "answer": "2 × 2",
+                  "grade_type": "compare",
+                  "multiline": false
+                },
+                "3:2": {
+                  "answer": "9 : 3 : 3 : 1",
+                  "grade_type": "exact",
+                  "multiline": false,
+                  "exact": [
+                    "9:3:3:1"
+                  ]
+                },
+                "3:3": {
+                  "answer": "(3 : 1) × (3 : 1)",
+                  "grade_type": "compare",
+                  "multiline": false
+                },
+                "4:2": {
+                  "answer": "9/16",
+                  "grade_type": "exact",
+                  "multiline": false,
+                  "exact": [
+                    "9/16",
+                    "56,25%",
+                    "0,5625"
+                  ]
+                },
+                "4:3": {
+                  "answer": "TT = 3/4 × 3/4 = 9/16",
+                  "grade_type": "compare",
+                  "multiline": false
+                },
+                "5:2": {
+                  "answer": "3/8",
+                  "grade_type": "exact",
+                  "multiline": false,
+                  "exact": [
+                    "3/8",
+                    "6/16",
+                    "37,5%",
+                    "0,375"
+                  ]
+                },
+                "5:3": {
+                  "answer": "TL + LT = (3/4 × 1/4) + (1/4 × 3/4) = 3/8",
+                  "grade_type": "compare",
+                  "multiline": false
+                },
+                "6:2": {
+                  "answer": "1/16",
+                  "grade_type": "exact",
+                  "multiline": false,
+                  "exact": [
+                    "1/16",
+                    "6,25%",
+                    "0,0625"
+                  ]
+                },
+                "6:3": {
+                  "answer": "LL = 1/4 × 1/4 = 1/16",
+                  "grade_type": "compare",
+                  "multiline": false
+                },
+                "7:2": {
+                  "answer": "7/16",
+                  "grade_type": "exact",
+                  "multiline": false,
+                  "exact": [
+                    "7/16",
+                    "43,75%",
+                    "0,4375"
+                  ]
+                },
+                "7:3": {
+                  "answer": "1 − TT = 1 − 9/16 = 7/16",
+                  "grade_type": "compare",
+                  "multiline": false
+                },
+                "8:2": {
+                  "answer": "9",
+                  "grade_type": "exact",
+                  "multiline": false,
+                  "exact": [
+                    "9"
+                  ]
+                },
+                "8:3": {
+                  "answer": "3 × 3 = 9",
+                  "grade_type": "compare",
+                  "multiline": false
+                },
+                "9:2": {
+                  "answer": "4 : 2 : 2 : 2 : 2 : 1 : 1 : 1 : 1",
+                  "grade_type": "exact",
+                  "multiline": false,
+                  "exact": [
+                    "4:2:2:2:2:1:1:1:1",
+                    "1:2:1:2:4:2:1:2:1"
+                  ]
+                },
+                "9:3": {
+                  "answer": "(1 : 2 : 1) × (1 : 2 : 1)",
+                  "grade_type": "compare",
+                  "multiline": false
+                },
+                "10:2": {
+                  "answer": "1/4",
+                  "grade_type": "exact",
+                  "multiline": false,
+                  "exact": [
+                    "1/4",
+                    "25%",
+                    "0,25",
+                    "0.25"
+                  ]
+                },
+                "10:3": {
+                  "answer": "1/2 × 1/2 = 1/4",
+                  "grade_type": "compare",
+                  "multiline": false
+                },
+                "11:2": {
+                  "answer": "3/4",
+                  "grade_type": "exact",
+                  "multiline": false,
+                  "exact": [
+                    "3/4",
+                    "75%",
+                    "0,75",
+                    "0.75"
+                  ]
+                },
+                "11:3": {
+                  "answer": "1 − ĐH = 1 − 1/4 = 3/4",
+                  "grade_type": "compare",
+                  "multiline": false
+                },
+                "12:2": {
+                  "answer": "1/2",
+                  "grade_type": "exact",
+                  "multiline": false,
+                  "exact": [
+                    "1/2",
+                    "50%",
+                    "0,5",
+                    "0.5"
+                  ]
+                },
+                "12:3": {
+                  "answer": "ĐH, DH + DH, ĐH = (1/2 × 1/2) + (1/2 × 1/2) = 1/2",
+                  "grade_type": "compare",
+                  "multiline": false
+                },
+                "13:2": {
+                  "answer": "1/4",
+                  "grade_type": "exact",
+                  "multiline": false,
+                  "exact": [
+                    "1/4",
+                    "25%",
+                    "0,25",
+                    "0.25"
+                  ]
+                },
+                "13:3": {
+                  "answer": "DH, DH = 1/2 × 1/2 = 1/4",
+                  "grade_type": "compare",
+                  "multiline": false
+                },
+                "14:2": {
+                  "answer": "3/8",
+                  "grade_type": "exact",
+                  "multiline": false,
+                  "exact": [
+                    "3/8",
+                    "6/16",
+                    "37,5%",
+                    "0,375"
+                  ]
+                },
+                "14:3": {
+                  "answer": "C(4, 2) / 2^4 = 6/16 = 3/8",
+                  "grade_type": "compare",
+                  "multiline": false
+                }
+              }
+            }
           },
           {
             "type": "text",
@@ -1246,22 +1804,59 @@
           {
             "type": "text",
             "text": "1. Hãy xác định tỉ lệ kiểu gene và tỉ lệ kiểu hình ở F2?",
-            "is_bold": false
+            "is_bold": false,
+            "exercise": {
+              "id": "cd3-ks-3.1-pl-vd1-1",
+              "group": "cd3-ks-3.1-pl-vd1",
+              "mode": "input",
+              "answer": "Tỉ lệ kiểu gene: 1 AA : 2 Aa : 1 aa (1 : 2 : 1); Tỉ lệ kiểu hình: 3 quả đỏ : 1 quả vàng (3 : 1)",
+              "grade_type": "compare"
+            }
           },
           {
             "type": "text",
             "text": "2. Số cây có kiểu gene đồng hợp ở F2 chiếm tỉ lệ bao nhiều?",
-            "is_bold": false
+            "is_bold": false,
+            "exercise": {
+              "id": "cd3-ks-3.1-pl-vd1-2",
+              "group": "cd3-ks-3.1-pl-vd1",
+              "mode": "input",
+              "answer": "1/2 (50%)",
+              "grade_type": "exact",
+              "exact": [
+                "1/2",
+                "50%",
+                "0,5",
+                "0.5"
+              ]
+            }
           },
           {
             "type": "text",
             "text": "3. Tính theo lí thuyết, trong số các cây quả đỏ của F2, tỉ lệ cây tự thụ phần cho F3 gồm toàn cây quả đỏ là bao nhiêu?",
-            "is_bold": false
+            "is_bold": false,
+            "exercise": {
+              "id": "cd3-ks-3.1-pl-vd1-3",
+              "group": "cd3-ks-3.1-pl-vd1",
+              "mode": "input",
+              "answer": "1/3",
+              "grade_type": "exact",
+              "exact": [
+                "1/3"
+              ]
+            }
           },
           {
             "type": "text",
             "text": "4. Nếu cho 1 cây quả đỏ của F2 đem lai phân tích thì tỉ lệ kiểu gene và kiểu hình của đời con sẽ như thế nào?",
-            "is_bold": false
+            "is_bold": false,
+            "exercise": {
+              "id": "cd3-ks-3.1-pl-vd1-4",
+              "group": "cd3-ks-3.1-pl-vd1",
+              "mode": "textarea",
+              "answer": "- TH1: AA × aa → Fb: 100% Aa (100% quả đỏ).\n- TH2: Aa × aa → Fb: 1 Aa : 1 aa (1 quả đỏ : 1 quả vàng).",
+              "grade_type": "compare"
+            }
           },
           {
             "type": "text",
@@ -1311,17 +1906,38 @@
           {
             "type": "text",
             "text": "1. Trường hợp 1: F1 có 75% cây hoa đỏ và 25% cây hoa trắng",
-            "is_bold": false
+            "is_bold": false,
+            "exercise": {
+              "id": "cd3-ks-3.1-pl-vd2-1",
+              "group": "cd3-ks-3.1-pl-vd2",
+              "mode": "input",
+              "answer": "Aa × Aa",
+              "grade_type": "compare"
+            }
           },
           {
             "type": "text",
             "text": "2. Truờng hợp 2: F1 có cả cây hoa đỏ và cây hoa trắng.",
-            "is_bold": false
+            "is_bold": false,
+            "exercise": {
+              "id": "cd3-ks-3.1-pl-vd2-2",
+              "group": "cd3-ks-3.1-pl-vd2",
+              "mode": "input",
+              "answer": "Aa × Aa hoặc Aa × aa",
+              "grade_type": "compare"
+            }
           },
           {
             "type": "text",
             "text": "3. Trường hợp 3: F1 chỉ cho đồng loạt một loại kiểu hình hoa đỏ hoặc hoa trấng.",
-            "is_bold": false
+            "is_bold": false,
+            "exercise": {
+              "id": "cd3-ks-3.1-pl-vd2-3",
+              "group": "cd3-ks-3.1-pl-vd2",
+              "mode": "input",
+              "answer": "AA × AA, AA × Aa, AA × aa (đồng loạt hoa đỏ) hoặc aa × aa (đồng loạt hoa trắng)",
+              "grade_type": "compare"
+            }
           },
           {
             "type": "text",
@@ -1351,27 +1967,83 @@
           {
             "type": "text",
             "text": "1. Một người con tóc xoăn",
-            "is_bold": false
+            "is_bold": false,
+            "exercise": {
+              "id": "cd3-ks-3.1-pl-vd3-1",
+              "group": "cd3-ks-3.1-pl-vd3",
+              "mode": "input",
+              "answer": "3/4",
+              "grade_type": "exact",
+              "exact": [
+                "3/4",
+                "75%",
+                "0,75",
+                "0.75"
+              ]
+            }
           },
           {
             "type": "text",
             "text": "2. Một người con trai tóc xoăn",
-            "is_bold": false
+            "is_bold": false,
+            "exercise": {
+              "id": "cd3-ks-3.1-pl-vd3-2",
+              "group": "cd3-ks-3.1-pl-vd3",
+              "mode": "input",
+              "answer": "3/8",
+              "grade_type": "exact",
+              "exact": [
+                "3/8",
+                "37,5%",
+                "0,375",
+                "0.375"
+              ]
+            }
           },
           {
             "type": "text",
             "text": "3. Hai người con trai tóc xoăn",
-            "is_bold": false
+            "is_bold": false,
+            "exercise": {
+              "id": "cd3-ks-3.1-pl-vd3-3",
+              "group": "cd3-ks-3.1-pl-vd3",
+              "mode": "input",
+              "answer": "9/64",
+              "grade_type": "exact",
+              "exact": [
+                "9/64"
+              ]
+            }
           },
           {
             "type": "text",
             "text": "4. Hai người con trai, trong đó một đứa tóc xoăn và một đưa tóc thẳng",
-            "is_bold": false
+            "is_bold": false,
+            "exercise": {
+              "id": "cd3-ks-3.1-pl-vd3-4",
+              "group": "cd3-ks-3.1-pl-vd3",
+              "mode": "input",
+              "answer": "3/32",
+              "grade_type": "exact",
+              "exact": [
+                "3/32"
+              ]
+            }
           },
           {
             "type": "text",
             "text": "5. Một người con trai tóc xoăn và một người con gái tóc thẳng",
-            "is_bold": false
+            "is_bold": false,
+            "exercise": {
+              "id": "cd3-ks-3.1-pl-vd3-5",
+              "group": "cd3-ks-3.1-pl-vd3",
+              "mode": "input",
+              "answer": "3/32",
+              "grade_type": "exact",
+              "exact": [
+                "3/32"
+              ]
+            }
           },
           {
             "type": "text",
@@ -1405,8 +2077,18 @@
           },
           {
             "type": "text",
-            "text": "Ví dụ 4: Biết rằng ở người tính trạng tóc xoăn là trội so với tính trạng tóc trẳng. Trong trường hợp người chồng tốc xoăn có bồ mẹ đều tóc xoăn và em gái tóc thẳng; người vợ tóc xoăn có bồ tóc xoăn, mẹ và em trai tóc thẳng. Tính theo lí thuyết, xác suất cặp vợ chồng này sinh được một gái tóc xoăn là bao nhiêu?",
-            "is_bold": false
+            "text": "Ví dụ 4: Biết rằng ở người tính trạng tóc xoăn là trội so với tính trạng tóc thẳng. Trong trường hợp người chồng tóc xoăn có bố mẹ đều tóc xoăn và em gái tóc thẳng; người vợ tóc xoăn có bố tóc xoăn, mẹ và em trai tóc thẳng. Tính theo lí thuyết, xác suất cặp vợ chồng này sinh được một gái tóc xoăn là bao nhiêu?",
+            "is_bold": false,
+            "exercise": {
+              "id": "cd3-ks-3.1-pl-vd4",
+              "group": "cd3-ks-3.1-pl-vd4",
+              "mode": "input",
+              "answer": "5/12 (Chồng 2/3 Aa, vợ 100% Aa → xác suất sinh con gái tóc xoăn = 1/2 × (1 − 2/3 × 1/4) = 5/12)",
+              "grade_type": "exact",
+              "exact": [
+                "5/12"
+              ]
+            }
           },
           {
             "type": "text",
@@ -1425,18 +2107,68 @@
           },
           {
             "type": "text",
-            "text": "Ví dụ 1: Biết rằng gene A quy định quả đỏ trội hoàn toàn so với allele a quy định quả vàng, allele B quy đinh quả tròn trội hoàn toàn so với allele b quy định quả bầu dụC. Hãy viết sơ đồ lai và xác định tỉ lệ kiểu gene, tỉ lệ kiểu hinh ở đời con F1 của các cặp P sau:",
-            "is_bold": false
+            "text": "Ví dụ 1: Biết rằng gene A quy định quả đỏ trội hoàn toàn so với allele a quy định quả vàng, allele B quy đinh quả tròn trội hoàn toàn so với allele b quy định quả bầu dục. Hãy viết sơ đồ lai và xác định tỉ lệ kiểu gene, tỉ lệ kiểu hình ở đời con F1 của các cặp P sau:",
+            "is_bold": false,
+            "exercise_group": {
+              "id": "cd3-ks-3.1-pldl-vd1",
+              "columns": 2,
+              "items": [
+                {
+                  "id": "cd3-ks-3.1-pldl-vd1-1",
+                  "label": "1. AABB × aabb",
+                  "mode": "input",
+                  "answer": "TLKG: 100% AaBb — TLKH: 100% đỏ, tròn",
+                  "grade_type": "compare"
+                },
+                {
+                  "id": "cd3-ks-3.1-pldl-vd1-2",
+                  "label": "2. AABB × aaBb",
+                  "mode": "input",
+                  "answer": "TLKG: 1 AaBB : 1 AaBb — TLKH: 100% đỏ, tròn",
+                  "grade_type": "compare"
+                },
+                {
+                  "id": "cd3-ks-3.1-pldl-vd1-3",
+                  "label": "3. AABB × AaBb",
+                  "mode": "input",
+                  "answer": "TLKG: 1 AABB : 1 AABb : 1 AaBB : 1 AaBb — TLKH: 100% đỏ, tròn",
+                  "grade_type": "compare"
+                },
+                {
+                  "id": "cd3-ks-3.1-pldl-vd1-4",
+                  "label": "4. AaBB × AaBB",
+                  "mode": "input",
+                  "answer": "TLKG: 1 AABB : 2 AaBB : 1 aaBB — TLKH: 3 đỏ, tròn : 1 vàng, tròn",
+                  "grade_type": "compare"
+                },
+                {
+                  "id": "cd3-ks-3.1-pldl-vd1-5",
+                  "label": "5. AABb × AaBb",
+                  "mode": "input",
+                  "answer": "TLKG: 1 AABB : 2 AABb : 1 AAbb : 1 AaBB : 2 AaBb : 1 Aabb — TLKH: 3 đỏ, tròn : 1 đỏ, bầu dục",
+                  "grade_type": "compare"
+                },
+                {
+                  "id": "cd3-ks-3.1-pldl-vd1-6",
+                  "label": "6. AaBb × AaBb",
+                  "mode": "input",
+                  "answer": "TLKG: (1:2:1)(1:2:1) = 4:2:2:2:2:1:1:1:1 — TLKH: 9 đỏ, tròn : 3 đỏ, bầu dục : 3 vàng, tròn : 1 vàng, bầu dục",
+                  "grade_type": "compare"
+                }
+              ]
+            }
           },
           {
             "type": "text",
             "text": "AABB X aabb 2. AABB x aaBb 3. AABB × AaBb",
-            "is_bold": false
+            "is_bold": false,
+            "hidden_by_group": true
           },
           {
             "type": "text",
             "text": "4. AaBB x AaBB 5. AABb x AaBb 6. AaBb x AaBb",
-            "is_bold": false
+            "is_bold": false,
+            "hidden_by_group": true
           },
           {
             "type": "text",
@@ -1480,13 +2212,23 @@
           },
           {
             "type": "text",
-            "text": "Ví dụ 2: Ở một loài thực vật, allele A quy định thân cao trội hoàn toàn so với allele a quy định thân thấp; allele B quy dịnh hoa dỏ trội hoàn toàn so với allele b quy định hoa vàng, allele D quy định quả tròn trội hoàn toàn so với allele d quy dinh quả dài. Biết răng không có đột biến xảy ra, hãy xác định kết quả của phép lai AabbDd x AaBbDD theo các yêu cầu bên dưới:",
+            "text": "Ví dụ 2: Ở một loài thực vật, allele A quy định thân cao trội hoàn toàn so với allele a quy định thân thấp; allele B quy định hoa đỏ trội hoàn toàn so với allele b quy định hoa vàng, allele D quy định quả tròn trội hoàn toàn so với allele d quy định quả dài. Biết rằng không có đột biến xảy ra, hãy xác định kết quả của phép lai AabbDd x AaBbDD theo các yêu cầu bên dưới:",
             "is_bold": false
           },
           {
             "type": "text",
             "text": "1. Số kiểu tổ hợp:",
-            "is_bold": true
+            "is_bold": true,
+            "exercise": {
+              "id": "cd3-ks-3.1-pldl-vd2-1",
+              "group": "cd3-ks-3.1-pldl-vd2",
+              "mode": "input",
+              "answer": "16",
+              "grade_type": "exact",
+              "exact": [
+                "16"
+              ]
+            }
           },
           {
             "type": "text",
@@ -1496,62 +2238,208 @@
           {
             "type": "text",
             "text": "2.1. Số kiểu loại gene:",
-            "is_bold": false
+            "is_bold": false,
+            "exercise": {
+              "id": "cd3-ks-3.1-pldl-vd2-2-1",
+              "group": "cd3-ks-3.1-pldl-vd2",
+              "mode": "input",
+              "answer": "12",
+              "grade_type": "exact",
+              "exact": [
+                "12"
+              ]
+            }
           },
           {
             "type": "text",
             "text": "2.2. Tỉ lệ kiểu gene:",
-            "is_bold": false
+            "is_bold": false,
+            "exercise": {
+              "id": "cd3-ks-3.1-pldl-vd2-2-2",
+              "group": "cd3-ks-3.1-pldl-vd2",
+              "mode": "input",
+              "answer": "2 : 2 : 2 : 2 : 1 : 1 : 1 : 1 : 1 : 1 : 1 : 1",
+              "grade_type": "exact",
+              "exact": [
+                "2:2:2:2:1:1:1:1:1:1:1:1"
+              ]
+            }
           },
           {
             "type": "text",
             "text": "2.3. Tỉ lệ kiểu gene đồng hợp:",
-            "is_bold": false
+            "is_bold": false,
+            "exercise": {
+              "id": "cd3-ks-3.1-pldl-vd2-2-3",
+              "group": "cd3-ks-3.1-pldl-vd2",
+              "mode": "input",
+              "answer": "1/8",
+              "grade_type": "exact",
+              "exact": [
+                "1/8",
+                "12,5%",
+                "0,125",
+                "0.125"
+              ]
+            }
           },
           {
             "type": "text",
             "text": "2.4. Tỉ lệ kiểu gene đồng hợp trội:",
-            "is_bold": false
+            "is_bold": false,
+            "exercise": {
+              "id": "cd3-ks-3.1-pldl-vd2-2-4",
+              "group": "cd3-ks-3.1-pldl-vd2",
+              "mode": "input",
+              "answer": "0",
+              "grade_type": "exact",
+              "exact": [
+                "0",
+                "0%"
+              ]
+            }
           },
           {
             "type": "text",
             "text": "2.5. Tỉ lệ kiểu gene đồng hợp lăn:",
-            "is_bold": false
+            "is_bold": false,
+            "exercise": {
+              "id": "cd3-ks-3.1-pldl-vd2-2-5",
+              "group": "cd3-ks-3.1-pldl-vd2",
+              "mode": "input",
+              "answer": "0",
+              "grade_type": "exact",
+              "exact": [
+                "0",
+                "0%"
+              ]
+            }
           },
           {
             "type": "text",
-            "text": "2,6. Tỉ lệ kiểu gene dị hợp:",
-            "is_bold": false
+            "text": "2.6. Tỉ lệ kiểu gene dị hợp:",
+            "is_bold": false,
+            "exercise": {
+              "id": "cd3-ks-3.1-pldl-vd2-2-6",
+              "group": "cd3-ks-3.1-pldl-vd2",
+              "mode": "input",
+              "answer": "7/8",
+              "grade_type": "exact",
+              "exact": [
+                "7/8",
+                "87,5%",
+                "0,875",
+                "0.875"
+              ]
+            }
           },
           {
             "type": "text",
             "text": "2.7. Tỉ lệ kiểu gene dị hợp 1 cặp gene:",
-            "is_bold": false
+            "is_bold": false,
+            "exercise": {
+              "id": "cd3-ks-3.1-pldl-vd2-2-7",
+              "group": "cd3-ks-3.1-pldl-vd2",
+              "mode": "input",
+              "answer": "3/8",
+              "grade_type": "exact",
+              "exact": [
+                "3/8",
+                "37,5%",
+                "0,375",
+                "0.375"
+              ]
+            }
           },
           {
             "type": "text",
             "text": "2.8. Tỉ lệ kiểu gene dị hợp 2 cặp gene:",
-            "is_bold": false
+            "is_bold": false,
+            "exercise": {
+              "id": "cd3-ks-3.1-pldl-vd2-2-8",
+              "group": "cd3-ks-3.1-pldl-vd2",
+              "mode": "input",
+              "answer": "3/8",
+              "grade_type": "exact",
+              "exact": [
+                "3/8",
+                "37,5%",
+                "0,375",
+                "0.375"
+              ]
+            }
           },
           {
             "type": "text",
             "text": "2.9. Tỉ lệ kiểu gene dị hợp 3 cặp gene:",
-            "is_bold": false
+            "is_bold": false,
+            "exercise": {
+              "id": "cd3-ks-3.1-pldl-vd2-2-9",
+              "group": "cd3-ks-3.1-pldl-vd2",
+              "mode": "input",
+              "answer": "1/8",
+              "grade_type": "exact",
+              "exact": [
+                "1/8",
+                "12,5%",
+                "0,125",
+                "0.125"
+              ]
+            }
           },
           {
             "type": "text",
             "text": "2.10. Tỉ lệ kiểu gene mang 3 allele trội:",
-            "is_bold": false
+            "is_bold": false,
+            "exercise": {
+              "id": "cd3-ks-3.1-pldl-vd2-2-10",
+              "group": "cd3-ks-3.1-pldl-vd2",
+              "mode": "input",
+              "answer": "3/8",
+              "grade_type": "exact",
+              "exact": [
+                "3/8",
+                "37,5%",
+                "0,375",
+                "0.375"
+              ]
+            }
           },
           {
             "type": "text",
-            "text": "2.11. Tỉ lệ kiểu gene mang l allele lặn:.",
-            "is_bold": false
+            "text": "2.11. Tỉ lệ kiểu gene mang 1 allele lặn:",
+            "is_bold": false,
+            "exercise": {
+              "id": "cd3-ks-3.1-pldl-vd2-2-11",
+              "group": "cd3-ks-3.1-pldl-vd2",
+              "mode": "input",
+              "answer": "1/16",
+              "grade_type": "exact",
+              "exact": [
+                "1/16",
+                "6,25%",
+                "0,0625",
+                "0.0625"
+              ]
+            }
           },
           {
             "type": "text",
             "text": "2.12. Tỉ lệ kiểu gene AabbDd:",
-            "is_bold": false
+            "is_bold": false,
+            "exercise": {
+              "id": "cd3-ks-3.1-pldl-vd2-2-12",
+              "group": "cd3-ks-3.1-pldl-vd2",
+              "mode": "input",
+              "answer": "1/8",
+              "grade_type": "exact",
+              "exact": [
+                "1/8",
+                "12,5%",
+                "0,125",
+                "0.125"
+              ]
+            }
           },
           {
             "type": "text",
@@ -1561,42 +2449,138 @@
           {
             "type": "text",
             "text": "3.1. Số kiểu hình:",
-            "is_bold": false
+            "is_bold": false,
+            "exercise": {
+              "id": "cd3-ks-3.1-pldl-vd2-3-1",
+              "group": "cd3-ks-3.1-pldl-vd2",
+              "mode": "input",
+              "answer": "4",
+              "grade_type": "exact",
+              "exact": [
+                "4"
+              ]
+            }
           },
           {
             "type": "text",
             "text": "3.2. Tỉ lệ kiểu hình:",
-            "is_bold": false
+            "is_bold": false,
+            "exercise": {
+              "id": "cd3-ks-3.1-pldl-vd2-3-2",
+              "group": "cd3-ks-3.1-pldl-vd2",
+              "mode": "input",
+              "answer": "3 : 3 : 1 : 1",
+              "grade_type": "exact",
+              "exact": [
+                "3:3:1:1"
+              ]
+            }
           },
           {
             "type": "text",
             "text": "3.3. Tỉ lệ kiểu hình trội về 3 cặp tính trạng:",
-            "is_bold": false
+            "is_bold": false,
+            "exercise": {
+              "id": "cd3-ks-3.1-pldl-vd2-3-3",
+              "group": "cd3-ks-3.1-pldl-vd2",
+              "mode": "input",
+              "answer": "3/8",
+              "grade_type": "exact",
+              "exact": [
+                "3/8",
+                "37,5%",
+                "0,375",
+                "0.375"
+              ]
+            }
           },
           {
             "type": "text",
             "text": "3.4. Tỉ lệ kiểu hình lặn về 3 cặp tính trạng:",
-            "is_bold": false
+            "is_bold": false,
+            "exercise": {
+              "id": "cd3-ks-3.1-pldl-vd2-3-4",
+              "group": "cd3-ks-3.1-pldl-vd2",
+              "mode": "input",
+              "answer": "0",
+              "grade_type": "exact",
+              "exact": [
+                "0",
+                "0%"
+              ]
+            }
           },
           {
             "type": "text",
-            "text": "3.5. Tỉ lệ kiểu hình có l cặp tính trạng lặn:",
-            "is_bold": false
+            "text": "3.5. Tỉ lệ kiểu hình có 1 cặp tính trạng lặn:",
+            "is_bold": false,
+            "exercise": {
+              "id": "cd3-ks-3.1-pldl-vd2-3-5",
+              "group": "cd3-ks-3.1-pldl-vd2",
+              "mode": "input",
+              "answer": "1/2",
+              "grade_type": "exact",
+              "exact": [
+                "1/2",
+                "50%",
+                "0,5",
+                "0.5"
+              ]
+            }
           },
           {
             "type": "text",
             "text": "3.6. Tỉ lê kiểu hình có 2 cặp tính trạng lặn:",
-            "is_bold": false
+            "is_bold": false,
+            "exercise": {
+              "id": "cd3-ks-3.1-pldl-vd2-3-6",
+              "group": "cd3-ks-3.1-pldl-vd2",
+              "mode": "input",
+              "answer": "1/8",
+              "grade_type": "exact",
+              "exact": [
+                "1/8",
+                "12,5%",
+                "0,125",
+                "0.125"
+              ]
+            }
           },
           {
             "type": "text",
             "text": "3.7. Tỉ lê kiểu hình thân cao, hoa vàng, quả tròn:",
-            "is_bold": false
+            "is_bold": false,
+            "exercise": {
+              "id": "cd3-ks-3.1-pldl-vd2-3-7",
+              "group": "cd3-ks-3.1-pldl-vd2",
+              "mode": "input",
+              "answer": "3/8",
+              "grade_type": "exact",
+              "exact": [
+                "3/8",
+                "37,5%",
+                "0,375",
+                "0.375"
+              ]
+            }
           },
           {
             "type": "text",
             "text": "3.8. Tỉ lê kiểu hình aaB-D-:",
-            "is_bold": false
+            "is_bold": false,
+            "exercise": {
+              "id": "cd3-ks-3.1-pldl-vd2-3-8",
+              "group": "cd3-ks-3.1-pldl-vd2",
+              "mode": "input",
+              "answer": "1/8",
+              "grade_type": "exact",
+              "exact": [
+                "1/8",
+                "12,5%",
+                "0,125",
+                "0.125"
+              ]
+            }
           },
           {
             "type": "text",
@@ -1625,23 +2609,44 @@
           },
           {
             "type": "text",
-            "text": "Ví dụ 3: Cây cà chua allele A quy định quả đỏ trội hoàn toàn so với allele a quy định quả vàng, allele B quy định quả tròn trội hoàn toàn so với allele b quy định quả bầu dụC. Cho lai hai cây cà chua chưa ro kiểu hình. Biết rằng các cặp gene thuộc các cặp NST khác nhau. Xác định kiểu gene, kiểu hình của P trong các trường hợp sau:",
+            "text": "Ví dụ 3: Cây cà chua allele A quy định quả đỏ trội hoàn toàn so với allele a quy định quả vàng, allele B quy định quả tròn trội hoàn toàn so với allele b quy định quả bầu dục. Cho lai hai cây cà chua chưa rõ kiểu hình. Biết rằng các cặp gene thuộc các cặp NST khác nhau. Xác định kiểu gene, kiểu hình của P trong các trường hợp sau:",
             "is_bold": false
           },
           {
             "type": "text",
-            "text": "1. Trường hợp 1: F1 thu đuợc 3 đỏ, tròn; 3 đỏ, bầu dục; 1 vàng, tròn; l vàng, bầu dục",
-            "is_bold": false
+            "text": "1. Trường hợp 1: F1 thu được 3 đỏ, tròn : 3 đỏ, bầu dục : 1 vàng, tròn : 1 vàng, bầu dục",
+            "is_bold": false,
+            "exercise": {
+              "id": "cd3-ks-3.1-pldl-vd3-1",
+              "group": "cd3-ks-3.1-pldl-vd3",
+              "mode": "input",
+              "answer": "P: AaBb (đỏ, tròn) × Aabb (đỏ, bầu dục)",
+              "grade_type": "compare"
+            }
           },
           {
             "type": "text",
-            "text": "2. Trường hợp 2: F1 thu được l đỏ. tròn; 1 đỏ, bầu dục: 1 vàng, tròn; 1 vàng, bầu dục",
-            "is_bold": false
+            "text": "2. Trường hợp 2: F1 thu được 1 đỏ, tròn : 1 đỏ, bầu dục : 1 vàng, tròn : 1 vàng, bầu dục",
+            "is_bold": false,
+            "exercise": {
+              "id": "cd3-ks-3.1-pldl-vd3-2",
+              "group": "cd3-ks-3.1-pldl-vd3",
+              "mode": "input",
+              "answer": "P: AaBb (đỏ, tròn) × aabb (vàng, bầu dục) hoặc Aabb (đỏ, bầu dục) × aaBb (vàng, tròn)",
+              "grade_type": "compare"
+            }
           },
           {
             "type": "text",
-            "text": "3. Trưong hợp 3: F1 thu được 9 đỏ, tròn; 3 đỏ, bầu dục; 3 vàng, tròn; 1 vàng, bầu dục",
-            "is_bold": false
+            "text": "3. Trường hợp 3: F1 thu được 9 đỏ, tròn : 3 đỏ, bầu dục : 3 vàng, tròn : 1 vàng, bầu dục",
+            "is_bold": false,
+            "exercise": {
+              "id": "cd3-ks-3.1-pldl-vd3-3",
+              "group": "cd3-ks-3.1-pldl-vd3",
+              "mode": "input",
+              "answer": "P: AaBb (đỏ, tròn) × AaBb (đỏ, tròn)",
+              "grade_type": "compare"
+            }
           }
         ]
       },
@@ -1724,7 +2729,73 @@
                 "..................................................................................................."
               ]
             ],
-            "images": []
+            "images": [],
+            "interactive": {
+              "id": "cd3-ks-3.2-c1",
+              "mode": "fill",
+              "answers": {
+                "1:2": {
+                  "answer": "Là hiện tượng allele trội át chế hoàn toàn sự biểu hiện của allele lặn khi cả hai allele cùng xuất hiện trong một kiểu gene",
+                  "grade_type": "compare",
+                  "multiline": true
+                },
+                "2:2": {
+                  "answer": "Là hiện tượng tương tác giữa các allele của cùng một gene, trong đó một allele trội không át chế hoàn toàn sự biểu hiện của allele lặn → thể dị hợp biểu hiện thành kiểu hình trung gian giữa trội và lặn",
+                  "grade_type": "compare",
+                  "multiline": true
+                },
+                "3:2": {
+                  "answer": "Là hiện tượng cả 2 allele khác nhau của cùng một gene cùng biểu hiện thành kiểu hình trên cơ thể",
+                  "grade_type": "compare",
+                  "multiline": true
+                },
+                "4:2": {
+                  "answer": "Là một gene có nhiều hơn 2 allele",
+                  "grade_type": "compare",
+                  "multiline": false
+                },
+                "5:2": {
+                  "answer": "Là gene chi phối nhiều tính trạng",
+                  "grade_type": "compare",
+                  "multiline": false
+                },
+                "6:2": {
+                  "answer": "Là sự tác động qua lại giữa các sản phẩm của các gene allele để hình thành 1 tính trạng",
+                  "grade_type": "compare",
+                  "multiline": true
+                },
+                "7:2": {
+                  "answer": "Là sự tác động qua lại giữa các sản phẩm của các gene không allele để hình thành 1 tính trạng",
+                  "grade_type": "compare",
+                  "multiline": true
+                },
+                "8:2": {
+                  "answer": "Là hiện tượng các gene trội không allele cùng tác động quy định kiểu hình mới",
+                  "grade_type": "compare",
+                  "multiline": true
+                },
+                "9:2": {
+                  "answer": "Là hiện tượng 1 gene sẽ kìm hãm sự biểu hiện của gene không allele khác",
+                  "grade_type": "compare",
+                  "multiline": true
+                },
+                "10:2": {
+                  "answer": "Là trường hợp mỗi gene trội hoặc lặn của các gene không allele đều đóng góp một phần như nhau vào sự biểu hiện tính trạng",
+                  "grade_type": "compare",
+                  "multiline": true
+                },
+                "11:2": {
+                  "answer": "Còn được gọi là tính trạng đa gene và chịu ảnh hưởng nhiều bởi sự tác động của môi trường",
+                  "grade_type": "compare",
+                  "multiline": true
+                },
+                "12:2": {
+                  "answer": "Là tính trạng do 1 hoặc vài gene quy định và ít chịu ảnh hưởng bởi sự tác động của môi trường",
+                  "grade_type": "compare",
+                  "multiline": true
+                }
+              }
+            }
           },
           {
             "type": "text",
@@ -1749,7 +2820,7 @@
                 "STT",
                 "Quy ước gene",
                 "Kiểu tương tác",
-                "AaBb × AaBbb",
+                "AaBb × AaBb",
                 "AaBb × aabb",
                 "AaBb × aaBb"
               ],
@@ -1818,7 +2889,154 @@
                 ""
               ]
             ],
-            "images": []
+            "images": [],
+            "interactive": {
+              "id": "cd3-ks-3.2-c2-1",
+              "mode": "fill",
+              "header_rows": 2,
+              "answers": {
+                "3:2": {
+                  "answer": "Át chế trội",
+                  "grade_type": "compare",
+                  "multiline": false
+                },
+                "3:3": {
+                  "answer": "12 trắng : 3 hồng : 1 vàng",
+                  "grade_type": "compare",
+                  "multiline": false
+                },
+                "3:4": {
+                  "answer": "2 trắng : 1 hồng : 1 vàng",
+                  "grade_type": "compare",
+                  "multiline": false
+                },
+                "3:5": {
+                  "answer": "4 trắng : 3 hồng : 1 vàng",
+                  "grade_type": "compare",
+                  "multiline": false
+                },
+                "4:2": {
+                  "answer": "Cộng gộp",
+                  "grade_type": "compare",
+                  "multiline": false
+                },
+                "4:3": {
+                  "answer": "15 đỏ : 1 trắng",
+                  "grade_type": "compare",
+                  "multiline": false
+                },
+                "4:4": {
+                  "answer": "3 đỏ : 1 trắng",
+                  "grade_type": "compare",
+                  "multiline": false
+                },
+                "4:5": {
+                  "answer": "7 đỏ : 1 trắng",
+                  "grade_type": "compare",
+                  "multiline": false
+                },
+                "5:2": {
+                  "answer": "Bổ trợ",
+                  "grade_type": "compare",
+                  "multiline": false
+                },
+                "5:3": {
+                  "answer": "9 đỏ : 7 trắng",
+                  "grade_type": "compare",
+                  "multiline": false
+                },
+                "5:4": {
+                  "answer": "1 đỏ : 3 trắng",
+                  "grade_type": "compare",
+                  "multiline": false
+                },
+                "5:5": {
+                  "answer": "3 đỏ : 5 trắng",
+                  "grade_type": "compare",
+                  "multiline": false
+                },
+                "6:2": {
+                  "answer": "Át chế lặn",
+                  "grade_type": "compare",
+                  "multiline": false
+                },
+                "6:3": {
+                  "answer": "9 đỏ : 3 hồng : 4 trắng",
+                  "grade_type": "compare",
+                  "multiline": false
+                },
+                "6:4": {
+                  "answer": "1 đỏ : 1 hồng : 2 trắng",
+                  "grade_type": "compare",
+                  "multiline": false
+                },
+                "6:5": {
+                  "answer": "3 đỏ : 1 hồng : 4 trắng",
+                  "grade_type": "compare",
+                  "multiline": false
+                },
+                "7:2": {
+                  "answer": "Át chế trội",
+                  "grade_type": "compare",
+                  "multiline": false
+                },
+                "7:3": {
+                  "answer": "13 trắng : 3 vàng",
+                  "grade_type": "compare",
+                  "multiline": false
+                },
+                "7:4": {
+                  "answer": "3 trắng : 1 vàng",
+                  "grade_type": "compare",
+                  "multiline": false
+                },
+                "7:5": {
+                  "answer": "5 trắng : 3 vàng",
+                  "grade_type": "compare",
+                  "multiline": false
+                },
+                "8:2": {
+                  "answer": "Bổ trợ",
+                  "grade_type": "compare",
+                  "multiline": false
+                },
+                "8:3": {
+                  "answer": "9 đỏ : 6 vàng : 1 trắng",
+                  "grade_type": "compare",
+                  "multiline": false
+                },
+                "8:4": {
+                  "answer": "1 đỏ : 2 vàng : 1 trắng",
+                  "grade_type": "compare",
+                  "multiline": false
+                },
+                "8:5": {
+                  "answer": "3 đỏ : 4 vàng : 1 trắng",
+                  "grade_type": "compare",
+                  "multiline": false
+                },
+                "9:2": {
+                  "answer": "Cộng gộp",
+                  "grade_type": "compare",
+                  "multiline": false
+                },
+                "9:3": {
+                  "answer": "1: 140 cm; 4: 130 cm; 6: 120 cm; 4: 110 cm; 1: 100 cm",
+                  "grade_type": "compare",
+                  "multiline": true
+                },
+                "9:4": {
+                  "answer": "1: 120 cm; 2: 110 cm; 1: 100 cm",
+                  "grade_type": "compare",
+                  "multiline": true
+                },
+                "9:5": {
+                  "answer": "1: 130 cm; 3: 120 cm; 3: 110 cm; 1: 100 cm",
+                  "grade_type": "compare",
+                  "multiline": true
+                }
+              }
+            }
           },
           {
             "type": "text",
@@ -1828,7 +3046,49 @@
           {
             "type": "image",
             "src": "/uploads/chu-de-3/img_24719fdce8.jpg",
-            "caption": ""
+            "caption": "",
+            "exercise_group": {
+              "id": "cd3-ks-3.2-c2-2",
+              "columns": 2,
+              "title": "Điền 5 cột tỉ lệ mở rộng và loại tương tác tương ứng trên hình:",
+              "items": [
+                {
+                  "id": "cd3-ks-3.2-c2-2-1",
+                  "label": "Cột 1",
+                  "mode": "input",
+                  "answer": "9/16 : 3/16 : 4/16 — Át chế lặn",
+                  "grade_type": "compare"
+                },
+                {
+                  "id": "cd3-ks-3.2-c2-2-2",
+                  "label": "Cột 2",
+                  "mode": "input",
+                  "answer": "12/16 : 3/16 : 1/16 — Át chế trội",
+                  "grade_type": "compare"
+                },
+                {
+                  "id": "cd3-ks-3.2-c2-2-3",
+                  "label": "Cột 3",
+                  "mode": "input",
+                  "answer": "9/16 : 7/16 — Bổ trợ",
+                  "grade_type": "compare"
+                },
+                {
+                  "id": "cd3-ks-3.2-c2-2-4",
+                  "label": "Cột 4",
+                  "mode": "input",
+                  "answer": "9/16 : 6/16 : 1/16 — Bổ trợ",
+                  "grade_type": "compare"
+                },
+                {
+                  "id": "cd3-ks-3.2-c2-2-5",
+                  "label": "Cột 5",
+                  "mode": "input",
+                  "answer": "15/16 : 1/16 — Cộng gộp",
+                  "grade_type": "compare"
+                }
+              ]
+            }
           },
           {
             "type": "text",
@@ -1847,13 +3107,27 @@
           },
           {
             "type": "text",
-            "text": "Ví dụ 1: Xét một gene có 2 allele (A, a) nằm trên NST thể thường, trội lặn không hoàn tòan, quy định một tính trạng. Hãy xác định kiểu gene và kiểu hình có thể có của gene trên. Nếu cho các cá thể mang các kiểu gene khác nhau giao phối ngẫu nhiên với nhau thì tỉ lệ kiểu gene và tỉ lệ kiểu hình ở mỗi phép lai sẽ như thế nào?",
-            "is_bold": false
+            "text": "Ví dụ 1: Xét một gene có 2 allele (A, a) nằm trên NST thể thường, trội lặn không hoàn toàn, quy định một tính trạng. Hãy xác định kiểu gene và kiểu hình có thể có của gene trên. Nếu cho các cá thể mang các kiểu gene khác nhau giao phối ngẫu nhiên với nhau thì tỉ lệ kiểu gene và tỉ lệ kiểu hình ở mỗi phép lai sẽ như thế nào?",
+            "is_bold": false,
+            "exercise": {
+              "id": "cd3-ks-3.2-tkht-vd1",
+              "group": "cd3-ks-3.2-tkht-vd1",
+              "mode": "textarea",
+              "answer": "Quy ước: AA → kiểu hình trội (T), Aa → trung gian (TG), aa → lặn (L).\n6 phép lai:\n- AA × AA → F1: 1 AA (100% T)\n- AA × Aa → F1: 1 AA : 1 Aa (1 T : 1 TG)\n- AA × aa → F1: 1 Aa (100% TG)\n- Aa × aa → F1: 1 Aa : 1 aa (1 TG : 1 L)\n- Aa × Aa → F1: 1 AA : 2 Aa : 1 aa (1 T : 2 TG : 1 L)\n- aa × aa → F1: 1 aa (100% L)",
+              "grade_type": "compare"
+            }
           },
           {
             "type": "text",
             "text": "Ví dụ 2: Ở ngô, kiểu gene AA quy định hạt màu xanh, Aa quy định màu tím, aa quy màu vàng; gene B quy định hạt trơn át hoàn toàn gene b quy định hạt nhăn. Các gene quy định màu sắc và hình dạng hạt di truyền độc lập với nhau. Cho hai dòng ngô thuần chủng hạt xanh, trơn và hạt vàng, nhăn giao phấn với nhau thu được F1. Sau đó, F1 giao phấn với nhau thu được F2 có kết quả như thế nào về kiểu gene và kiểu hình?",
-            "is_bold": false
+            "is_bold": false,
+            "exercise": {
+              "id": "cd3-ks-3.2-tkht-vd2",
+              "group": "cd3-ks-3.2-tkht-vd2",
+              "mode": "textarea",
+              "answer": "Ptc: AABB (xanh, trơn) × aabb (vàng, nhăn) → F1: 100% AaBb (tím, trơn).\nF1 × F1: AaBb × AaBb → F2:\n- Tỉ lệ kiểu hình: 3 xanh, trơn : 1 xanh, nhăn : 6 tím, trơn : 2 tím, nhăn : 3 vàng, trơn : 1 vàng, nhăn.\n- Tỉ lệ kiểu gene: 1 AABB : 2 AABb : 1 AAbb : 2 AaBB : 4 AaBb : 2 Aabb : 1 aaBB : 2 aaBb : 1 aabb.",
+              "grade_type": "compare"
+            }
           },
           {
             "type": "text",
@@ -1873,17 +3147,38 @@
           {
             "type": "text",
             "text": "1. Cho biết kiểu gene của nhóm máu A, B, AB và O?",
-            "is_bold": false
+            "is_bold": false,
+            "exercise": {
+              "id": "cd3-ks-3.2-da-vd1-1",
+              "group": "cd3-ks-3.2-da-vd1",
+              "mode": "input",
+              "answer": "Nhóm máu A: I^AI^A, I^AI^O; Nhóm máu B: I^BI^B, I^BI^O; Nhóm máu AB: I^AI^B; Nhóm máu O: I^OI^O",
+              "grade_type": "compare"
+            }
           },
           {
             "type": "text",
             "text": "2. Nếu bố có nhóm máu O và mẹ thuộc nhóm máu A thì con có nhóm máu gì?",
-            "is_bold": false
+            "is_bold": false,
+            "exercise": {
+              "id": "cd3-ks-3.2-da-vd1-2",
+              "group": "cd3-ks-3.2-da-vd1",
+              "mode": "input",
+              "answer": "Máu A hoặc máu O",
+              "grade_type": "compare"
+            }
           },
           {
             "type": "text",
             "text": "3. Nếu các con có đủ nhóm máu A, B, AB và O thì bố mẹ phải có kiểu gene như thế nào?",
-            "is_bold": false
+            "is_bold": false,
+            "exercise": {
+              "id": "cd3-ks-3.2-da-vd1-3",
+              "group": "cd3-ks-3.2-da-vd1",
+              "mode": "input",
+              "answer": "P: I^AI^O × I^BI^O",
+              "grade_type": "compare"
+            }
           },
           {
             "type": "text",
@@ -1898,17 +3193,42 @@
           {
             "type": "text",
             "text": "1. Các kiểu gene có thể có của từng loại kiểu hình.",
-            "is_bold": false
+            "is_bold": false,
+            "exercise": {
+              "id": "cd3-ks-3.2-da-vd2-1",
+              "group": "cd3-ks-3.2-da-vd2",
+              "mode": "textarea",
+              "answer": "- Hoa đỏ: C^rC^r, C^rC^p, C^rC^y\n- Hoa tím: C^pC^p, C^pC^y\n- Hoa vàng: C^yC^y",
+              "grade_type": "compare"
+            }
           },
           {
             "type": "text",
             "text": "2. Viết sơ đồ lai từ P đến F1 khi cho cây hoa đỏ lai với cây hoa tím.",
-            "is_bold": false
+            "is_bold": false,
+            "exercise": {
+              "id": "cd3-ks-3.2-da-vd2-2",
+              "group": "cd3-ks-3.2-da-vd2",
+              "mode": "textarea",
+              "answer": "Đỏ × Tím có 6 sơ đồ lai:\n1. C^rC^r × C^pC^p → 1 C^rC^p (100% đỏ)\n2. C^rC^r × C^pC^y → 1 C^rC^p : 1 C^rC^y (100% đỏ)\n3. C^rC^p × C^pC^p → 1 C^rC^p : 1 C^pC^p (1 đỏ : 1 tím)\n4. C^rC^p × C^pC^y → 1 C^rC^p : 1 C^rC^y : 1 C^pC^p : 1 C^pC^y (1 đỏ : 1 tím)\n5. C^rC^y × C^pC^p → 1 C^rC^p : 1 C^pC^y (1 đỏ : 1 tím)\n6. C^rC^y × C^pC^y → 1 C^rC^p : 1 C^rC^y : 1 C^pC^y : 1 C^yC^y (2 đỏ : 1 tím : 1 vàng)",
+              "grade_type": "compare"
+            }
           },
           {
             "type": "text",
             "text": "3. Khi cho các cá thể mang các kiểu gene trên giao phối ngẫu nhiên với nhau thì có thể có bao nhiêu phép lai (không tính phép lai thuận nghịch)?",
-            "is_bold": false
+            "is_bold": false,
+            "exercise": {
+              "id": "cd3-ks-3.2-da-vd2-3",
+              "group": "cd3-ks-3.2-da-vd2",
+              "mode": "input",
+              "answer": "21 phép lai (6 × 7 / 2 = 21)",
+              "grade_type": "exact",
+              "exact": [
+                "21",
+                "21 phep lai"
+              ]
+            }
           },
           {
             "type": "text",
@@ -1958,22 +3278,54 @@
           {
             "type": "text",
             "text": "1. Thứ tự trội - lặn cho các gene quy định tính trạng màu mắt.",
-            "is_bold": false
+            "is_bold": false,
+            "exercise": {
+              "id": "cd3-ks-3.2-da-vd3-1",
+              "group": "cd3-ks-3.2-da-vd3",
+              "mode": "input",
+              "answer": "A1 (nâu) > A2 (đỏ) > A3 (vàng) > A4 (trắng)",
+              "grade_type": "compare"
+            }
           },
           {
             "type": "text",
             "text": "2. Các kiểu gene có thể có của từng loại kiểu hình.",
-            "is_bold": false
+            "is_bold": false,
+            "exercise": {
+              "id": "cd3-ks-3.2-da-vd3-2",
+              "group": "cd3-ks-3.2-da-vd3",
+              "mode": "textarea",
+              "answer": "- Nâu: A1A1, A1A2, A1A3, A1A4\n- Đỏ: A2A2, A2A3, A2A4\n- Vàng: A3A3, A3A4\n- Trắng: A4A4",
+              "grade_type": "compare"
+            }
           },
           {
             "type": "text",
             "text": "3. Số phép lai tối đa giữa cá thể đực mắt nâu với các cá thể cái có kiểu hình khác cho đời con gồm toàn cá thể mắt nâu.",
-            "is_bold": false
+            "is_bold": false,
+            "exercise": {
+              "id": "cd3-ks-3.2-da-vd3-3",
+              "group": "cd3-ks-3.2-da-vd3",
+              "mode": "input",
+              "answer": "6 phép lai (♂ A1A1 × 6 kiểu gene cái màu khác)",
+              "grade_type": "exact",
+              "exact": [
+                "6",
+                "6 phep lai"
+              ]
+            }
           },
           {
             "type": "text",
             "text": "4. Tỉ lệ kiểu hình có thể có ở đời con khi cho cá thể mắt nâu ở (P) của phép lai 1 giao phối với một trong hai cá thể mắt vàng ở (P) của phép lai 2.",
-            "is_bold": false
+            "is_bold": false,
+            "exercise": {
+              "id": "cd3-ks-3.2-da-vd3-4",
+              "group": "cd3-ks-3.2-da-vd3",
+              "mode": "input",
+              "answer": "1 nâu : 1 vàng hoặc 2 nâu : 1 vàng : 1 trắng",
+              "grade_type": "compare"
+            }
           },
           {
             "type": "text",
@@ -2018,22 +3370,60 @@
           {
             "type": "text",
             "text": "1. Số loại kiểu gene và tỉ lệ của từng kiểu gene ở F2.",
-            "is_bold": false
+            "is_bold": false,
+            "exercise": {
+              "id": "cd3-ks-3.2-tt-vd1-1",
+              "group": "cd3-ks-3.2-tt-vd1",
+              "mode": "textarea",
+              "answer": "Số loại kiểu gene: 9.\nTỉ lệ từng kiểu gene: 4 AaBb : 2 AABb : 2 AaBB : 2 Aabb : 2 aaBb : 1 AABB : 1 AAbb : 1 aaBB : 1 aabb",
+              "grade_type": "compare"
+            }
           },
           {
             "type": "text",
             "text": "2. Số con có kiểu gene dị hợp về 1 cặp gene ở F2 chiếm tỉ lệ bao nhiêu?",
-            "is_bold": false
+            "is_bold": false,
+            "exercise": {
+              "id": "cd3-ks-3.2-tt-vd1-2",
+              "group": "cd3-ks-3.2-tt-vd1",
+              "mode": "input",
+              "answer": "1/2 (50%)",
+              "grade_type": "exact",
+              "exact": [
+                "1/2",
+                "50%",
+                "0,5",
+                "0.5",
+                "8/16"
+              ]
+            }
           },
           {
             "type": "text",
             "text": "3. Trong số cá thể lông nâu ở F2 , số cá thể có kiểu gene đồng hợp chiếm tỉ lệ bao nhiêu?",
-            "is_bold": false
+            "is_bold": false,
+            "exercise": {
+              "id": "cd3-ks-3.2-tt-vd1-3",
+              "group": "cd3-ks-3.2-tt-vd1",
+              "mode": "input",
+              "answer": "1/3",
+              "grade_type": "exact",
+              "exact": [
+                "1/3"
+              ]
+            }
           },
           {
             "type": "text",
             "text": "4. Đem lai phân tích cơ thể F1 thì kết quả Fa sẽ như thế nào?",
-            "is_bold": false
+            "is_bold": false,
+            "exercise": {
+              "id": "cd3-ks-3.2-tt-vd1-4",
+              "group": "cd3-ks-3.2-tt-vd1",
+              "mode": "input",
+              "answer": "AaBb × aabb → Fa: 1 AaBb : 1 Aabb : 1 aaBb : 1 aabb (2 đen : 1 nâu : 1 vàng)",
+              "grade_type": "compare"
+            }
           },
           {
             "type": "text",
@@ -2082,13 +3472,27 @@
           },
           {
             "type": "text",
-            "text": "1. Cho F1 nói trên giao phấn với 1 cây khác, thu được tỷ lệ kiểu hình ở con lai là: 37,5% số cây quả tròn, 50% số cây có quả bầu dục, 12,5% số cây có quả dài. Xác định kiểu kiểu genen kiểu hình của cây đem lai với F1 và kiểm tra qua sơ đồ lai.",
-            "is_bold": false
+            "text": "1. Cho F1 nói trên giao phấn với 1 cây khác, thu được tỷ lệ kiểu hình ở con lai là: 37,5% số cây quả tròn, 50% số cây có quả bầu dục, 12,5% số cây có quả dài. Xác định kiểu gene, kiểu hình của cây đem lai với F1 và kiểm tra qua sơ đồ lai.",
+            "is_bold": false,
+            "exercise": {
+              "id": "cd3-ks-3.2-tt-vd2-1",
+              "group": "cd3-ks-3.2-tt-vd2",
+              "mode": "input",
+              "answer": "Cây đem lai với F1 là cây quả bầu dục, kiểu gene Aabb hoặc aaBb",
+              "grade_type": "compare"
+            }
           },
           {
             "type": "text",
             "text": "2. Cặp bố mẹ phải có kiểu gene và kiểu hình như thế nào để ngay F1 có tỷ lệ kiểu hình là: 25% số cây có quả tròn, 50% số cây có quả bầu dục, 25% số cây có quả dài.",
-            "is_bold": false
+            "is_bold": false,
+            "exercise": {
+              "id": "cd3-ks-3.2-tt-vd2-2",
+              "group": "cd3-ks-3.2-tt-vd2",
+              "mode": "input",
+              "answer": "P: AaBb (quả tròn) × aabb (quả dài) hoặc P: Aabb (quả bầu dục) × aaBb (quả bầu dục)",
+              "grade_type": "compare"
+            }
           }
         ]
       }
@@ -6286,5 +7690,5 @@
       }
     ]
   },
-  "bundled_version": "2026.11.26-sgk-v2"
+  "bundled_version": "2026.11.26-exercises-v3"
 }

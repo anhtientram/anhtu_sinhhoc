@@ -366,28 +366,92 @@
             },
             {
               "type": "text",
-              "text": "1.Tổng số phân tử DNA được tạo ra.",
-              "is_bold": false
+              "text": "1. Tổng số phân tử DNA được tạo ra.",
+              "is_bold": false,
+              "exercise": {
+                "id": "cd1-th-1.1-vd1-1",
+                "group": "cd1-th-1.1-vd1",
+                "mode": "input",
+                "answer": "64 phân tử DNA con (vì 2 giờ = 120 phút → số lần tái bản k = 120/20 = 6 → 2^6 = 64)",
+                "grade_type": "exact",
+                "exact": [
+                  "64",
+                  "64 phan tu dna",
+                  "64 phan tu dna con",
+                  "64 dna"
+                ]
+              }
             },
             {
               "type": "text",
-              "text": "2. Tổng Số phân tử DNA con hoàn toàn chứa 14N phóng xạ.",
-              "is_bold": false
+              "text": "2. Tổng số phân tử DNA con hoàn toàn chứa 14N phóng xạ.",
+              "is_bold": false,
+              "exercise": {
+                "id": "cd1-th-1.1-vd1-2",
+                "group": "cd1-th-1.1-vd1",
+                "mode": "input",
+                "answer": "62 phân tử DNA hoàn toàn chứa 14N (2^6 − 2 = 62)",
+                "grade_type": "exact",
+                "exact": [
+                  "62",
+                  "62 phan tu dna",
+                  "62 phan tu dna con",
+                  "62 dna"
+                ]
+              }
             },
             {
               "type": "text",
               "text": "3. Tổng số mạch đơn mới được tổng hợp hoàn toàn từ nguyên liệu môi trường nội bào.",
-              "is_bold": false
+              "is_bold": false,
+              "exercise": {
+                "id": "cd1-th-1.1-vd1-3",
+                "group": "cd1-th-1.1-vd1",
+                "mode": "input",
+                "answer": "126 mạch đơn hoàn toàn mới (2 × (2^6 − 1) = 126)",
+                "grade_type": "exact",
+                "exact": [
+                  "126",
+                  "126 mach",
+                  "126 mach don",
+                  "126 mach don hoan toan moi"
+                ]
+              }
             },
             {
               "type": "text",
               "text": "4. Tổng số mạch có chứa 15N phóng xạ.",
-              "is_bold": false
+              "is_bold": false,
+              "exercise": {
+                "id": "cd1-th-1.1-vd1-4",
+                "group": "cd1-th-1.1-vd1",
+                "mode": "input",
+                "answer": "2 mạch chứa 15N",
+                "grade_type": "exact",
+                "exact": [
+                  "2",
+                  "2 mach",
+                  "2 mach chua 15n"
+                ]
+              }
             },
             {
               "type": "text",
               "text": "5. Tổng số phân tử DNA con có chứa 15N phóng xạ.",
-              "is_bold": false
+              "is_bold": false,
+              "exercise": {
+                "id": "cd1-th-1.1-vd1-5",
+                "group": "cd1-th-1.1-vd1",
+                "mode": "input",
+                "answer": "2 phân tử DNA con có chứa 15N",
+                "grade_type": "exact",
+                "exact": [
+                  "2",
+                  "2 phan tu",
+                  "2 phan tu dna",
+                  "2 phan tu dna con"
+                ]
+              }
             },
             {
               "type": "text",
@@ -414,7 +478,18 @@
                   "Số phân tử DNA chứa cả hai loại 14N và 15N sau khi kết thúc quá trình trên là 992."
                 ]
               ],
-              "images": []
+              "images": [],
+              "interactive": {
+                "id": "cd1-th-1.1-vd2",
+                "mode": "tf_rows",
+                "has_header": false,
+                "tf_answers": {
+                  "0": "Đúng",
+                  "1": "Đúng",
+                  "2": "Sai",
+                  "3": "Đúng"
+                }
+              }
             }
           ],
           "points": [
@@ -1197,7 +1272,7 @@
                 ],
                 [
                   "DNA mạch gốc (triplet)",
-                  "5’GCTTCGCGATCG3’ .",
+                  "5'GCTTCGCGATCG3'",
                   ""
                 ],
                 [
@@ -1216,7 +1291,87 @@
                   "......................................................."
                 ]
               ],
-              "images": []
+              "images": [],
+              "interactive": {
+                "id": "cd1-th-1.2-vd",
+                "mode": "fill",
+                "answers": {
+                  "1:1": {
+                    "answer": "5'CGA TCG CGA AGC3'",
+                    "grade_type": "exact",
+                    "multiline": false,
+                    "exact": [
+                      "5'cgatcgcgaagc3'",
+                      "cgatcgcgaagc"
+                    ]
+                  },
+                  "2:2": {
+                    "answer": "3'CGA AGC GCT AGC5'",
+                    "grade_type": "exact",
+                    "multiline": false,
+                    "exact": [
+                      "3'cgaagcgctagc5'",
+                      "cgaagcgctagc"
+                    ]
+                  },
+                  "3:1": {
+                    "answer": "5'CGA UCG CGA AGC3'",
+                    "grade_type": "exact",
+                    "multiline": false,
+                    "exact": [
+                      "5'cgaucgcgaagc3'",
+                      "cgaucgcgaagc"
+                    ]
+                  },
+                  "3:2": {
+                    "answer": "5'GCU UCG CGA UCG3'",
+                    "grade_type": "exact",
+                    "multiline": false,
+                    "exact": [
+                      "5'gcuucgcgaucg3'",
+                      "gcuucgcgaucg"
+                    ]
+                  },
+                  "4:1": {
+                    "answer": "/3'GCU5'/3'AGC5'/3'GCU5'/3'UCG5'/",
+                    "grade_type": "exact",
+                    "multiline": false,
+                    "exact": [
+                      "/3'gcu5'/3'agc5'/3'gcu5'/3'ucg5'/",
+                      "gcu agc gcu ucg",
+                      "3'gcu5'3'agc5'3'gcu5'3'ucg5'"
+                    ]
+                  },
+                  "4:2": {
+                    "answer": "/3'CGA5'/3'AGC5'/3'GCU5'/3'AGC5'/",
+                    "grade_type": "exact",
+                    "multiline": false,
+                    "exact": [
+                      "/3'cga5'/3'agc5'/3'gcu5'/3'agc5'/",
+                      "cga agc gcu agc",
+                      "3'cga5'3'agc5'3'gcu5'3'agc5'"
+                    ]
+                  },
+                  "5:1": {
+                    "answer": "Arginine – Serine – Arginine – Serine",
+                    "grade_type": "exact",
+                    "multiline": false,
+                    "exact": [
+                      "arginine-serine-arginine-serine",
+                      "arg-ser-arg-ser"
+                    ]
+                  },
+                  "5:2": {
+                    "answer": "Alanine – Serine – Arginine – Serine",
+                    "grade_type": "exact",
+                    "multiline": false,
+                    "exact": [
+                      "alanine-serine-arginine-serine",
+                      "ala-ser-arg-ser"
+                    ]
+                  }
+                }
+              }
             }
           ],
           "points": [
@@ -2130,17 +2285,38 @@
             {
               "type": "text",
               "text": "1. Một gene có 4800 liên kết hydrogen và có tỉ lệ A/G = 1/2, bị đột biến thành allele mới có 4801 liên kết hydrogen và có 3600 nucleotide.",
-              "is_bold": false
+              "is_bold": false,
+              "exercise": {
+                "id": "cd1-th-1.4-bt1-1",
+                "group": "cd1-th-1.4-bt1",
+                "mode": "textarea",
+                "answer": "Gene trước đột biến: A = T = 600, G = C = 1200.\nDạng đột biến: Thay 1 cặp A = T bằng 1 cặp G ≡ C.\nGene sau đột biến: A = T = 599, G = C = 1201.",
+                "grade_type": "compare"
+              }
             },
             {
               "type": "text",
               "text": "2. Một gene ở sinh vật nhân sơ có chiều dài 4080 Å, có A = T = 480 nucleotide. Sau khi đột biến tổng số liên kết hydrogen giảm đi 2.",
-              "is_bold": false
+              "is_bold": false,
+              "exercise": {
+                "id": "cd1-th-1.4-bt1-2",
+                "group": "cd1-th-1.4-bt1",
+                "mode": "textarea",
+                "answer": "Gene trước đột biến: A = T = 480, G = C = 720.\nDạng đột biến:\n+ Nếu mất 1 cặp A = T → Gene sau đột biến: A = T = 479, G = C = 720.\n+ Nếu thay 2 cặp G ≡ C bằng 2 cặp A = T → Gene sau đột biến: A = T = 482, G = C = 718.",
+                "grade_type": "compare"
+              }
             },
             {
               "type": "text",
               "text": "3. Xét 1 gene A có chiều dài 0,2346 µm. Trên mạch thứ nhất có A, T, G, C lần lượt theo tỉ lệ 1: 1,5: 2.25: 2,75 so với tổng số nucleotide của mạch. Allele A bị đột biến thành allele a làm tổng số liên kết hydrogen bị giảm đi 2.",
-              "is_bold": false
+              "is_bold": false,
+              "exercise": {
+                "id": "cd1-th-1.4-bt1-3",
+                "group": "cd1-th-1.4-bt1",
+                "mode": "textarea",
+                "answer": "Gene trước đột biến: A = T = 230, G = C = 460.\nDạng đột biến:\n+ Nếu mất 1 cặp A = T → Gene sau đột biến: A = T = 229, G = C = 460.\n+ Nếu thay 2 cặp G ≡ C bằng 2 cặp A = T → Gene sau đột biến: A = T = 232, G = C = 458.",
+                "grade_type": "compare"
+              }
             }
           ],
           "points": [
@@ -2213,12 +2389,26 @@
             {
               "type": "text",
               "text": "a. Xác định dạng đột biến gene đã tạo ra các allele D1, D2, D3?",
-              "is_bold": true
+              "is_bold": true,
+              "exercise": {
+                "id": "cd1-th-1.4-bt2-a",
+                "group": "cd1-th-1.4-bt2-vd1",
+                "mode": "textarea",
+                "answer": "- Allele D1: thay thế 1 cặp A–T bằng 1 cặp G–C ở vị trí nucleotide số 9 (đột biến đồng nghĩa).\n- Allele D2: thay thế 1 cặp A–T bằng 1 cặp G–C ở vị trí nucleotide số 6 (đột biến đồng nghĩa).\n- Allele D3: thay thế 1 cặp A–T bằng 1 cặp G–C ở vị trí nucleotide số 10 (đột biến sai nghĩa).",
+                "grade_type": "compare"
+              }
             },
             {
               "type": "text",
               "text": "b. Xác định trình tự amino acid được tổng hợp từ allele D ban đầu và allele đột biến?",
-              "is_bold": true
+              "is_bold": true,
+              "exercise": {
+                "id": "cd1-th-1.4-bt2-b",
+                "group": "cd1-th-1.4-bt2-vd1",
+                "mode": "textarea",
+                "answer": "- Allele D (mRNA: 5'AUG GAU CAU UAC AGU UAG3'): Methionine – Aspartate – Histidine – Tyrosine – Serine.\n- Allele D1 (mRNA: 5'AUG GAU CAC UAC AGU UAG3'): Methionine – Aspartate – Histidine – Tyrosine – Serine (không đổi).\n- Allele D2 (mRNA: 5'AUG GAC CAU UAC AGU UAG3'): Methionine – Aspartate – Histidine – Tyrosine – Serine (không đổi).\n- Allele D3 (mRNA: 5'AUG GAU CAU CAC AGU UAG3'): Methionine – Aspartate – Histidine – Histidine – Serine (thay Tyrosine bằng Histidine).",
+                "grade_type": "compare"
+              }
             },
             {
               "type": "text",
@@ -2267,23 +2457,51 @@
             },
             {
               "type": "text",
-              "text": ".......a. Đột biến thay thế một cặp nucleotide ở vị trí 63 tạo ra allele mới quy định tổng hợp chuỗi polypeptide giống với chuỗi polypeptide do gene M quy định tổng hợp.",
-              "is_bold": false
+              "text": "a. Đột biến thay thế một cặp nucleotide ở vị trí 63 tạo ra allele mới quy định tổng hợp chuỗi polypeptide giống với chuỗi polypeptide do gene M quy định tổng hợp.",
+              "is_bold": false,
+              "exercise": {
+                "id": "cd1-th-1.4-vd2-a",
+                "group": "cd1-th-1.4-vd2",
+                "mode": "true_false",
+                "answer": "Đúng",
+                "grade_type": "exact"
+              }
             },
             {
               "type": "text",
-              "text": ".......b. Đột biến thay thế cặp nucleotide G - C ở vị trí 88 bằng cặp nucleotide A - T tạo ra allele mới quy định tổng hợp chuỗi polypeptide ngắn hơn so với chuỗi polypeptide do gene M quy định tổng hợp.",
-              "is_bold": false
+              "text": "b. Đột biến thay thế cặp nucleotide G - C ở vị trí 88 bằng cặp nucleotide A - T tạo ra allele mới quy định tổng hợp chuỗi polypeptide ngắn hơn so với chuỗi polypeptide do gene M quy định tổng hợp.",
+              "is_bold": false,
+              "exercise": {
+                "id": "cd1-th-1.4-vd2-b",
+                "group": "cd1-th-1.4-vd2",
+                "mode": "true_false",
+                "answer": "Đúng",
+                "grade_type": "exact"
+              }
             },
             {
               "type": "text",
-              "text": ".......c. Đột biến mất một cặp nucleotide ở vị trí 64 tạo ra allele mới quy định tổng hợp chuỗi polypeptide có thành phần amino acid thay đổi từ amino acid thứ 2 đến amino acid thứ 21 so với chuỗi polypeptide do gene M quy định tổng hợp.",
-              "is_bold": false
+              "text": "c. Đột biến mất một cặp nucleotide ở vị trí 64 tạo ra allele mới quy định tổng hợp chuỗi polypeptide có thành phần amino acid thay đổi từ amino acid thứ 2 đến amino acid thứ 21 so với chuỗi polypeptide do gene M quy định tổng hợp.",
+              "is_bold": false,
+              "exercise": {
+                "id": "cd1-th-1.4-vd2-c",
+                "group": "cd1-th-1.4-vd2",
+                "mode": "true_false",
+                "answer": "Sai",
+                "grade_type": "exact"
+              }
             },
             {
               "type": "text",
-              "text": ".......d. Đột biến thay thế một cặp nucleotide ở vị trí 91 tạo ra allele mới quy định tổng hợp chuỗi polypeptide thay đổi một amino acid so với chuỗi polypeptide do gene M quy định tổng hợp.",
-              "is_bold": false
+              "text": "d. Đột biến thay thế một cặp nucleotide ở vị trí 91 tạo ra allele mới quy định tổng hợp chuỗi polypeptide thay đổi một amino acid so với chuỗi polypeptide do gene M quy định tổng hợp.",
+              "is_bold": false,
+              "exercise": {
+                "id": "cd1-th-1.4-vd2-d",
+                "group": "cd1-th-1.4-vd2",
+                "mode": "true_false",
+                "answer": "Đúng",
+                "grade_type": "exact"
+              }
             }
           ],
           "points": [
@@ -2329,77 +2547,153 @@
                 "Giải nghĩa"
               ],
               [
-                "",
+                "1",
                 "Sinh vật nhân sơ",
                 ""
               ],
               [
-                "",
+                "2",
                 "Sinh vật nhân thực",
                 ""
               ],
               [
-                "",
+                "3",
                 "Vật chất di truyền",
                 ""
               ],
               [
-                "",
+                "4",
                 "Tái bản DNA",
                 ""
               ],
               [
-                "",
+                "5",
                 "Nucleotide",
                 ""
               ],
               [
-                "",
+                "6",
                 "Liên kết phosphodiester",
                 ""
               ],
               [
-                "",
+                "7",
                 "Liên kết hydrogen",
                 ""
               ],
               [
-                "",
+                "8",
                 "Nguyên tắc bổ sung",
                 ""
               ],
               [
-                "",
+                "9",
                 "Nguyên tắc bán bảo toàn",
                 ""
               ],
               [
-                "",
+                "10",
                 "Enzyme RNA polymerase",
                 ""
               ],
               [
-                "",
+                "11",
                 "Enzyme DNA polymerase",
                 ""
               ],
               [
-                "",
+                "12",
                 "Enzyme ligase",
                 ""
               ],
               [
-                "",
+                "13",
                 "Đột biến gene",
                 ""
               ],
               [
-                "",
+                "14",
                 "Biến dị",
                 ""
               ]
             ],
-            "images": []
+            "images": [],
+            "interactive": {
+              "id": "cd1-ks-1.1-c1",
+              "mode": "fill",
+              "answers": {
+                "1:2": {
+                  "answer": "Thuộc giới khởi sinh, tế bào chưa có màng nhân và các bào quan có màng",
+                  "grade_type": "compare",
+                  "multiline": true
+                },
+                "2:2": {
+                  "answer": "Thuộc giới nguyên sinh, thực vật, nấm, động vật; tế bào có màng nhân và các bào quan có màng",
+                  "grade_type": "compare",
+                  "multiline": true
+                },
+                "3:2": {
+                  "answer": "Các phân tử tham gia lưu trữ và truyền đạt thông tin di truyền gồm DNA, RNA và Protein",
+                  "grade_type": "compare",
+                  "multiline": true
+                },
+                "4:2": {
+                  "answer": "Là quá trình tạo ra 2 phân tử DNA mới giống hệt nhau từ 1 phân tử DNA ban đầu",
+                  "grade_type": "compare",
+                  "multiline": true
+                },
+                "5:2": {
+                  "answer": "Đơn phân cấu tạo nên phân tử DNA (gồm đường deoxyribose C5H10O4, nhóm phosphate và 1 trong 4 loại base A, T, G, C)",
+                  "grade_type": "compare",
+                  "multiline": true
+                },
+                "6:2": {
+                  "answer": "Liên kết cộng hoá trị bền vững nối các nucleotide kế tiếp nhau trên cùng một mạch đơn polynucleotide",
+                  "grade_type": "compare",
+                  "multiline": true
+                },
+                "7:2": {
+                  "answer": "Liên kết yếu hình thành giữa các cặp base bổ sung của hai mạch đơn DNA (A = T bằng 2 liên kết, G ≡ C bằng 3 liên kết)",
+                  "grade_type": "compare",
+                  "multiline": true
+                },
+                "8:2": {
+                  "answer": "Nguyên tắc bắt cặp đặc hiệu giữa các nitrogenous base: A liên kết với T, G liên kết với C (hoặc A–U trong phiên mã)",
+                  "grade_type": "compare",
+                  "multiline": true
+                },
+                "9:2": {
+                  "answer": "Trong mỗi phân tử DNA con được tạo ra có một mạch cũ của DNA mẹ và một mạch mới tổng hợp từ môi trường",
+                  "grade_type": "compare",
+                  "multiline": true
+                },
+                "10:2": {
+                  "answer": "Enzyme xúc tác tổng hợp đoạn mồi RNA (primase) hoặc tổng hợp phân tử RNA trong quá trình phiên mã",
+                  "grade_type": "compare",
+                  "multiline": true
+                },
+                "11:2": {
+                  "answer": "Enzyme lắp ráp các nucleotide tự do theo nguyên tắc bổ sung để tổng hợp mạch DNA mới theo chiều 5' → 3'",
+                  "grade_type": "compare",
+                  "multiline": true
+                },
+                "12:2": {
+                  "answer": "Enzyme nối các đoạn Okazaki trên mạch tổng hợp gián đoạn tạo thành mạch polynucleotide hoàn chỉnh",
+                  "grade_type": "compare",
+                  "multiline": true
+                },
+                "13:2": {
+                  "answer": "Là những biến đổi trong cấu trúc của gene liên quan đến 1 hoặc 1 số cặp nucleotide",
+                  "grade_type": "compare",
+                  "multiline": true
+                },
+                "14:2": {
+                  "answer": "Là hiện tượng con sinh ra có kiểu hình khác với bố mẹ",
+                  "grade_type": "compare",
+                  "multiline": true
+                }
+              }
+            }
           },
           {
             "type": "text",
@@ -2409,7 +2703,14 @@
           {
             "type": "text",
             "text": "1. Hãy cho biết các liên kết có trong phân tử DNA liên kết nào bền và liên kết nào không bền, nêu ý nghĩa của các liên kết trên?",
-            "is_bold": false
+            "is_bold": false,
+            "exercise": {
+              "id": "cd1-ks-1.1-c2-1",
+              "group": "cd1-ks-1.1-c2-1",
+              "mode": "textarea",
+              "answer": "Liên kết phosphodiester bền → đảm bảo duy trì được sự ổn định của thông tin di truyền. Liên kết hydrogen kém bền → DNA có thể tách mạch làm khuôn giúp truyền đạt thông tin di truyền.",
+              "grade_type": "compare"
+            }
           },
           {
             "type": "image",
@@ -2419,7 +2720,98 @@
           {
             "type": "text",
             "text": "2. Hình bên dưới mô tả cấu trúc không gian của phân tử DNA. Hãy chú thích ở các chi tiết sau những con số trên hình bên dưới:",
-            "is_bold": false
+            "is_bold": false,
+            "exercise_group": {
+              "id": "cd1-ks-1.1-c2-2",
+              "columns": 2,
+              "items": [
+                {
+                  "id": "cd1-ks-1.1-c2-2-1",
+                  "label": "Số 1",
+                  "mode": "input",
+                  "answer": "Nucleotide",
+                  "grade_type": "exact",
+                  "exact": [
+                    "nucleotide",
+                    "nu"
+                  ]
+                },
+                {
+                  "id": "cd1-ks-1.1-c2-2-2",
+                  "label": "Số 2",
+                  "mode": "input",
+                  "answer": "Thymine",
+                  "grade_type": "exact",
+                  "exact": [
+                    "thymine",
+                    "t",
+                    "timin"
+                  ]
+                },
+                {
+                  "id": "cd1-ks-1.1-c2-2-3",
+                  "label": "Số 3",
+                  "mode": "input",
+                  "answer": "Liên kết phosphodiester",
+                  "grade_type": "exact",
+                  "exact": [
+                    "lien ket phosphodiester",
+                    "phosphodiester"
+                  ]
+                },
+                {
+                  "id": "cd1-ks-1.1-c2-2-4",
+                  "label": "Số 4",
+                  "mode": "input",
+                  "answer": "Nhóm phosphate",
+                  "grade_type": "exact",
+                  "exact": [
+                    "nhom phosphate",
+                    "phosphate",
+                    "photphat",
+                    "nhom photphat"
+                  ]
+                },
+                {
+                  "id": "cd1-ks-1.1-c2-2-5",
+                  "label": "Số 5",
+                  "mode": "input",
+                  "answer": "Đường deoxyribose (C5H10O4)",
+                  "grade_type": "exact",
+                  "exact": [
+                    "duong deoxyribose",
+                    "deoxyribose",
+                    "duong deoxyribose (c5h10o4)",
+                    "c5h10o4"
+                  ]
+                },
+                {
+                  "id": "cd1-ks-1.1-c2-2-6",
+                  "label": "Số 6",
+                  "mode": "input",
+                  "answer": "Liên kết hydrogen",
+                  "grade_type": "exact",
+                  "exact": [
+                    "lien ket hydrogen",
+                    "hydrogen",
+                    "lien ket hidro",
+                    "hidro"
+                  ]
+                },
+                {
+                  "id": "cd1-ks-1.1-c2-2-7",
+                  "label": "Số 7",
+                  "mode": "input",
+                  "answer": "Cytosine",
+                  "grade_type": "exact",
+                  "exact": [
+                    "cytosine",
+                    "c",
+                    "xitozin"
+                  ]
+                }
+              ]
+            }
           }
         ]
       },
@@ -2430,7 +2822,7 @@
         "blocks": [
           {
             "type": "text",
-            "text": "Câu 1: Hệ thống các khái niệm liên quan đến gene, hệ gene và cơ chế biểu hiện của gene bằng cách hoàn thành bản bên dưới:",
+            "text": "Câu 1: Hệ thống các khái niệm liên quan đến gene, hệ gene và cơ chế biểu hiện của gene bằng cách hoàn thành bảng bên dưới:",
             "is_bold": false
           },
           {
@@ -2442,122 +2834,243 @@
                 "Giải nghĩa"
               ],
               [
-                "",
+                "1",
                 "Gene",
                 ""
               ],
               [
-                "",
+                "2",
                 "Hệ gene",
                 ""
               ],
               [
-                "",
+                "3",
                 "Gene phân mảnh",
                 ""
               ],
               [
-                "",
+                "4",
                 "Gene không phân mảnh",
                 ""
               ],
               [
-                "",
+                "5",
                 "Gene cấu trúc",
                 ""
               ],
               [
-                "",
+                "6",
                 "Gene điều hòa",
                 ""
               ],
               [
-                "",
+                "7",
                 "Mạch gốc",
                 ""
               ],
               [
-                "",
+                "8",
                 "Mạch bổ sung",
                 ""
               ],
               [
-                "",
+                "9",
                 "Phiên mã",
                 ""
               ],
               [
-                "",
+                "10",
                 "Phiên mã ngược",
                 ""
               ],
               [
-                "",
+                "11",
                 "Mã di truyền",
                 ""
               ],
               [
-                "",
+                "12",
                 "Dịch mã",
                 ""
               ],
               [
-                "",
+                "13",
                 "Polyribosome",
                 ""
               ],
               [
-                "",
+                "14",
                 "Enzyme RNA polymerase",
                 ""
               ],
               [
-                "",
+                "15",
                 "Bộ ba kết thúc",
                 ""
               ],
               [
-                "",
+                "16",
                 "Bộ ba mở đầu",
                 ""
               ],
               [
-                "",
+                "17",
                 "Triplet",
                 ""
               ],
               [
-                "",
+                "18",
                 "Codon",
                 ""
               ],
               [
-                "",
+                "19",
                 "Anticodon",
                 ""
               ],
               [
-                "",
+                "20",
                 "Tính phổ biến",
                 ""
               ],
               [
-                "",
+                "21",
                 "Tính đặc hiệu",
                 ""
               ],
               [
-                "",
+                "22",
                 "Tính thoái hóa",
                 ""
               ],
               [
-                "",
+                "23",
                 "Liên kết peptide",
                 ""
               ]
             ],
-            "images": []
+            "images": [],
+            "interactive": {
+              "id": "cd1-ks-1.2-c1",
+              "mode": "fill",
+              "answers": {
+                "1:2": {
+                  "answer": "Là một đoạn của phân tử DNA mang thông tin quy định trình tự amino acid của chuỗi polypeptide hoặc trình tự nucleotide của RNA",
+                  "grade_type": "compare",
+                  "multiline": true
+                },
+                "2:2": {
+                  "answer": "Là tập hợp đầy đủ các trình tự DNA có trong tế bào của một loài sinh vật",
+                  "grade_type": "compare",
+                  "multiline": true
+                },
+                "3:2": {
+                  "answer": "Là gene chứa các đoạn exon (mã hóa amino acid) xen kẽ với các đoạn intron (không mã hóa amino acid)",
+                  "grade_type": "compare",
+                  "multiline": true
+                },
+                "4:2": {
+                  "answer": "Là gene chỉ chứa các đoạn exon (mã hóa amino acid)",
+                  "grade_type": "compare",
+                  "multiline": true
+                },
+                "5:2": {
+                  "answer": "Là gene tạo ra sản phẩm tham gia cấu tạo tế bào hoặc thực hiện chức năng",
+                  "grade_type": "compare",
+                  "multiline": true
+                },
+                "6:2": {
+                  "answer": "Là gene tạo ra sản phẩm tham gia điều hòa biểu hiện của gene khác",
+                  "grade_type": "compare",
+                  "multiline": true
+                },
+                "7:2": {
+                  "answer": "Là mạch có chiều 3' → 5' của gene dùng làm khuôn cho quá trình phiên mã",
+                  "grade_type": "compare",
+                  "multiline": true
+                },
+                "8:2": {
+                  "answer": "Là mạch có chiều 5' → 3' bổ sung với mạch gốc của gene",
+                  "grade_type": "compare",
+                  "multiline": true
+                },
+                "9:2": {
+                  "answer": "Là quá trình tổng hợp RNA dựa trên mạch khuôn của gene",
+                  "grade_type": "compare",
+                  "multiline": true
+                },
+                "10:2": {
+                  "answer": "Là quá trình tổng hợp DNA bổ sung (cDNA) dựa trên khuôn RNA",
+                  "grade_type": "compare",
+                  "multiline": true
+                },
+                "11:2": {
+                  "answer": "Là trình tự nucleotide được mã hoá ở dạng mã bộ ba (codon) trên mRNA quy định trình tự amino acid trong một chuỗi polypeptide",
+                  "grade_type": "compare",
+                  "multiline": true
+                },
+                "12:2": {
+                  "answer": "Là quá trình tổng hợp protein (chuỗi polypeptide) dựa trên khuôn mRNA",
+                  "grade_type": "compare",
+                  "multiline": true
+                },
+                "13:2": {
+                  "answer": "Là nhiều ribosome tham gia dịch mã cùng lúc trên một phân tử mRNA giúp tăng hiệu suất tổng hợp protein",
+                  "grade_type": "compare",
+                  "multiline": true
+                },
+                "14:2": {
+                  "answer": "Enzyme trượt dọc trên mạch khuôn 3' → 5' của gene để tổng hợp phân tử RNA theo chiều 5' → 3'",
+                  "grade_type": "compare",
+                  "multiline": true
+                },
+                "15:2": {
+                  "answer": "Gồm 3 bộ ba 5'UAA3', 5'UAG3', 5'UGA3' trên mRNA, không mã hoá amino acid, quy định tín hiệu kết thúc dịch mã",
+                  "grade_type": "compare",
+                  "multiline": true
+                },
+                "16:2": {
+                  "answer": "Bộ ba 5'AUG3' trên mRNA, quy định tín hiệu mở đầu dịch mã và mã hoá Methionine (sinh vật nhân thực) hoặc fMet (nhân sơ)",
+                  "grade_type": "compare",
+                  "multiline": true
+                },
+                "17:2": {
+                  "answer": "Bộ ba nucleotide kế tiếp nhau trên mạch gốc của DNA (chiều 3' → 5')",
+                  "grade_type": "compare",
+                  "multiline": true
+                },
+                "18:2": {
+                  "answer": "Bộ ba nucleotide kế tiếp nhau trên phân tử mRNA (chiều 5' → 3')",
+                  "grade_type": "compare",
+                  "multiline": true
+                },
+                "19:2": {
+                  "answer": "Bộ ba đối mã trên phân tử tRNA khớp bổ sung với codon tương ứng trên mRNA",
+                  "grade_type": "compare",
+                  "multiline": true
+                },
+                "20:2": {
+                  "answer": "Tất cả các loài sinh vật đều dùng chung một bộ mã di truyền (trừ một vài ngoại lệ)",
+                  "grade_type": "compare",
+                  "multiline": true
+                },
+                "21:2": {
+                  "answer": "Một bộ ba chỉ mã hoá cho một loại amino acid duy nhất",
+                  "grade_type": "compare",
+                  "multiline": true
+                },
+                "22:2": {
+                  "answer": "Nhiều bộ ba khác nhau có thể cùng mã hoá cho một loại amino acid (trừ AUG và UGG)",
+                  "grade_type": "compare",
+                  "multiline": true
+                },
+                "23:2": {
+                  "answer": "Liên kết cộng hoá trị nối các amino acid kế tiếp nhau trong chuỗi polypeptide",
+                  "grade_type": "compare",
+                  "multiline": true
+                }
+              }
+            }
           },
           {
             "type": "text",
@@ -2598,7 +3111,73 @@
                 "...................................................... ......................................................"
               ]
             ],
-            "images": []
+            "images": [],
+            "interactive": {
+              "id": "cd1-ks-1.2-c2",
+              "mode": "fill",
+              "answers": {
+                "1:2": {
+                  "answer": "Deoxyribose (C5H10O4)",
+                  "grade_type": "exact",
+                  "multiline": false,
+                  "exact": [
+                    "deoxyribose",
+                    "deoxyribose (c5h10o4)",
+                    "c5h10o4"
+                  ]
+                },
+                "1:3": {
+                  "answer": "Ribose (C5H10O5)",
+                  "grade_type": "exact",
+                  "multiline": false,
+                  "exact": [
+                    "ribose",
+                    "ribose (c5h10o5)",
+                    "c5h10o5"
+                  ]
+                },
+                "2:2": {
+                  "answer": "A, T, G, C",
+                  "grade_type": "exact",
+                  "multiline": false,
+                  "exact": [
+                    "a,t,g,c",
+                    "atgc",
+                    "a t g c"
+                  ]
+                },
+                "2:3": {
+                  "answer": "A, U, G, C",
+                  "grade_type": "exact",
+                  "multiline": false,
+                  "exact": [
+                    "a,u,g,c",
+                    "augc",
+                    "a u g c"
+                  ]
+                },
+                "3:2": {
+                  "answer": "Gồm 2 mạch song song và ngược chiều nhau",
+                  "grade_type": "compare",
+                  "multiline": false
+                },
+                "3:3": {
+                  "answer": "Gồm 1 mạch có chiều 5' → 3'",
+                  "grade_type": "compare",
+                  "multiline": false
+                },
+                "4:2": {
+                  "answer": "Lưu trữ, bảo quản, truyền đạt, biểu hiện thông tin di truyền và tạo biến dị",
+                  "grade_type": "compare",
+                  "multiline": true
+                },
+                "4:3": {
+                  "answer": "mRNA: làm khuôn để tổng hợp protein (tRNA: vận chuyển amino acid; rRNA: kết hợp với protein tạo ribosome – nơi dịch mã)",
+                  "grade_type": "compare",
+                  "multiline": true
+                }
+              }
+            }
           },
           {
             "type": "text",
@@ -2634,7 +3213,188 @@
           {
             "type": "image",
             "src": "/uploads/chu-de-1/img_0db1741f0c.png",
-            "caption": ""
+            "caption": "",
+            "exercise_group": {
+              "id": "cd1-ks-1.2-c3",
+              "columns": 3,
+              "title": "Điền chú thích tương ứng với các số trên hình (1 → 17):",
+              "items": [
+                {
+                  "id": "cd1-ks-1.2-c3-1",
+                  "label": "Số 1",
+                  "mode": "input",
+                  "answer": "Phiên mã",
+                  "grade_type": "exact",
+                  "exact": [
+                    "phien ma"
+                  ]
+                },
+                {
+                  "id": "cd1-ks-1.2-c3-2",
+                  "label": "Số 2",
+                  "mode": "input",
+                  "answer": "mRNA",
+                  "grade_type": "exact",
+                  "exact": [
+                    "mrna"
+                  ]
+                },
+                {
+                  "id": "cd1-ks-1.2-c3-3",
+                  "label": "Số 3",
+                  "mode": "input",
+                  "answer": "RNA polymerase",
+                  "grade_type": "exact",
+                  "exact": [
+                    "rna polymerase"
+                  ]
+                },
+                {
+                  "id": "cd1-ks-1.2-c3-4",
+                  "label": "Số 4",
+                  "mode": "input",
+                  "answer": "Mạch khuôn",
+                  "grade_type": "exact",
+                  "exact": [
+                    "mach khuon"
+                  ]
+                },
+                {
+                  "id": "cd1-ks-1.2-c3-5",
+                  "label": "Số 5",
+                  "mode": "input",
+                  "answer": "Mạch bổ sung",
+                  "grade_type": "exact",
+                  "exact": [
+                    "mach bo sung"
+                  ]
+                },
+                {
+                  "id": "cd1-ks-1.2-c3-6",
+                  "label": "Số 6",
+                  "mode": "input",
+                  "answer": "Uracil",
+                  "grade_type": "exact",
+                  "exact": [
+                    "uracil",
+                    "u"
+                  ]
+                },
+                {
+                  "id": "cd1-ks-1.2-c3-7",
+                  "label": "Số 7",
+                  "mode": "input",
+                  "answer": "Nhân",
+                  "grade_type": "exact",
+                  "exact": [
+                    "nhan"
+                  ]
+                },
+                {
+                  "id": "cd1-ks-1.2-c3-8",
+                  "label": "Số 8",
+                  "mode": "input",
+                  "answer": "Dịch mã",
+                  "grade_type": "exact",
+                  "exact": [
+                    "dich ma"
+                  ]
+                },
+                {
+                  "id": "cd1-ks-1.2-c3-9",
+                  "label": "Số 9",
+                  "mode": "input",
+                  "answer": "Màng nhân",
+                  "grade_type": "exact",
+                  "exact": [
+                    "mang nhan"
+                  ]
+                },
+                {
+                  "id": "cd1-ks-1.2-c3-10",
+                  "label": "Số 10",
+                  "mode": "input",
+                  "answer": "Ribosome",
+                  "grade_type": "exact",
+                  "exact": [
+                    "ribosome",
+                    "riboxom"
+                  ]
+                },
+                {
+                  "id": "cd1-ks-1.2-c3-11",
+                  "label": "Số 11",
+                  "mode": "input",
+                  "answer": "mRNA",
+                  "grade_type": "exact",
+                  "exact": [
+                    "mrna"
+                  ]
+                },
+                {
+                  "id": "cd1-ks-1.2-c3-12",
+                  "label": "Số 12",
+                  "mode": "input",
+                  "answer": "Codon",
+                  "grade_type": "exact",
+                  "exact": [
+                    "codon"
+                  ]
+                },
+                {
+                  "id": "cd1-ks-1.2-c3-13",
+                  "label": "Số 13",
+                  "mode": "input",
+                  "answer": "Anticodon",
+                  "grade_type": "exact",
+                  "exact": [
+                    "anticodon"
+                  ]
+                },
+                {
+                  "id": "cd1-ks-1.2-c3-14",
+                  "label": "Số 14",
+                  "mode": "input",
+                  "answer": "Amino acid",
+                  "grade_type": "exact",
+                  "exact": [
+                    "amino acid",
+                    "axit amin"
+                  ]
+                },
+                {
+                  "id": "cd1-ks-1.2-c3-15",
+                  "label": "Số 15",
+                  "mode": "input",
+                  "answer": "Chuỗi polypeptide",
+                  "grade_type": "exact",
+                  "exact": [
+                    "chuoi polypeptide",
+                    "polypeptide"
+                  ]
+                },
+                {
+                  "id": "cd1-ks-1.2-c3-16",
+                  "label": "Số 16",
+                  "mode": "input",
+                  "answer": "tRNA",
+                  "grade_type": "exact",
+                  "exact": [
+                    "trna"
+                  ]
+                },
+                {
+                  "id": "cd1-ks-1.2-c3-17",
+                  "label": "Số 17",
+                  "mode": "input",
+                  "answer": "Tế bào chất",
+                  "grade_type": "exact",
+                  "exact": [
+                    "te bao chat"
+                  ]
+                }
+              ]
+            }
           }
         ]
       },
@@ -2651,7 +3411,151 @@
           {
             "type": "image",
             "src": "/uploads/chu-de-1/img_421ba6b8f7.jpg",
-            "caption": ""
+            "caption": "",
+            "exercise_group": {
+              "id": "cd1-ks-1.3-c1",
+              "columns": 2,
+              "title": "Điền chú thích tương ứng với các số trên 2 hình (1 → 13):",
+              "items": [
+                {
+                  "id": "cd1-ks-1.3-c1-1",
+                  "label": "Số 1",
+                  "mode": "input",
+                  "answer": "Operator",
+                  "grade_type": "exact",
+                  "exact": [
+                    "operator",
+                    "vung o",
+                    "vung van hanh"
+                  ]
+                },
+                {
+                  "id": "cd1-ks-1.3-c1-2",
+                  "label": "Số 2",
+                  "mode": "input",
+                  "answer": "Promoter",
+                  "grade_type": "exact",
+                  "exact": [
+                    "promoter",
+                    "promotor",
+                    "vung p",
+                    "vung khoi dong"
+                  ]
+                },
+                {
+                  "id": "cd1-ks-1.3-c1-3",
+                  "label": "Số 3",
+                  "mode": "input",
+                  "answer": "Phiên mã",
+                  "grade_type": "exact",
+                  "exact": [
+                    "phien ma"
+                  ]
+                },
+                {
+                  "id": "cd1-ks-1.3-c1-4",
+                  "label": "Số 4",
+                  "mode": "input",
+                  "answer": "mRNA",
+                  "grade_type": "exact",
+                  "exact": [
+                    "mrna"
+                  ]
+                },
+                {
+                  "id": "cd1-ks-1.3-c1-5",
+                  "label": "Số 5",
+                  "mode": "input",
+                  "answer": "Dịch mã",
+                  "grade_type": "exact",
+                  "exact": [
+                    "dich ma"
+                  ]
+                },
+                {
+                  "id": "cd1-ks-1.3-c1-6",
+                  "label": "Số 6",
+                  "mode": "input",
+                  "answer": "Lactose",
+                  "grade_type": "exact",
+                  "exact": [
+                    "lactose",
+                    "allolactose"
+                  ]
+                },
+                {
+                  "id": "cd1-ks-1.3-c1-7",
+                  "label": "Số 7",
+                  "mode": "input",
+                  "answer": "Protein ức chế bị bất hoạt",
+                  "grade_type": "exact",
+                  "exact": [
+                    "protein uc che bi bat hoat"
+                  ]
+                },
+                {
+                  "id": "cd1-ks-1.3-c1-8",
+                  "label": "Số 8",
+                  "mode": "input",
+                  "answer": "Các enzyme chuyển hóa lactose",
+                  "grade_type": "exact",
+                  "exact": [
+                    "cac enzyme chuyen hoa lactose",
+                    "enzyme chuyen hoa lactose"
+                  ]
+                },
+                {
+                  "id": "cd1-ks-1.3-c1-9",
+                  "label": "Số 9",
+                  "mode": "input",
+                  "answer": "RNA polymerase",
+                  "grade_type": "exact",
+                  "exact": [
+                    "rna polymerase"
+                  ]
+                },
+                {
+                  "id": "cd1-ks-1.3-c1-10",
+                  "label": "Số 10",
+                  "mode": "input",
+                  "answer": "Phiên mã",
+                  "grade_type": "exact",
+                  "exact": [
+                    "phien ma"
+                  ]
+                },
+                {
+                  "id": "cd1-ks-1.3-c1-11",
+                  "label": "Số 11",
+                  "mode": "input",
+                  "answer": "Dịch mã",
+                  "grade_type": "exact",
+                  "exact": [
+                    "dich ma"
+                  ]
+                },
+                {
+                  "id": "cd1-ks-1.3-c1-12",
+                  "label": "Số 12",
+                  "mode": "input",
+                  "answer": "mRNA",
+                  "grade_type": "exact",
+                  "exact": [
+                    "mrna"
+                  ]
+                },
+                {
+                  "id": "cd1-ks-1.3-c1-13",
+                  "label": "Số 13",
+                  "mode": "input",
+                  "answer": "Protein ức chế",
+                  "grade_type": "exact",
+                  "exact": [
+                    "protein uc che"
+                  ]
+                }
+              ]
+            }
           },
           {
             "type": "text",
@@ -2712,7 +3616,58 @@
                 ""
               ]
             ],
-            "images": []
+            "images": [],
+            "interactive": {
+              "id": "cd1-ks-1.3-c2",
+              "mode": "fill",
+              "answers": {
+                "1:2": {
+                  "answer": "Quy định protein ức chế lacI",
+                  "grade_type": "compare",
+                  "multiline": false
+                },
+                "2:2": {
+                  "answer": "Là nơi enzyme RNA polymerase liên kết để khởi đầu quá trình phiên mã",
+                  "grade_type": "compare",
+                  "multiline": true
+                },
+                "3:2": {
+                  "answer": "Là nơi protein ức chế liên kết để ngăn cản quá trình phiên mã",
+                  "grade_type": "compare",
+                  "multiline": true
+                },
+                "4:2": {
+                  "answer": "Quy định enzyme β-galactosidase (phân giải lactose)",
+                  "grade_type": "compare",
+                  "multiline": true
+                },
+                "5:2": {
+                  "answer": "Quy định enzyme permease (vận chuyển lactose vào tế bào)",
+                  "grade_type": "compare",
+                  "multiline": true
+                },
+                "6:2": {
+                  "answer": "Quy định enzyme transacetylase (khử các chất độc)",
+                  "grade_type": "compare",
+                  "multiline": true
+                },
+                "7:2": {
+                  "answer": "Liên kết với vùng O (operator) → cản trở quá trình phiên mã của nhóm gene cấu trúc",
+                  "grade_type": "compare",
+                  "multiline": true
+                },
+                "8:2": {
+                  "answer": "Liên kết với protein ức chế → biến đổi cấu hình của protein ức chế → giải phóng vùng O của Operon Lac",
+                  "grade_type": "compare",
+                  "multiline": true
+                },
+                "9:2": {
+                  "answer": "Lắp ráp các nucleotide tự do để tổng hợp mRNA có chiều 5' → 3'",
+                  "grade_type": "compare",
+                  "multiline": true
+                }
+              }
+            }
           }
         ]
       },
@@ -2840,7 +3795,118 @@
                 ""
               ]
             ],
-            "images": []
+            "images": [],
+            "interactive": {
+              "id": "cd1-ks-1.4-c1",
+              "mode": "fill",
+              "answers": {
+                "1:2": {
+                  "answer": "Là những biến đổi trong cấu trúc của gene liên quan đến 1 hoặc 1 số cặp nucleotide",
+                  "grade_type": "compare",
+                  "multiline": true
+                },
+                "2:2": {
+                  "answer": "Là đột biến gene liên quan đến 1 cặp nucleotide",
+                  "grade_type": "compare",
+                  "multiline": false
+                },
+                "3:2": {
+                  "answer": "Là cơ thể chứa đột biến gene đã biểu hiện thành kiểu hình đột biến",
+                  "grade_type": "compare",
+                  "multiline": true
+                },
+                "4:2": {
+                  "answer": "Là cơ thể chứa đột biến gene chỉ biểu hiện ở 1 phần trên cơ thể",
+                  "grade_type": "compare",
+                  "multiline": true
+                },
+                "5:2": {
+                  "answer": "Là đột biến xảy ra trong quá trình giảm phân tạo giao tử",
+                  "grade_type": "compare",
+                  "multiline": true
+                },
+                "6:2": {
+                  "answer": "Là đột biến xảy ra ở tế bào soma (tế bào sinh dưỡng)",
+                  "grade_type": "compare",
+                  "multiline": true
+                },
+                "7:2": {
+                  "answer": "Là đột biến mới chỉ xảy ra trên một mạch nào đó của gene",
+                  "grade_type": "compare",
+                  "multiline": true
+                },
+                "8:2": {
+                  "answer": "Là allele quy định kiểu hình trội và được biểu hiện ở kiểu gene đồng hợp hoặc dị hợp",
+                  "grade_type": "compare",
+                  "multiline": true
+                },
+                "9:2": {
+                  "answer": "Là allele quy định kiểu hình lặn và chỉ được biểu hiện ở kiểu gene đồng hợp lặn",
+                  "grade_type": "compare",
+                  "multiline": true
+                },
+                "10:2": {
+                  "answer": "Là kiểu gene chứa các allele có trạng thái giống nhau của cùng một gene (VD: AA, aa)",
+                  "grade_type": "compare",
+                  "multiline": true
+                },
+                "11:2": {
+                  "answer": "Là kiểu gene chứa các allele có trạng thái khác nhau của cùng một gene (VD: Aa)",
+                  "grade_type": "compare",
+                  "multiline": true
+                },
+                "12:2": {
+                  "answer": "Là đột biến gene làm cho bộ ba này trở thành một bộ ba khác nhưng mã hoá cùng một loại amino acid (đột biến câm)",
+                  "grade_type": "compare",
+                  "multiline": true
+                },
+                "13:2": {
+                  "answer": "Là đột biến gene làm cho bộ ba mã hoá amino acid trở thành bộ ba kết thúc",
+                  "grade_type": "compare",
+                  "multiline": true
+                },
+                "14:2": {
+                  "answer": "Là đột biến gene làm cho bộ ba mã hoá amino acid này trở thành bộ ba mã hoá cho amino acid khác",
+                  "grade_type": "compare",
+                  "multiline": true
+                },
+                "15:2": {
+                  "answer": "Là đột biến gene dạng mất hoặc thêm cặp nucleotide dẫn đến làm lệch khung các bộ ba từ vị trí xảy ra đột biến trở về cuối gene",
+                  "grade_type": "compare",
+                  "multiline": true
+                },
+                "16:2": {
+                  "answer": "Là các quy trình kĩ thuật áp dụng trên đối tượng là gene, DNA, RNA từ đó tạo ra các sản phẩm phục vụ con người như tế bào, sinh vật biến đổi gene",
+                  "grade_type": "compare",
+                  "multiline": true
+                },
+                "17:2": {
+                  "answer": "Là phân tử DNA được hình thành từ sự kết hợp giữa các đoạn DNA khác nguồn gốc (gồm gene cần chuyển và vector chuyển gene)",
+                  "grade_type": "compare",
+                  "multiline": true
+                },
+                "18:2": {
+                  "answer": "Là enzyme restrictase, có khả năng nhận biết và cắt đứt DNA ở những điểm xác định để tạo ra đầu dính phù hợp",
+                  "grade_type": "compare",
+                  "multiline": true
+                },
+                "19:2": {
+                  "answer": "Là enzyme ligase, có khả năng nối đoạn DNA (gene cần chuyển) vào phân tử DNA của thể truyền (plasmid) tạo DNA tái tổ hợp",
+                  "grade_type": "compare",
+                  "multiline": true
+                },
+                "20:2": {
+                  "answer": "Là những sinh vật được nhận gene ngoại lai (hoặc có hệ gene đã được biến đổi phù hợp với mục đích sử dụng của con người)",
+                  "grade_type": "compare",
+                  "multiline": true
+                },
+                "21:2": {
+                  "answer": "Là kĩ thuật chuyển đoạn DNA chứa gene cần chuyển từ tế bào cho sang tế bào nhận nhờ thể truyền (vector)",
+                  "grade_type": "compare",
+                  "multiline": true
+                }
+              }
+            }
           },
           {
             "type": "text",
@@ -2946,7 +4012,28 @@
                 ""
               ]
             ],
-            "images": []
+            "images": [],
+            "interactive": {
+              "id": "cd1-ks-1.4-c2",
+              "mode": "check_single",
+              "check_col": 2,
+              "check_rows": [
+                2,
+                3,
+                5,
+                7,
+                8,
+                10,
+                11,
+                13,
+                14,
+                16,
+                17,
+                18
+              ],
+              "checked_label": "× Đột biến",
+              "unchecked_label": "Không phải đột biến"
+            }
           }
         ]
       }
@@ -12614,5 +13701,5 @@
       }
     ]
   },
-  "bundled_version": "2026.11.26-sgk-v2"
+  "bundled_version": "2026.11.26-exercises-v3"
 }
