@@ -5,18 +5,25 @@ Backend Server (Python 3 stdlib + SQLite) — Không cần cài đặt thư vi�
 Chạy lệnh: python3 server.py
 """
 import base64
+import gzip
+import hashlib
 import json
 import mimetypes
 import os
 import re
 import secrets
 import sys
+import threading
+import traceback
+from collections import OrderedDict
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import parse_qs, urlparse
 
 from database import (
     ADMIN_USERNAME,
+    DB_LOCK,
     DEFAULT_USER_PASSWORD,
     TEACHER_INVITE_CODE,
     create_token,
@@ -25,6 +32,7 @@ from database import (
     get_user_by_token,
     hash_password,
     init_db,
+    invalidate_token_cache,
     now_iso,
     record_login,
     record_password_change,
@@ -51,6 +59,47 @@ MAX_BODY_BYTES = int(os.environ.get("MAX_BODY_BYTES", str(50 * 1024 * 1024)))
 
 # Bộ nhớ tạm lưu các gói đề trộn (.docx + .xlsx) vừa tạo để tải xuống nhanh
 EXAM_EXPORTS = {}
+
+# Bộ nhớ đệm tĩnh trong RAM cho CSS/JS/HTML/ảnh nhỏ (tránh đọc ổ đĩa liên tục khi lớp đông học sinh)
+_STATIC_CACHE_LOCK = threading.Lock()
+_STATIC_CACHE = OrderedDict()  # path -> (mtime, size, raw_bytes, gz_bytes, etag, mime)
+_STATIC_CACHE_MAX_BYTES = 24 * 1024 * 1024
+_STATIC_CACHE_TOTAL = 0
+
+
+def _get_cached_static(safe_path: str, mime: str):
+    global _STATIC_CACHE_TOTAL
+    st = os.stat(safe_path)
+    mtime, size = st.st_mtime, st.st_size
+    with _STATIC_CACHE_LOCK:
+        entry = _STATIC_CACHE.get(safe_path)
+        if entry and entry[0] == mtime and entry[1] == size:
+            _STATIC_CACHE.move_to_end(safe_path)
+            return entry[2], entry[3], entry[4], entry[5]
+
+    with open(safe_path, "rb") as f:
+        raw = f.read()
+    etag = f'W/"{hashlib.sha1(f"{mtime}:{size}".encode()).hexdigest()[:14]}"'
+    compressible = (
+        mime.startswith("text/")
+        or "javascript" in mime
+        or "json" in mime
+        or "svg" in mime
+    )
+    gz = gzip.compress(raw, compresslevel=6) if (compressible and len(raw) >= 512) else b""
+
+    if size <= 1024 * 1024:
+        with _STATIC_CACHE_LOCK:
+            old = _STATIC_CACHE.pop(safe_path, None)
+            if old:
+                _STATIC_CACHE_TOTAL -= len(old[2]) + len(old[3])
+            _STATIC_CACHE[safe_path] = (mtime, size, raw, gz, etag, mime)
+            _STATIC_CACHE_TOTAL += len(raw) + len(gz)
+            while _STATIC_CACHE_TOTAL > _STATIC_CACHE_MAX_BYTES and _STATIC_CACHE:
+                _, evicted = _STATIC_CACHE.popitem(last=False)
+                _STATIC_CACHE_TOTAL -= len(evicted[2]) + len(evicted[3])
+
+    return raw, gz, etag, mime
 
 
 def strip_base_path(path: str) -> str:
@@ -81,29 +130,52 @@ def calc_duration_seconds(enter_time: str, end_time: str) -> int:
 class Bio12Handler(BaseHTTPRequestHandler):
     server_version = "SinhHoc12WebApp/1.0"
 
+    def setup(self):
+        super().setup()
+        try:
+            self.request.settimeout(30.0)
+        except Exception:
+            pass
+
     def log_message(self, fmt, *args):
         sys.stdout.write(f"[{datetime.now().strftime('%H:%M:%S')}] {self.address_string()} - {fmt % args}\n")
         sys.stdout.flush()
 
+    def _client_accepts_gzip(self) -> bool:
+        ae = (self.headers.get("Accept-Encoding") or "").lower()
+        return "gzip" in ae
+
+    def _safe_write(self, data: bytes):
+        try:
+            self.wfile.write(data)
+        except (BrokenPipeError, ConnectionResetError, TimeoutError, OSError):
+            pass
+
     def send_json(self, status: int, data):
         payload = json.dumps(data, ensure_ascii=False).encode("utf-8")
+        use_gz = self._client_accepts_gzip() and len(payload) >= 1024
+        body = gzip.compress(payload, compresslevel=5) if use_gz else payload
         self.send_response(status)
         self.send_header("Content-Type", "application/json; charset=utf-8")
-        self.send_header("Content-Length", str(len(payload)))
+        if use_gz:
+            self.send_header("Content-Encoding", "gzip")
+            self.send_header("Vary", "Accept-Encoding")
+        self.send_header("Content-Length", str(len(body)))
         self.send_header("Access-Control-Allow-Origin", "*")
         self.send_header("Access-Control-Allow-Headers", "Content-Type, Authorization, If-None-Match")
-        self.send_header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
+        self.send_header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS, HEAD")
         self.end_headers()
-        self.wfile.write(payload)
+        if self.command != "HEAD":
+            self._safe_write(body)
 
     def send_cached_json(self, cache_key: str, builder_fn, ttl: int = 300):
-        """Phục vụ JSON qua bộ nhớ đệm đa tầng L1 + Redis kèm HTTP ETag (304 Not Modified)."""
-        payload, etag, source = app_cache.get_payload(cache_key)
+        """Phục vụ JSON qua bộ nhớ đệm đa tầng L1 + Redis kèm Gzip dựng sẵn & HTTP ETag (304)."""
+        payload, gz_payload, etag, source = app_cache.get_payload_with_gzip(cache_key)
         if payload is None:
             data = builder_fn()
             if data is None:
                 return False
-            payload, etag = app_cache.set_json(cache_key, data, ttl=ttl)
+            payload, gz_payload, etag = app_cache.set_json_with_gzip(cache_key, data, ttl=ttl)
             source = "MISS"
 
         req_etag = (self.headers.get("If-None-Match") or "").strip()
@@ -116,17 +188,23 @@ class Bio12Handler(BaseHTTPRequestHandler):
             self.end_headers()
             return True
 
+        use_gz = self._client_accepts_gzip() and bool(gz_payload)
+        body = gz_payload if use_gz else payload
         self.send_response(200)
         self.send_header("Content-Type", "application/json; charset=utf-8")
-        self.send_header("Content-Length", str(len(payload)))
+        if use_gz:
+            self.send_header("Content-Encoding", "gzip")
+            self.send_header("Vary", "Accept-Encoding")
+        self.send_header("Content-Length", str(len(body)))
         self.send_header("ETag", etag)
         self.send_header("X-Cache", source)
         self.send_header("Cache-Control", "private, max-age=0, must-revalidate")
         self.send_header("Access-Control-Allow-Origin", "*")
         self.send_header("Access-Control-Allow-Headers", "Content-Type, Authorization, If-None-Match")
-        self.send_header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
+        self.send_header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS, HEAD")
         self.end_headers()
-        self.wfile.write(payload)
+        if self.command != "HEAD":
+            self._safe_write(body)
         return True
 
     def send_text(self, status: int, content: str, content_type="text/plain; charset=utf-8", extra_headers=None):
@@ -196,31 +274,80 @@ class Bio12Handler(BaseHTTPRequestHandler):
         self.send_header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
         self.end_headers()
 
+    def do_HEAD(self):
+        return self.do_GET()
+
     # ---------------------- GET ROUTES ----------------------
     def do_GET(self):
-        parsed = urlparse(self.path)
-        raw_path = parsed.path
-        qs = parse_qs(parsed.query)
+        try:
+            parsed = urlparse(self.path)
+            raw_path = parsed.path
+            qs = parse_qs(parsed.query)
 
-        # Chuyển hướng gọn /sinhhoc12 -> /sinhhoc12/ để các tệp tĩnh tương đối hoạt động chuẩn
-        if BASE_PATH != "/" and raw_path == BASE_PATH:
-            self.send_response(302)
-            self.send_header("Location", BASE_PATH + "/")
-            self.end_headers()
+            # Chuyển hướng gọn /sinhhoc12 -> /sinhhoc12/ để các tệp tĩnh tương đối hoạt động chuẩn
+            if BASE_PATH != "/" and raw_path == BASE_PATH:
+                self.send_response(302)
+                self.send_header("Location", BASE_PATH + "/")
+                self.send_header("Content-Length", "0")
+                self.end_headers()
+                return
+
+            path = strip_base_path(raw_path)
+
+            if path.startswith("/api/"):
+                return self.handle_api_get(path, qs)
+            return self.serve_static(path)
+        except (BrokenPipeError, ConnectionResetError, TimeoutError):
             return
-
-        path = strip_base_path(raw_path)
-
-        if path.startswith("/api/"):
-            return self.handle_api_get(path, qs)
-        return self.serve_static(path)
+        except Exception as e:
+            traceback.print_exc()
+            try:
+                self.send_json(500, {"error": f"Hệ thống đang bận, vui lòng thử lại ({type(e).__name__})."})
+            except Exception:
+                pass
 
     def handle_api_get(self, path, qs):
+        # 1. Các route KHÔNG cần mở SQLite khi đã có sẵn trong L1 RAM Cache (tốc độ < 1ms, không khóa DB)
+        if path == "/api/health":
+            return self.send_json(200, {"ok": True, "time": now_iso(), "app": "Sinh học 12"})
+
+        if path == "/api/topics":
+            def _load_topics_list():
+                c = get_conn()
+                try:
+                    rows = c.execute(
+                        "SELECT id, order_index, title, subtitle, status, updated_at FROM topics ORDER BY order_index ASC"
+                    ).fetchall()
+                    return {"topics": [dict(r) for r in rows]}
+                finally:
+                    c.close()
+
+            self.send_cached_json("topics:list", _load_topics_list, ttl=600)
+            return
+
+        m_topic = re.match(r"^/api/topics/([a-zA-Z0-9_-]+)$", path)
+        if m_topic:
+            tid = m_topic.group(1)
+
+            def _load_topic_detail():
+                c = get_conn()
+                try:
+                    row = c.execute("SELECT * FROM topics WHERE id = ?", (tid,)).fetchone()
+                    if not row:
+                        return None
+                    content = json.loads(row["content_json"])
+                    content["updated_at"] = row["updated_at"]
+                    return {"topic": content}
+                finally:
+                    c.close()
+
+            found = self.send_cached_json(f"topic:{tid}", _load_topic_detail, ttl=900)
+            if not found:
+                return self.send_json(404, {"error": "Không tìm thấy chủ đề."})
+            return
+
         conn = get_conn()
         try:
-            if path == "/api/health":
-                return self.send_json(200, {"ok": True, "time": now_iso(), "app": "Sinh học 12"})
-
             if path == "/api/auth/me":
                 user = self.require_user(conn, qs)
                 if not user:
@@ -236,33 +363,6 @@ class Bio12Handler(BaseHTTPRequestHandler):
                         "active_session": dict(active_session) if active_session else None,
                     },
                 )
-
-            if path == "/api/topics":
-                def _load_topics_list():
-                    rows = conn.execute(
-                        "SELECT id, order_index, title, subtitle, status, updated_at FROM topics ORDER BY order_index ASC"
-                    ).fetchall()
-                    return {"topics": [dict(r) for r in rows]}
-
-                self.send_cached_json("topics:list", _load_topics_list, ttl=300)
-                return
-
-            m = re.match(r"^/api/topics/([a-zA-Z0-9_-]+)$", path)
-            if m:
-                tid = m.group(1)
-
-                def _load_topic_detail():
-                    row = conn.execute("SELECT * FROM topics WHERE id = ?", (tid,)).fetchone()
-                    if not row:
-                        return None
-                    content = json.loads(row["content_json"])
-                    content["updated_at"] = row["updated_at"]
-                    return {"topic": content}
-
-                found = self.send_cached_json(f"topic:{tid}", _load_topic_detail, ttl=600)
-                if not found:
-                    return self.send_json(404, {"error": "Không tìm thấy chủ đề."})
-                return
 
             if path == "/api/sessions/my":
                 user = self.require_user(conn, qs)
@@ -554,13 +654,32 @@ class Bio12Handler(BaseHTTPRequestHandler):
 
     # ---------------------- POST ROUTES ----------------------
     def do_POST(self):
+        try:
+            self._handle_post()
+        except (BrokenPipeError, ConnectionResetError, TimeoutError):
+            return
+        except Exception as e:
+            traceback.print_exc()
+            try:
+                self.send_json(500, {"error": f"Hệ thống đang bận, vui lòng thử lại ({type(e).__name__})."})
+            except Exception:
+                pass
+
+    def _handle_post(self):
         parsed = urlparse(self.path)
         path = strip_base_path(parsed.path)
         qs = parse_qs(parsed.query)
         body = self.read_json_body()
 
-        conn = get_conn()
-        try:
+        with DB_LOCK:
+            conn = get_conn()
+            try:
+                self._dispatch_post(conn, path, qs, body)
+            finally:
+                conn.close()
+
+    def _dispatch_post(self, conn, path, qs, body):
+        if True:
             if path == "/api/auth/register":
                 return self.send_json(
                     403,
@@ -651,6 +770,7 @@ class Bio12Handler(BaseHTTPRequestHandler):
                     ),
                 )
                 conn.commit()
+                invalidate_token_cache(user_id=user["id"])
                 updated = conn.execute("SELECT * FROM users WHERE id = ?", (user["id"],)).fetchone()
                 if updated["role"] in ("teacher", "student"):
                     record_password_change(conn, updated, reason="first_login_setup")
@@ -682,6 +802,7 @@ class Bio12Handler(BaseHTTPRequestHandler):
                             )
                     conn.execute("DELETE FROM auth_tokens WHERE token = ?", (token,))
                     conn.commit()
+                    invalidate_token_cache(token=token)
                 return self.send_json(200, {"ok": True})
 
             # Session Attendance: Check-in (Vào lớp)
@@ -1401,18 +1522,35 @@ class Bio12Handler(BaseHTTPRequestHandler):
                 )
 
             return self.send_json(404, {"error": "API endpoint không tồn tại."})
-        finally:
-            conn.close()
 
     # ---------------------- PUT ROUTES ----------------------
     def do_PUT(self):
+        try:
+            self._handle_put()
+        except (BrokenPipeError, ConnectionResetError, TimeoutError):
+            return
+        except Exception as e:
+            traceback.print_exc()
+            try:
+                self.send_json(500, {"error": f"Hệ thống đang bận, vui lòng thử lại ({type(e).__name__})."})
+            except Exception:
+                pass
+
+    def _handle_put(self):
         parsed = urlparse(self.path)
         path = strip_base_path(parsed.path)
         qs = parse_qs(parsed.query)
         body = self.read_json_body()
 
-        conn = get_conn()
-        try:
+        with DB_LOCK:
+            conn = get_conn()
+            try:
+                self._dispatch_put(conn, path, qs, body)
+            finally:
+                conn.close()
+
+    def _dispatch_put(self, conn, path, qs, body):
+        if True:
             # Update user profile (Student or Teacher)
             if path == "/api/profile":
                 user = self.require_user(conn, qs, body)
@@ -1467,6 +1605,7 @@ class Bio12Handler(BaseHTTPRequestHandler):
                     ),
                 )
                 conn.commit()
+                invalidate_token_cache(user_id=user["id"])
                 updated = conn.execute("SELECT * FROM users WHERE id = ?", (user["id"],)).fetchone()
                 if new_password and updated["role"] in ("teacher", "student"):
                     record_password_change(conn, updated, reason="profile_change")
@@ -1506,8 +1645,6 @@ class Bio12Handler(BaseHTTPRequestHandler):
                 return self.send_json(200, {"ok": True, "topic": content, "updated_at": ts})
 
             return self.send_json(404, {"error": "API endpoint không tồn tại."})
-        finally:
-            conn.close()
 
     # ---------------------- STATIC FILE SERVING ----------------------
     def serve_static(self, path):
@@ -1551,6 +1688,7 @@ class Bio12Handler(BaseHTTPRequestHandler):
             # SPA fallback to index.html for non-asset paths
             if "." not in os.path.basename(rel):
                 safe_path = os.path.join(STATIC_DIR, "index.html")
+                rel = "index.html"
             else:
                 self.send_error(404, "Not Found")
                 return
@@ -1562,21 +1700,103 @@ class Bio12Handler(BaseHTTPRequestHandler):
             mime = f"{mime}; charset=utf-8"
 
         try:
-            with open(safe_path, "rb") as f:
-                data = f.read()
+            raw, gz, etag, mime_out = _get_cached_static(safe_path, mime)
+            is_upload_img = rel.startswith("uploads/")
+            if is_upload_img:
+                cache_hdr = "public, max-age=604800, immutable"
+            elif rel == "index.html":
+                cache_hdr = "no-cache"
+            else:
+                cache_hdr = "public, max-age=60, must-revalidate"
+
+            req_etag = (self.headers.get("If-None-Match") or "").strip()
+            if req_etag and req_etag == etag:
+                self.send_response(304)
+                self.send_header("ETag", etag)
+                self.send_header("Cache-Control", cache_hdr)
+                self.end_headers()
+                return
+
+            use_gz = self._client_accepts_gzip() and bool(gz)
+            body = gz if use_gz else raw
             self.send_response(200)
-            self.send_header("Content-Type", mime)
-            self.send_header("Content-Length", str(len(data)))
-            self.send_header("Cache-Control", "no-cache")
+            self.send_header("Content-Type", mime_out)
+            if use_gz:
+                self.send_header("Content-Encoding", "gzip")
+                self.send_header("Vary", "Accept-Encoding")
+            self.send_header("Content-Length", str(len(body)))
+            self.send_header("ETag", etag)
+            self.send_header("Cache-Control", cache_hdr)
             self.end_headers()
-            self.wfile.write(data)
+            if self.command != "HEAD":
+                self._safe_write(body)
+        except (BrokenPipeError, ConnectionResetError, TimeoutError):
+            return
         except Exception as e:
+            traceback.print_exc()
             self.send_error(500, str(e))
+
+
+class PooledHTTPServer(ThreadingHTTPServer):
+    """
+    Máy chủ HTTP đa luồng có giới hạn số luồng đồng thời & hàng đợi lớn (128),
+    chống tràn RAM / lỗi 500 khi hàng chục học sinh truy cập cùng lúc.
+    """
+
+    request_queue_size = 128
+    daemon_threads = True
+    allow_reuse_address = True
+
+    def __init__(self, server_address, RequestHandlerClass, max_workers: int = 24):
+        super().__init__(server_address, RequestHandlerClass)
+        self._pool = ThreadPoolExecutor(max_workers=max_workers)
+
+    def process_request(self, request, client_address):
+        self._pool.submit(self.process_request_thread, request, client_address)
+
+    def server_close(self):
+        try:
+            self._pool.shutdown(wait=False)
+        except Exception:
+            pass
+        super().server_close()
+
+
+def prewarm_caches():
+    """Nạp sẵn danh sách Chủ đề + nội dung các Chủ đề (đã nén Gzip) vào L1 RAM ngay khi khởi động."""
+    conn = get_conn()
+    try:
+        rows = conn.execute(
+            "SELECT id, order_index, title, subtitle, status, content_json, updated_at FROM topics ORDER BY order_index ASC"
+        ).fetchall()
+        list_items = [
+            {
+                "id": r["id"],
+                "order_index": r["order_index"],
+                "title": r["title"],
+                "subtitle": r["subtitle"],
+                "status": r["status"],
+                "updated_at": r["updated_at"],
+            }
+            for r in rows
+        ]
+        app_cache.set_json_with_gzip("topics:list", {"topics": list_items}, ttl=600)
+        for r in rows:
+            try:
+                content = json.loads(r["content_json"])
+                content["updated_at"] = r["updated_at"]
+                app_cache.set_json_with_gzip(f"topic:{r['id']}", {"topic": content}, ttl=900)
+            except Exception:
+                pass
+    finally:
+        conn.close()
 
 
 def main():
     init_db()
-    server = ThreadingHTTPServer(("0.0.0.0", PORT), Bio12Handler)
+    prewarm_caches()
+    max_workers = int(os.environ.get("MAX_WORKERS", "24"))
+    server = PooledHTTPServer(("0.0.0.0", PORT), Bio12Handler, max_workers=max_workers)
     port_suffix = "" if PORT == 80 else f":{PORT}"
     base_display = "" if BASE_PATH == "/" else BASE_PATH
     print(f"============================================================")
@@ -1585,6 +1805,7 @@ def main():
     print(f"  Địa chỉ tên miền: http://{PUBLIC_HOST}{port_suffix}{base_display or '/'}")
     print(f"  Cơ sở dữ liệu:    {os.environ.get('DB_PATH') or 'data/sinhhoc12.db'}")
     print(f"  Mã đăng ký Giáo viên mặc định: {TEACHER_INVITE_CODE}")
+    print(f"  Tối ưu tải cao:   ThreadPool({max_workers}) + Gzip + L1 Prewarm")
     print(f"============================================================")
     sys.stdout.flush()
     try:

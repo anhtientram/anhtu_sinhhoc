@@ -42,23 +42,43 @@ export async function apiRequest(path, options = {}) {
     headers["Authorization"] = `Bearer ${token}`;
   }
 
-  const res = await fetch(withBase(path), {
-    ...options,
-    headers,
-  });
+  const method = (options.method || "GET").toUpperCase();
+  const maxAttempts = method === "GET" ? 2 : 1;
+  let lastErr = null;
 
-  const text = await res.text();
-  let data = {};
-  try {
-    data = text ? JSON.parse(text) : {};
-  } catch {
-    data = { raw: text };
-  }
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      const res = await fetch(withBase(path), {
+        ...options,
+        headers,
+      });
 
-  if (!res.ok) {
-    throw new Error(data.error || `Lỗi máy chủ (${res.status})`);
+      const text = await res.text();
+      let data = {};
+      try {
+        data = text ? JSON.parse(text) : {};
+      } catch {
+        data = { raw: text };
+      }
+
+      if (!res.ok) {
+        if (attempt < maxAttempts && [500, 502, 503, 504].includes(res.status)) {
+          await new Promise((r) => setTimeout(r, 600));
+          continue;
+        }
+        throw new Error(data.error || `Lỗi máy chủ (${res.status})`);
+      }
+      return data;
+    } catch (err) {
+      lastErr = err;
+      if (attempt < maxAttempts && (err instanceof TypeError || /50[0234]/.test(String(err.message)))) {
+        await new Promise((r) => setTimeout(r, 600));
+        continue;
+      }
+      throw err;
+    }
   }
-  return data;
+  throw lastErr || new Error("Không thể kết nối máy chủ.");
 }
 
 export const api = {

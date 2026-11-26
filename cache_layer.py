@@ -6,6 +6,7 @@ Bộ nhớ đệm đa tầng tối ưu cho Web App Sinh học 12:
     (hỗ trợ redis:// và rediss://, không phát sinh phụ thuộc ngoài, tự fallback an toàn về L1 khi Redis ngoại tuyến).
 - Hỗ trợ sinh ETag mạnh cho HTTP 304 Not Modified và xoá cache theo mẫu ngay khi có dữ liệu mới.
 """
+import gzip
 import hashlib
 import json
 import os
@@ -145,7 +146,8 @@ class HybridCache:
         self.max_l1_items = max_l1_items
         self.default_ttl = default_ttl
         self._lock = threading.Lock()
-        self._l1: OrderedDict[str, Tuple[float, bytes, str]] = OrderedDict()
+        # key -> (expire_ts, raw_bytes, gz_bytes, etag)
+        self._l1: OrderedDict[str, Tuple[float, bytes, bytes, str]] = OrderedDict()
 
         self.redis_url = (os.environ.get("REDIS_URL") or "").strip()
         self._redis = None
@@ -200,17 +202,27 @@ class HybridCache:
     def _full_key(self, key: str) -> str:
         return f"{self.prefix}{key}"
 
+    def _compress(self, data: bytes) -> bytes:
+        if len(data) < 512:
+            return b""
+        return gzip.compress(data, compresslevel=6)
+
     def get_payload(self, key: str) -> Tuple[Optional[bytes], Optional[str], str]:
         """Trả về (json_bytes, etag, source) trong đó source là HIT-L1 | HIT-REDIS | MISS."""
+        raw, _gz, etag, source = self.get_payload_with_gzip(key)
+        return raw, etag, source
+
+    def get_payload_with_gzip(self, key: str) -> Tuple[Optional[bytes], Optional[bytes], Optional[str], str]:
+        """Trả về (raw_bytes, gz_bytes, etag, source) để phản hồi Gzip cực nhanh không tốn CPU."""
         now = time.time()
         with self._lock:
             entry = self._l1.get(key)
             if entry is not None:
-                exp, data, etag = entry
+                exp, data, gz_data, etag = entry
                 if exp > now:
                     self._l1.move_to_end(key)
                     self._stats["l1_hits"] += 1
-                    return data, etag, "HIT-L1"
+                    return data, gz_data, etag, "HIT-L1"
                 self._l1.pop(key, None)
 
         # Thử đọc tầng L2 Redis nếu đã cấu hình
@@ -219,11 +231,12 @@ class HybridCache:
                 raw = self._redis.get(self._full_key(key))
                 if raw is not None:
                     data = raw if isinstance(raw, bytes) else str(raw).encode("utf-8")
+                    gz_data = self._compress(data)
                     etag = self._make_etag(data)
                     with self._lock:
-                        self._put_l1_unlocked(key, data, etag, self.default_ttl)
+                        self._put_l1_unlocked(key, data, gz_data, etag, self.default_ttl)
                         self._stats["redis_hits"] += 1
-                    return data, etag, "HIT-REDIS"
+                    return data, gz_data, etag, "HIT-REDIS"
             except Exception:
                 with self._lock:
                     self._stats["redis_errors"] += 1
@@ -231,22 +244,27 @@ class HybridCache:
 
         with self._lock:
             self._stats["misses"] += 1
-        return None, None, "MISS"
+        return None, None, None, "MISS"
 
-    def _put_l1_unlocked(self, key: str, data: bytes, etag: str, ttl: int):
-        self._l1[key] = (time.time() + ttl, data, etag)
+    def _put_l1_unlocked(self, key: str, data: bytes, gz_data: bytes, etag: str, ttl: int):
+        self._l1[key] = (time.time() + ttl, data, gz_data, etag)
         self._l1.move_to_end(key)
         while len(self._l1) > self.max_l1_items:
             self._l1.popitem(last=False)
 
     def set_json(self, key: str, obj: Any, ttl: Optional[int] = None) -> Tuple[bytes, str]:
-        """Serialize object -> UTF-8 JSON bytes, tính ETag và ghi vào cả L1 + L2 Redis."""
+        """Serialize object -> UTF-8 JSON bytes, nén sẵn Gzip, tính ETag và ghi vào L1 + L2 Redis."""
+        raw, _gz, etag = self.set_json_with_gzip(key, obj, ttl=ttl)
+        return raw, etag
+
+    def set_json_with_gzip(self, key: str, obj: Any, ttl: Optional[int] = None) -> Tuple[bytes, bytes, str]:
         ttl_s = int(ttl or self.default_ttl)
         payload = json.dumps(obj, ensure_ascii=False).encode("utf-8")
+        gz_payload = self._compress(payload)
         etag = self._make_etag(payload)
 
         with self._lock:
-            self._put_l1_unlocked(key, payload, etag, ttl_s)
+            self._put_l1_unlocked(key, payload, gz_payload, etag, ttl_s)
             self._stats["writes"] += 1
 
         if self._redis is not None:
@@ -259,7 +277,7 @@ class HybridCache:
                     self._stats["redis_errors"] += 1
                 self._redis_connected = False
 
-        return payload, etag
+        return payload, gz_payload, etag
 
     def invalidate_keys(self, *keys: str):
         with self._lock:
