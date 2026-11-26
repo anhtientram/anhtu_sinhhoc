@@ -35,9 +35,13 @@ export function formatBioHtml(raw) {
 
   // 1. Ký hiệu lũy thừa có ngoặc nhọn: X^{DE}, Y^{Hd}, 10^{-6}
   s = s.replace(/([A-Za-z0-9\)])\^\{([A-Za-z0-9\+\-]+)\}/g, "$1<sup>$2</sup>");
-  // Ký hiệu lũy thừa/chỉ số tường minh từ OMML: X^A, X^a, 2^n, 2^k, 10^-6, PO4^3-
+  // Ký hiệu nhóm máu ABO & NST giới tính có dấu mũ liền kề (I^AI^O, X^AX^a, X^AY, X^DEX^de)
+  s = s.replace(/I\^([ABO])/g, "I<sup>$1</sup>");
+  s = s.replace(/([XY])\^([A-Za-z]{1,2}?)(?=[XYI]|[^A-Za-z0-9]|$)/g, "$1<sup>$2</sup>");
+  // Ký hiệu lũy thừa/chỉ số tường minh từ OMML: 2^n, 2^k, 10^-6, PO4^3-, C^r, C^p, C^y
   s = s.replace(/([A-Za-z0-9\)])\^([A-Za-z0-9\+\-]+)/g, "$1<sup>$2</sup>");
-  s = s.replace(/([A-Za-z])_([A-Za-z0-9]+)/g, "$1<sub>$2</sub>");
+  // Chỉ chuyển chỉ số dưới khi sau dấu '_' là chữ số hoặc biến toán (tránh làm hỏng kiểu hình A_B_, A_bb)
+  s = s.replace(/([A-Za-z])_([0-9]+|[nkmx])(?![A-Za-z0-9_])/g, "$1<sub>$2</sub>");
 
   // 2. Công thức phân tử đa nguyên tử cụ thể (tránh nhầm chữ thường)
   const exactFormulas = [
@@ -95,13 +99,20 @@ export function formatBioHtml(raw) {
   s = s.replace(/\b(14)C\b/g, "<sup>$1</sup>C");
   s = s.replace(/\b(18)O\b/g, "<sup>$1</sup>O");
 
-  // 4. Thế hệ lai (F1, F2, F3, Fa, Fb, P1, P2, B1, B2) & pha phân bào (G1, G2) & allele chỉ số (A1, A2, D1, D2, D3)
-  s = s.replace(/\b(F|P|B|G)([1-4ab])\b/g, "$1<sub>$2</sub>");
+  // 4. Thế hệ lai (F1, F2, F3, Fa, Fb, P1, P2, B1, B2) & mạch đơn DNA (A1, T1, G1, C1, A2, T2, G2, C2) & allele chỉ số (A1..A4, D1..D3)
+  s = s.replace(/\bF([1-4ab])\b/g, "F<sub>$1</sub>");
+  s = s.replace(/\b(P|B|G)([1-4])\b/g, "$1<sub>$2</sub>");
+  s = s.replace(/\b(A|T|C|U|D)([1-4])\b/g, "$1<sub>$2</sub>");
+  s = s.replace(/\b(A|T|G|C)([12])%/g, "$1<sub>$2</sub>%");
   s = s.replace(/\b(P)(tc|t\/c)\b/g, "P<sub>tc</sub>");
 
-  // 5. Nhóm máu ABO (IA, IB, IO) và NST giới tính (XAXA, XAXa, XaXa, XAY, XaY, DdXHY, XA, Xa...)
-  s = s.replace(/\bI([ABO])\b/g, "I<sup>$1</sup>");
+  // 5. Nhóm máu ABO (IA, IB, IO) và NST giới tính (XAXA, XAXa, XaXa, XAXaXa, XAY, XaY, XY^a, DdXHY, XA, Xa...)
   s = s.replace(/\bI([ABO])I([ABO])\b/g, "I<sup>$1</sup>I<sup>$2</sup>");
+  s = s.replace(/\bI([ABO])\b/g, "I<sup>$1</sup>");
+  s = s.replace(
+    /\b((?:[A-Za-z]{2})*)X([ABDEHMRWabdehmrw])X([ABDEHMRWabdehmrw])X([ABDEHMRWabdehmrw])\b/g,
+    "$1X<sup>$2</sup>X<sup>$3</sup>X<sup>$4</sup>"
+  );
   s = s.replace(
     /\b((?:[A-Za-z]{2})*)X([ABDEHMRWabdehmrw])X([ABDEHMRWabdehmrw])\b/g,
     "$1X<sup>$2</sup>X<sup>$3</sup>"
@@ -110,6 +121,7 @@ export function formatBioHtml(raw) {
     /\b((?:[A-Za-z]{2})*)X([ABDEHMRWabdehmrw])Y([ABDEHMRWabdehmrw]?)\b/g,
     (_, pre, a, b) => (b ? `${pre}X<sup>${a}</sup>Y<sup>${b}</sup>` : `${pre}X<sup>${a}</sup>Y`)
   );
+  s = s.replace(/\bXY([ABDEHMRWabdehmrw])\b/g, "XY<sup>$1</sup>");
   // Allele đơn trên NST X (VD: XA quy định mắt đỏ, Xa quy định mắt trắng)
   s = s.replace(/\bX([ABDEHMRWabdehmrw])\b/g, "X<sup>$1</sup>");
 

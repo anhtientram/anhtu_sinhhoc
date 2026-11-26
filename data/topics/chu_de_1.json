@@ -309,7 +309,44 @@
               "type": "table",
               "rows": [
                 [
-                  "Xét một đoạn phân tử DNA (gene), gọi N là tổng số nucleotide; A = T và G = C là nucleotide từng loại và A1, G1, C1 và A2, G2, C2 lần lượt là số nucleotide mỗi loại trên mạch 1 và mạch - Đơn vị kích thước: 1 mm = 10^3 µm = 10^6 nm = 10^7 Å. - Chiều dài của một phân tử DNA (gene): L = (N/2) × 3,4 Å (1nm = 10 Å, 1 µm = 10^4 Å) - Số chu kì xoắn của gene: CK = N/20. - Khối lượng phân tử của gene: M = ∑Nu × 300 đvC. - Số liên kết hydrogen: H = 2A + 3G. - Số nucleotide từng loại: Số nucleotide từng loại của DNA: A = T = A1 + T1 = A1 + A2 = A% × ∑Nu ; G = C = G1 + C1 = G1 + G2 = G% × ∑Nu. Phần trăm (%) từng loại nucleotide của DNA: A% + G% = 50%. A% = T% = (A1% + T1%)/2 = (A1% + A2%)/2 ; G% = C% = (G1% + C1%)/2 = (C1% + C2%)/2"
+                  "Đại lượng / Công thức DNA (Gene)",
+                  "Biểu thức chuẩn"
+                ],
+                [
+                  "Quy ước các đại lượng",
+                  "N: tổng số nucleotide của phân tử DNA (gene); A = T và G = C là số nucleotide từng loại; A1, T1, G1, C1 và A2, T2, G2, C2 lần lượt là số nucleotide từng loại trên mạch 1 và mạch 2."
+                ],
+                [
+                  "Đơn vị kích thước",
+                  "1 mm = 10^3 µm = 10^6 nm = 10^7 Å  (1 nm = 10 Å; 1 µm = 10^4 Å)"
+                ],
+                [
+                  "Chiều dài phân tử DNA (gene)",
+                  "L = (N/2) × 3,4 Å  ⇒  N = (2 × L) / 3,4"
+                ],
+                [
+                  "Số chu kì xoắn",
+                  "CK = N / 20  (mỗi chu kì xoắn gồm 10 cặp nucleotide = 20 nucleotide, dài 34 Å)"
+                ],
+                [
+                  "Khối lượng phân tử DNA",
+                  "M = N × 300 đvC (amu)"
+                ],
+                [
+                  "Số liên kết hydrogen",
+                  "H = 2A + 3G = N + G"
+                ],
+                [
+                  "Số liên kết phosphodiester",
+                  "Giữa các nucleotide trên 2 mạch: N − 2;  Tổng số liên kết phosphodiester trong DNA: 2N − 2"
+                ],
+                [
+                  "Số nucleotide từng loại",
+                  "A = T = A1 + T1 = A1 + A2 = %A × N;\nG = C = G1 + C1 = G1 + G2 = %G × N;\nA + G = T + C = N/2"
+                ],
+                [
+                  "Tỉ lệ phần trăm (%) từng loại",
+                  "%A = %T = (%A1 + %T1)/2 = (%A1 + %A2)/2;\n%G = %C = (%G1 + %C1)/2 = (%G1 + %C2)/2;\n%A + %G = 50%"
                 ]
               ],
               "images": []
@@ -2469,7 +2506,7 @@
             },
             {
               "type": "text",
-              "text": "b. Đột biến thay thế cặp nucleotide G - C ở vị trí 88 bằng cặp nucleotide A - T tạo ra allele mới quy định tổng hợp chuỗi polypeptide ngắn hơn so với chuỗi polypeptide do gene M quy định tổng hợp.",
+              "text": "b. Đột biến thay thế cặp nucleotide G – C ở vị trí 88 bằng cặp nucleotide A – T tạo ra allele mới quy định tổng hợp chuỗi polypeptide ngắn hơn so với chuỗi polypeptide do gene M quy định tổng hợp.",
               "is_bold": false,
               "exercise": {
                 "id": "cd1-th-1.4-vd2-b",
@@ -2516,7 +2553,7 @@
             "Biết rằng amino acid valine chỉ được mã hóa bởi 4 triplet là 3’CAA5’; 3’CAG5’; 3’CAT5’ và chuỗi polypeptide do gene M quy định tổng hợp có 31 amino acid.",
             "Căn cứ vào các dữ liệu trên, hãy xác định các dự đoán bên dưới đúng hay sai?",
             ".......a. Đột biến thay thế một cặp nucleotide ở vị trí 63 tạo ra allele mới quy định tổng hợp chuỗi polypeptide giống với chuỗi polypeptide do gene M quy định tổng hợp.",
-            ".......b. Đột biến thay thế cặp nucleotide G - C ở vị trí 88 bằng cặp nucleotide A - T tạo ra allele mới quy định tổng hợp chuỗi polypeptide ngắn hơn so với chuỗi polypeptide do gene M quy định tổng hợp.",
+            ".......b. Đột biến thay thế cặp nucleotide G – C ở vị trí 88 bằng cặp nucleotide A – T tạo ra allele mới quy định tổng hợp chuỗi polypeptide ngắn hơn so với chuỗi polypeptide do gene M quy định tổng hợp.",
             ".......c. Đột biến mất một cặp nucleotide ở vị trí 64 tạo ra allele mới quy định tổng hợp chuỗi polypeptide có thành phần amino acid thay đổi từ amino acid thứ 2 đến amino acid thứ 21 so với chuỗi polypeptide do gene M quy định tổng hợp.",
             ".......d. Đột biến thay thế một cặp nucleotide ở vị trí 91 tạo ra allele mới quy định tổng hợp chuỗi polypeptide thay đổi một amino acid so với chuỗi polypeptide do gene M quy định tổng hợp."
           ]
@@ -4097,7 +4134,32 @@
       ]
     },
     "comparison_tables": [],
-    "formulas": [],
+    "formulas": [
+      {
+        "name": "Chiều dài phân tử DNA (L)",
+        "expression": "L = (N/2) × 3,4 Å  (1 µm = 10^4 Å = 10^3 nm)"
+      },
+      {
+        "name": "Số chu kì xoắn (CK)",
+        "expression": "CK = N / 20"
+      },
+      {
+        "name": "Khối lượng phân tử DNA (M)",
+        "expression": "M = N × 300 đvC"
+      },
+      {
+        "name": "Số liên kết hydrogen (H)",
+        "expression": "H = 2A + 3G = N + G"
+      },
+      {
+        "name": "Nguyên tắc bổ sung (NTBS)",
+        "expression": "A = T = A1 + T1 = A1 + A2;  G = C = G1 + C1 = G1 + G2;  A + G = N/2;  %A + %G = 50%"
+      },
+      {
+        "name": "Tái bản DNA (k lần từ a phân tử)",
+        "expression": "Số DNA con = a × 2^k;  Số DNA hoàn toàn mới = a × (2^k − 2);  Số mạch mới = a × 2 × (2^k − 1)"
+      }
+    ],
     "flashcards": [
       {
         "front": "[BÀI 1] 1.1. Cấu trúc của DNA",
@@ -5012,7 +5074,7 @@
         "options": [
           "Trong hai DNA mới được hình thành, mỗi DNA có một mạch liên tục và một mạch mới được tổng hợp gián đoạn.",
           "Trong hai DNA mới được hình thành, mỗi DNA có một đoạn được tổng hợp gián đoạn và một đoạn mới được tổng hợp liên tục.",
-          "Trong hai DNA mới được hình thành, mỗi DNA đều có các nucleotide liên kết với nhau theo nguyên tắc A - T, G- C và ngược lại.",
+          "Trong hai DNA mới được hình thành, mỗi DNA đều có các nucleotide liên kết với nhau theo nguyên tắc A – T, G – C và ngược lại.",
           "Trong hai DNA mới được hình thành, mỗi DNA có một mạch cũ của DNA mẹ và một mạch mới được tổng hợp."
         ],
         "correct_index": 3,
@@ -8663,7 +8725,7 @@
         "lesson_id": "chu-de-1-bai-3",
         "lesson": "1.3",
         "level": "2. Cấu trúc và cơ chế điều hòa biểu hiện gene của operon lac",
-        "question": "Trong sự điều hòa sinh tổng hợp protein ở vi khuẩn E.coli, khi môi trường có lactose (chất cảm ứng) thì cơ chế nào được diễn ra?\nI. Gen điều hòa chỉ huy tổng hợp một loại protein ức chế gắn vào vùng O.\nII. Chất cảm ứng kết hợp với protein ức chế, làm vô hiệu hóa các chất ức chế.\nIII. Vùng O được khởi động, các gene cấu trúc hoạt động và không tổng hợp được protein.\nIV. Quá trình phiên mã các gene cấu trúc bị ức chế do đó không tổng hợp được mRNA.\nV. Vùng O được khởi động, các gene cấu trúc hoạt động và tổng hợp được protein.",
+        "question": "Trong sự điều hòa sinh tổng hợp protein ở vi khuẩn E.coli, khi môi trường có lactose (chất cảm ứng) thì cơ chế nào được diễn ra?\nI. Gene điều hòa chỉ huy tổng hợp một loại protein ức chế gắn vào vùng O.\nII. Chất cảm ứng kết hợp với protein ức chế, làm vô hiệu hóa các chất ức chế.\nIII. Vùng O được khởi động, các gene cấu trúc hoạt động và không tổng hợp được protein.\nIV. Quá trình phiên mã các gene cấu trúc bị ức chế do đó không tổng hợp được mRNA.\nV. Vùng O được khởi động, các gene cấu trúc hoạt động và tổng hợp được protein.",
         "images": [],
         "tables": [],
         "options": [
@@ -9072,9 +9134,9 @@
         "images": [],
         "tables": [],
         "options": [
-          "thay thế một cặp G - C bằng một cặp A - T.",
+          "thay thế một cặp G – C bằng một cặp A – T.",
           "thêm một cặp nucleotide.",
-          "thay thế một cặp A - T bằng một cặp G - C.",
+          "thay thế một cặp A – T bằng một cặp G – C.",
           "mất một cặp nucleotide."
         ],
         "correct_index": 0,
@@ -9172,10 +9234,10 @@
         "images": [],
         "tables": [],
         "options": [
-          "thay thế cặp A - T thành cặp T - A.",
-          "thay thế cặp G - C thành cặp T - A.",
-          "mất cặp nucleotide A - T hay G - C",
-          "thay thế cặp A - T thành cặp G - C."
+          "thay thế cặp A – T thành cặp T – A.",
+          "thay thế cặp G – C thành cặp T – A.",
+          "mất cặp nucleotide A – T hay G – C",
+          "thay thế cặp A – T thành cặp G – C."
         ],
         "correct_index": 2,
         "answer_key_ready": true,
@@ -9192,10 +9254,10 @@
         "images": [],
         "tables": [],
         "options": [
-          "Thay thế một cặp A - T bằng C - G",
-          "Thay thế một cặp T - A bằng A - T.",
-          "Thay thế một cặp G - C bằng A - T.",
-          "Mất 1 một cặp G - C hoặc 1 cặp A - T."
+          "Thay thế một cặp A – T bằng C – G",
+          "Thay thế một cặp T – A bằng A – T.",
+          "Thay thế một cặp G – C bằng A – T.",
+          "Mất 1 một cặp G – C hoặc 1 cặp A – T."
         ],
         "correct_index": 1,
         "answer_key_ready": true,
@@ -9495,10 +9557,10 @@
         "images": [],
         "tables": [],
         "options": [
-          "T - A",
-          "A - T",
-          "G - C.",
-          "C - G."
+          "T – A",
+          "A – T",
+          "G – C.",
+          "C – G."
         ],
         "correct_index": 0,
         "answer_key_ready": true,
@@ -9515,10 +9577,10 @@
         "images": [],
         "tables": [],
         "options": [
-          "T - A",
-          "A - T",
-          "G - C.",
-          "C - G."
+          "T – A",
+          "A – T",
+          "G – C.",
+          "C – G."
         ],
         "correct_index": 3,
         "answer_key_ready": true,
@@ -9651,7 +9713,7 @@
         "lesson_id": "chu-de-1-bai-4",
         "lesson": "1.4",
         "level": "2. Nguyên nhân và cơ chế phát sinh",
-        "question": "Hoá chất gây đột biến 5-BrU (5-bromouracil) khi thấm vào tế bào gây đột biến tha thế cặp A - T thành cặp G – C. Quá trình thay thế được mô tả theo sơ đồ:",
+        "question": "Hoá chất gây đột biến 5-BrU (5-bromouracil) khi thấm vào tế bào gây đột biến tha thế cặp A – T thành cặp G – C. Quá trình thay thế được mô tả theo sơ đồ:",
         "images": [],
         "tables": [],
         "options": [
@@ -9671,7 +9733,7 @@
         "lesson_id": "chu-de-1-bai-4",
         "lesson": "1.4",
         "level": "2. Nguyên nhân và cơ chế phát sinh",
-        "question": "Trên phân tử DNA có nitrogenous base Thymine trở thành dạng hiếm thì quá trình tái bản sẽ gây đột biến thay thế cặp A - T thành cặp G - C. Sơ đồ nào sau đây mô tả đúng cơ chế gây đột biến làm thay thế cặp A - T bằng cặp G - C của nitrogenous base dạng hiếm?",
+        "question": "Trên phân tử DNA có nitrogenous base Thymine trở thành dạng hiếm thì quá trình tái bản sẽ gây đột biến thay thế cặp A – T thành cặp G – C. Sơ đồ nào sau đây mô tả đúng cơ chế gây đột biến làm thay thế cặp A – T bằng cặp G – C của nitrogenous base dạng hiếm?",
         "images": [],
         "tables": [],
         "options": [
@@ -10015,7 +10077,7 @@
         "options": [
           "Quy trình tạo những tế bào có gene bị biến đổi",
           "Quy trình tạo những tế bào hoặc sinh vật có gene bị biến đổi",
-          "Quy trình tạo những tế bào có gen bị biến đổi hoặc có thêm gene mới",
+          "Quy trình tạo những tế bào có gene bị biến đổi hoặc có thêm gene mới",
           "Quy trình tạo những tế bào hoặc sinh vật có gene bị biến đổi hoặc có thêm gene mới"
         ],
         "correct_index": null,
@@ -10735,7 +10797,7 @@
         "images": [],
         "tables": [],
         "options": [
-          "Cắt đoạn DNA mang gen chịu hạn bằng restrictase B, rồi cài trực tiếp vào thể truyền có sẵn.",
+          "Cắt đoạn DNA mang gene chịu hạn bằng restrictase B, rồi cài trực tiếp vào thể truyền có sẵn.",
           "Cắt thể truyền bằng restrictase A; cắt đoạn DNA mang gene chịu hạn bằng restrictase B, rồi cho hai phân tử DNA nổi lại với nhau.",
           "Cắt thể truyền hai lần bằng restrictase B, rồi nối với đoạn DNA mang gene chịu hạn được cắt bằng restrictase A.",
           "Cắt lần thứ hai đoạn DNA băng restrictase B, rồi cài vào thể truyền sau khi đã cắt bằng cùng loại enzyme giới hạn này."
@@ -10851,7 +10913,7 @@
         "lesson_id": "chu-de-1-bai-4",
         "lesson": "1.4",
         "level": "4. Công nghệ gene:",
-        "question": "Người ta cắt đoạn DNA mang gene quy định tổng hợp insulin từ gen của người rồi nối vào một phân tử plamid nhờ các enzyme cắt và nối. Khẳng định nào sau đây là không đúng",
+        "question": "Người ta cắt đoạn DNA mang gene quy định tổng hợp insulin từ gene của người rồi nối vào một phân tử plamid nhờ các enzyme cắt và nối. Khẳng định nào sau đây là không đúng",
         "images": [],
         "tables": [],
         "options": [
@@ -10891,7 +10953,7 @@
         "lesson_id": "chu-de-1-bai-4",
         "lesson": "1.4",
         "level": "4. Phần bài tập",
-        "question": "Gene B có 900 nucleotide loại A và có tỉ lệ (A + T)/(G + C) = 1,5. Gene B bị đột biến dạng thay thế một cặp G - C bằng một cặp A - T trở thành allele b. Tổng số liên kết hydrogen của allele b là",
+        "question": "Gene B có 900 nucleotide loại A và có tỉ lệ (A + T)/(G + C) = 1,5. Gene B bị đột biến dạng thay thế một cặp G – C bằng một cặp A – T trở thành allele b. Tổng số liên kết hydrogen của allele b là",
         "images": [],
         "tables": [],
         "options": [
@@ -11011,7 +11073,7 @@
         "lesson_id": "chu-de-1-bai-4",
         "lesson": "1.4",
         "level": "4. Phần bài tập",
-        "question": "Gene D có 3600 liên kết hydrogen và số nucleotide loại Adenine (A) chiếm 30% tổng số nucleotide của gene. Gene D bị đột biến mất một cặp A - T thành allele d. Một tế bào có cặp gene Dd nguyên phân 1 lần, số nucleotide mỗi loại mà môi trường nội bào cung cấp cho cặp gene này tái bản là",
+        "question": "Gene D có 3600 liên kết hydrogen và số nucleotide loại Adenine (A) chiếm 30% tổng số nucleotide của gene. Gene D bị đột biến mất một cặp A – T thành allele d. Một tế bào có cặp gene Dd nguyên phân 1 lần, số nucleotide mỗi loại mà môi trường nội bào cung cấp cho cặp gene này tái bản là",
         "images": [],
         "tables": [],
         "options": [
@@ -11555,7 +11617,7 @@
         "orig_num": 8,
         "lesson_id": "chu-de-1-bai-1",
         "lesson": "1.1",
-        "stem": "Một nhóm nghiên cứu thực hiện thí nghiệm để kiểm chứng mô hình nhân đôi DNA ở vùng nhân của tế bào nhân sơ. Họ đã nuôi một số vi khuẩn E. coli trong môi trường chỉ có nitơ đồng vị nặng (N15). Sau đó họ chuyển vi khuẩn sang nuôi tiếp năm thế hệ ở môi trường chỉ có nitơ đồng vị nhẹ (N14). Biết số lần nhân lên của vi khuẩn E. coli trong các ống nghiệm là như nhau. Tách DNA sau mỗi thế hệ và thu được kết quả như hình dưới đây. Cho biết X là vị trí của DNA chứa cả hai mạch N15; Y là vị trí của DNA chứa cả mạch N14 và mạch N15; Z là vị trí của DNA chứa cả hai mạch N14.\nDựa vào kết quả trên hãy cho biết các nhận định dưới đây là đúng hay sai?",
+        "stem": "Một nhóm nghiên cứu thực hiện thí nghiệm để kiểm chứng mô hình nhân đôi DNA ở vùng nhân của tế bào nhân sơ. Họ đã nuôi một số vi khuẩn E. coli trong môi trường chỉ có nitơ đồng vị nặng (15N). Sau đó họ chuyển vi khuẩn sang nuôi tiếp năm thế hệ ở môi trường chỉ có nitơ đồng vị nhẹ (14N). Biết số lần nhân lên của vi khuẩn E. coli trong các ống nghiệm là như nhau. Tách DNA sau mỗi thế hệ và thu được kết quả như hình dưới đây. Cho biết X là vị trí của DNA chứa cả hai mạch 15N; Y là vị trí của DNA chứa cả mạch 14N và mạch 15N; Z là vị trí của DNA chứa cả hai mạch 14N.\nDựa vào kết quả trên hãy cho biết các nhận định dưới đây là đúng hay sai?",
         "images": [
           "/uploads/chu-de-1/img_c4c917410c.png"
         ],
@@ -12636,7 +12698,7 @@
           },
           {
             "key": "b",
-            "text": "Allele B1: được tạo ra từ gene ban đầu do đột biến thay thế một cặp T - A thành cặp A - T.",
+            "text": "Allele B1: được tạo ra từ gene ban đầu do đột biến thay thế một cặp T – A thành cặp A – T.",
             "answer": false,
             "explanation": ""
           },
@@ -12740,7 +12802,7 @@
         "statements": [
           {
             "key": "a",
-            "text": "Đột biến được mô tả ở hình bên là đột biến thay thế một cặp G - C bằng một cặp T – A.",
+            "text": "Đột biến được mô tả ở hình bên là đột biến thay thế một cặp G – C bằng một cặp T – A.",
             "answer": true,
             "explanation": ""
           },
@@ -13701,5 +13763,5 @@
       }
     ]
   },
-  "bundled_version": "2026.11.26-exercises-v3"
+  "bundled_version": "2026.11.26-dna-geno-v4"
 }

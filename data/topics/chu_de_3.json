@@ -1424,17 +1424,17 @@
           },
           {
             "type": "text",
-            "text": "F2: 9 hạt vàng, trơn (9 A_B_) → ( 1 AABB : 2 AaBB : 2 AABb : 4 AaBb )",
+            "text": "F2: 9 hạt vàng, trơn (9 A-B-) → ( 1 AABB : 2 AaBB : 2 AABb : 4 AaBb )",
             "is_bold": false
           },
           {
             "type": "text",
-            "text": "3 hạt vàng, nhăn (3 A_bb) → ( 1 AAbb : 2 Aabb )",
+            "text": "3 hạt vàng, nhăn (3 A-bb) → ( 1 AAbb : 2 Aabb )",
             "is_bold": false
           },
           {
             "type": "text",
-            "text": "3 hạt xanh, trơn (3 aaB_) → ( 1 aaBB : 2 aaBb )",
+            "text": "3 hạt xanh, trơn (3 aaB-) → ( 1 aaBB : 2 aaBb )",
             "is_bold": false
           },
           {
@@ -3685,7 +3685,7 @@
         "lesson_id": "chu-de-3-bai-1",
         "lesson": "3.1",
         "level": "Học thuyết di truyền của Mendel",
-        "question": "Ở một loài động vật, xét 3 cặp gene A, a, B, b và D, d nằm trên 3 cặp NST thường, Theo li thuyết có tối đa bao nhiêu loại kiểu gene dị hợp tử về 1 trong 3 cặp gene quy đinh kiếu hinh A- B- D-?",
+        "question": "Ở một loài động vật, xét 3 cặp gene A, a, B, b và D, d nằm trên 3 cặp NST thường, Theo li thuyết có tối đa bao nhiêu loại kiểu gene dị hợp tử về 1 trong 3 cặp gene quy đinh kiếu hinh A-B-D-?",
         "images": [],
         "tables": [],
         "options": [
@@ -5624,14 +5624,14 @@
         "lesson_id": "chu-de-3-bai-2",
         "lesson": "3.2",
         "level": "3. Bài tập gene đa allele",
-        "question": "Ở người nhóm máu A quy định bởi các kiểu gene: IAIA, IAIO; nhóm máu B được quy định bởi các kiểu gene: IBIB, IBIO; nhóm máu AB được quy định bởi kiểu gene IAIB; nhóm máu O được quy định bởi kiểu gene IOIO. Kiểu gene của bố mẹ như thế nào để có thể sinh con có cả 4 nhóm máu?",
+        "question": "Ở người nhóm máu A quy định bởi các kiểu gene: I^AI^A, I^AI^O; nhóm máu B được quy định bởi các kiểu gene: I^BI^B, I^BI^O; nhóm máu AB được quy định bởi kiểu gene I^AI^B; nhóm máu O được quy định bởi kiểu gene I^OI^O. Kiểu gene của bố mẹ như thế nào để có thể sinh con có cả 4 nhóm máu?",
         "images": [],
         "tables": [],
         "options": [
-          "IAIO × IAIB",
-          "IBIO × IAIB",
-          "IAIB × IAIB",
-          "IAIO × IBIO"
+          "I^AI^O × I^AI^B",
+          "I^BI^O × I^AI^B",
+          "I^AI^B × I^AI^B",
+          "I^AI^O × I^BI^O"
         ],
         "correct_index": 3,
         "answer_key_ready": true,
@@ -5684,7 +5684,7 @@
         "lesson_id": "chu-de-3-bai-2",
         "lesson": "3.2",
         "level": "3. Bài tập gene đa allele",
-        "question": "Ở người, kiểu gene IAIA, IAIO quy định nhóm máu A; kiểu gene IBIB, IBIO quy định nhóm máu B; kiểu gene IAIB quy định nhóm máu AB; kiểu gene IOIO quy định nhóm máu O. Tại một nhà hộ sinh, người ta nhầm lẫn 2 đứa trẻ sơ sinh với nhau. Trường hợp nào sau đây không cần biết nhóm máu của người cha mà vẫn có thể xác định được đứa trẻ nào là con của người mẹ nào?",
+        "question": "Ở người, kiểu gene I^AI^A, I^AI^O quy định nhóm máu A; kiểu gene I^BI^B, I^BI^O quy định nhóm máu B; kiểu gene I^AI^B quy định nhóm máu AB; kiểu gene I^OI^O quy định nhóm máu O. Tại một nhà hộ sinh, người ta nhầm lẫn 2 đứa trẻ sơ sinh với nhau. Trường hợp nào sau đây không cần biết nhóm máu của người cha mà vẫn có thể xác định được đứa trẻ nào là con của người mẹ nào?",
         "images": [],
         "tables": [],
         "options": [
@@ -6702,7 +6702,7 @@
         "orig_num": 2,
         "lesson_id": "chu-de-3-bai-2",
         "lesson": "3.2",
-        "stem": "Ở người, kiểu gene IAIA, IAIO quy định nhóm máu A; kiểu gene IBIB, IBIO quy định nhóm máu B; kiểu gene IAIB quy định nhóm máu AB; kiểu gene IOIO quy định nhóm máu O. Theo dõi sự di truyền nhóm máu của 3 gia đình, người ta nhận thấy:\n- Gia đình thứ nhất: Chồng máu AB (1), vợ máu A (2) và con gái máu B (3).\n- Gia đình thứ hai: Chồng máu AB (4), vợ máu B (5) và con trai máu A (6).\n- Gia đình thứ ba: Chồng máu A (7), vợ máu B (8) và con trai máu O (9).\nBiết rằng không xảy ra đột biến, hãy xác định đúng hay sai cho mỗi nhận định sau đây:",
+        "stem": "Ở người, kiểu gene I^AI^A, I^AI^O quy định nhóm máu A; kiểu gene I^BI^B, I^BI^O quy định nhóm máu B; kiểu gene I^AI^B quy định nhóm máu AB; kiểu gene I^OI^O quy định nhóm máu O. Theo dõi sự di truyền nhóm máu của 3 gia đình, người ta nhận thấy:\n- Gia đình thứ nhất: Chồng máu AB (1), vợ máu A (2) và con gái máu B (3).\n- Gia đình thứ hai: Chồng máu AB (4), vợ máu B (5) và con trai máu A (6).\n- Gia đình thứ ba: Chồng máu A (7), vợ máu B (8) và con trai máu O (9).\nBiết rằng không xảy ra đột biến, hãy xác định đúng hay sai cho mỗi nhận định sau đây:",
         "images": [],
         "tables": [],
         "statements": [
@@ -6932,7 +6932,7 @@
         "statements": [
           {
             "key": "a",
-            "text": "Trong quần thể, kiểu hình hoa đỏ do nhiều loại kiểu gen quy định nhất, kiểu hình hoa trắng do ít loại kiểu gen quy định nhất.",
+            "text": "Trong quần thể, kiểu hình hoa đỏ do nhiều loại kiểu gene quy định nhất, kiểu hình hoa trắng do ít loại kiểu gene quy định nhất.",
             "answer": true,
             "explanation": ""
           },
@@ -7099,7 +7099,7 @@
         "orig_num": 12,
         "lesson_id": "chu-de-3-bai-2",
         "lesson": "3.2",
-        "stem": "Ở người, sự hình thành nhóm máu ABO do hoạt động phối hợp của 2 gen H và I được thể\nhiện trong sơ đồ hình bên. Allele lặn h và allele lặn IO đều không tổng hợp được enzyme tương ứng.\nGene H và gene I nằm trên hai nhiễm sắc thể khác nhau. Khi trên bề mặt hồng cầu có cả kháng nguyên\nA và kháng nguyên B thì biểu hiện nhóm máu AB, khi không có cả hai loại kháng nguyên thì biểu hiện nhóm máu O. Trong một gia đình, cả người vợ và người chồng đều có nhóm máu O, sinh đứa con thứ nhất có nhóm máu A, đứa con thứ 2 có nhóm máu B. Trong trường hợp không phát sinh đột biến mới, theo lí thuyết, mỗi phát biểu sau đây đúng hay sai?",
+        "stem": "Ở người, sự hình thành nhóm máu ABO do hoạt động phối hợp của 2 gene H và I được thể\nhiện trong sơ đồ hình bên. Allele lặn h và allele lặn IO đều không tổng hợp được enzyme tương ứng.\nGene H và gene I nằm trên hai nhiễm sắc thể khác nhau. Khi trên bề mặt hồng cầu có cả kháng nguyên\nA và kháng nguyên B thì biểu hiện nhóm máu AB, khi không có cả hai loại kháng nguyên thì biểu hiện nhóm máu O. Trong một gia đình, cả người vợ và người chồng đều có nhóm máu O, sinh đứa con thứ nhất có nhóm máu A, đứa con thứ 2 có nhóm máu B. Trong trường hợp không phát sinh đột biến mới, theo lí thuyết, mỗi phát biểu sau đây đúng hay sai?",
         "images": [
           "/uploads/chu-de-3/img_410ec9113b.jpg"
         ],
@@ -7113,7 +7113,7 @@
           },
           {
             "key": "b",
-            "text": "Người vợ hoặc người chồng trong gia đình nói trên có kiểu gene IAIB.",
+            "text": "Người vợ hoặc người chồng trong gia đình nói trên có kiểu gene I^AI^B.",
             "answer": true,
             "explanation": ""
           },
@@ -7138,7 +7138,7 @@
         "orig_num": 13,
         "lesson_id": "chu-de-3-bai-2",
         "lesson": "3.2",
-        "stem": "Ở một loài, khi cho một cây F1 lai với 3 cây X, Y, Z có kiểu gen khác nhau, thu được kết quả F2 phân tính như sau:\nBiết gene trên nhiễm sắc thể thường và không có đột biến xảy rA. Mỗi phát biểu sau đây là đúng hay sai?",
+        "stem": "Ở một loài, khi cho một cây F1 lai với 3 cây X, Y, Z có kiểu gene khác nhau, thu được kết quả F2 phân tính như sau:\nBiết gene trên nhiễm sắc thể thường và không có đột biến xảy rA. Mỗi phát biểu sau đây là đúng hay sai?",
         "images": [],
         "tables": [
           [
@@ -7476,7 +7476,7 @@
         "orig_num": 9,
         "lesson_id": "chu-de-3-bai-1",
         "lesson": "3.1",
-        "question": "Ở đầu Hà Lan, gene A quy định hạt vàng là trội hoàn toàn so với allele a quy định hạt xanh, gene B quy định hạt trơn là trội hoàn toàn so với allele b quy định hạt nhăn. Hai cặp gene nay phân li độc lập. Cho giao phấn cây hạt vàng, trơn với cây hạt xanh, trơn Fı thu được 120 hạt vàng trơn; 40 hạt xanh nhăn; 120 hạt xanh, trơn: 40 hạt xanh, nhăn. Tỉ lệ hạt xanh, trơn có kiểu gen đồng hợp trong tồng số hạt xanh, trơn ở F1 là bao nhiêu?",
+        "question": "Ở đầu Hà Lan, gene A quy định hạt vàng là trội hoàn toàn so với allele a quy định hạt xanh, gene B quy định hạt trơn là trội hoàn toàn so với allele b quy định hạt nhăn. Hai cặp gene nay phân li độc lập. Cho giao phấn cây hạt vàng, trơn với cây hạt xanh, trơn Fı thu được 120 hạt vàng trơn; 40 hạt xanh nhăn; 120 hạt xanh, trơn: 40 hạt xanh, nhăn. Tỉ lệ hạt xanh, trơn có kiểu gene đồng hợp trong tồng số hạt xanh, trơn ở F1 là bao nhiêu?",
         "images": [],
         "tables": [],
         "placeholder": "Nhập kết quả của bạn...",
@@ -7579,7 +7579,7 @@
         "orig_num": 3,
         "lesson_id": "chu-de-3-bai-2",
         "lesson": "3.2",
-        "question": "Ở người nhóm máu A được quy định bởi các kiểu gene: IAIA, IAIO; nhóm máu B được quy định bởi các kiểu gene: IBIB, IBIO; nhóm máu AB được quy định bởi kiểu gene IAIB ; nhóm máu O được quy định bởi kiều gene IOIO. Mẹ có nhóm máu A sinh con có nhóm máu O. Trong số các nhóm máu A, B, AB và O số nhóm máu của bố có thể có là bao nhiêu?",
+        "question": "Ở người nhóm máu A được quy định bởi các kiểu gene: I^AI^A, I^AI^O; nhóm máu B được quy định bởi các kiểu gene: I^BI^B, I^BI^O; nhóm máu AB được quy định bởi kiểu gene I^AI^B ; nhóm máu O được quy định bởi kiều gene I^OI^O. Mẹ có nhóm máu A sinh con có nhóm máu O. Trong số các nhóm máu A, B, AB và O số nhóm máu của bố có thể có là bao nhiêu?",
         "images": [],
         "tables": [],
         "placeholder": "Nhập kết quả của bạn...",
@@ -7657,7 +7657,7 @@
         "orig_num": 6,
         "lesson_id": "chu-de-3-bai-2",
         "lesson": "3.2",
-        "question": "Ở một loài thực vật, tính trạng màu hoa do 2 cặp gene Aa và Bb nằm trên 2 cặp nhiễm sắc thể khác nhau quy định. Kiểu gene có cả A và B thì quy định hoa tím; kiểu gene chỉ có A thì quy định hoa đỏ; chỉ có B thì quy định hoa vàng; kiểu gene đồng hợp lặn thì quy định hoa trắng. Tính trạng hình dạng quả do cặp gen Dd nằm trên cặp nhiễm sắc thể thường khác quy định, trong đó DD quy định quả tròn, dd quy định quả dài, Dd quy định quả bầu dụC. Biết không xảy ra đột biến. Cho các cây hoa đỏ, quả bầu dục giao phấn với nhau thì số loại kiểu hình tối đa có thể thu được là bao nhiêu?",
+        "question": "Ở một loài thực vật, tính trạng màu hoa do 2 cặp gene Aa và Bb nằm trên 2 cặp nhiễm sắc thể khác nhau quy định. Kiểu gene có cả A và B thì quy định hoa tím; kiểu gene chỉ có A thì quy định hoa đỏ; chỉ có B thì quy định hoa vàng; kiểu gene đồng hợp lặn thì quy định hoa trắng. Tính trạng hình dạng quả do cặp gene Dd nằm trên cặp nhiễm sắc thể thường khác quy định, trong đó DD quy định quả tròn, dd quy định quả dài, Dd quy định quả bầu dụC. Biết không xảy ra đột biến. Cho các cây hoa đỏ, quả bầu dục giao phấn với nhau thì số loại kiểu hình tối đa có thể thu được là bao nhiêu?",
         "images": [],
         "tables": [],
         "placeholder": "Nhập kết quả của bạn...",
@@ -7674,7 +7674,7 @@
         "orig_num": 7,
         "lesson_id": "chu-de-3-bai-2",
         "lesson": "3.2",
-        "question": "Một loài thực vật, tính trạng màu hoa do 2 cặp gen Aa và Bb phân li độc lập quy định. Khi trong kiểu gene có cả hai gene trội A và B thì quy định hoa đỏ; kiểu gene chỉ có 1 allele trội A hoặc B thì quy định hoa vàng: kiểu gene aabb quy định hoa trắng. Gen A và B có tác động gây chết ở giai đoạn phôi khi trạng thái đồng hợp tử trội AABB. Biết không xảy ra đột biến. Cho các cây dị hợp 2 cặp gene giao phấn ngẫu nhiên thì tỉ lệ cây hoa đỏ thu được ở các cây F1 là bao nhiêu?",
+        "question": "Một loài thực vật, tính trạng màu hoa do 2 cặp gene Aa và Bb phân li độc lập quy định. Khi trong kiểu gene có cả hai gene trội A và B thì quy định hoa đỏ; kiểu gene chỉ có 1 allele trội A hoặc B thì quy định hoa vàng: kiểu gene aabb quy định hoa trắng. Gene A và B có tác động gây chết ở giai đoạn phôi khi trạng thái đồng hợp tử trội AABB. Biết không xảy ra đột biến. Cho các cây dị hợp 2 cặp gene giao phấn ngẫu nhiên thì tỉ lệ cây hoa đỏ thu được ở các cây F1 là bao nhiêu?",
         "images": [],
         "tables": [],
         "placeholder": "Nhập kết quả của bạn...",
@@ -7690,5 +7690,5 @@
       }
     ]
   },
-  "bundled_version": "2026.11.26-exercises-v3"
+  "bundled_version": "2026.11.26-dna-geno-v4"
 }

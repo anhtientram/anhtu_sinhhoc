@@ -898,7 +898,7 @@
             },
             {
               "type": "text",
-              "text": "1. aaBb 2. AaBb 3. XAXa 4. DdXHY 5. Ab/aB 6. ABd/abD",
+              "text": "1. aaBb 2. AaBb 3. X^AX^a 4. DdX^HY 5. Ab/aB 6. ABd/abD",
               "is_bold": false,
               "hidden_by_group": true
             },
@@ -923,7 +923,7 @@
             "- Trên mỗi cặp NST (có xảy ra hoán vị), kiểu gene đồng hợp → cho 1 loại giao tử, kiểu gene dị hợp cặp gene → cho 2 giao tử với tỉ lệ bằng nhau, kiểu gene dị hợp 2 cặp gene cho 4 loại giao tử với tỉ lệ phụ thuộc vào tần số hoán vị (f). Trong đó, 2 giao tử liên kết có tỉ lệ bằng (1 − f)/2 (≥ 25%) và 2 giao tử hoán vị có tỉ lệ bằng f/2 (≤ 25%). Ví dụ: AB/ab (f = 0,4) → AB = ab = 0,3; Ab = aB = 0,2.",
             "- Khi xét trên nhiều cặp NST thì số giao tử và tỉ lệ giao tử = tích số các giao tử và tỉ lệ giao tử trên mỗi cặp NST. Ví dụ: AABB → AB; AaBB →½ AB và ½ aB và Aa BD/BD → ½ ABD, ½ aBD.",
             "Ví dụ: Vận dụng các nguyên tắc trên, hãy viết giao tử trong các trường hợp sau và xác định giao tử cho từng kiểu gene ở mục 1:",
-            "1. aaBb 2. AaBb 3. XAXa 4. DdXHY 5. Ab/aB 6. ABd/abD",
+            "1. aaBb 2. AaBb 3. X^AX^a 4. DdX^HY 5. Ab/aB 6. ABd/abD",
             "7. Aa Bd/bD 8. AB/ab De/dE 9. Ab/aB (f = 0,4) 10. Ab/aB Dd (f = 0,2)",
             "11. Aa X^{DE}X^{de} (f = 0,2) 12. AB/aB De/dE (f giữa gene D và gene E = 0,4)"
           ]
@@ -2462,7 +2462,7 @@
               ],
               [
                 "3",
-                "XaXa",
+                "X^aX^a",
                 "",
                 "",
                 ""
@@ -2647,7 +2647,7 @@
           },
           {
             "type": "text",
-            "text": "Ví dụ 2: Mẹ có kiểu gene XAXa, bố có kiểu gene XAY, con gái có kiểu gene XAXaXa, Cho biết quá trình giảm phân ở bố và mẹ không xảy ra đột biến gene và đột biến cấu trúc NST. Viết sơ đồ lai có thể có và xác định kết quả phép lai trong trường hợp trên.",
+            "text": "Ví dụ 2: Mẹ có kiểu gene X^AX^a, bố có kiểu gene X^AY, con gái có kiểu gene X^AX^aX^a, Cho biết quá trình giảm phân ở bố và mẹ không xảy ra đột biến gene và đột biến cấu trúc NST. Viết sơ đồ lai có thể có và xác định kết quả phép lai trong trường hợp trên.",
             "is_bold": false,
             "exercise": {
               "id": "cd2-ks-2.2-bt2-vd2",
@@ -3961,9 +3961,9 @@
         "images": [],
         "tables": [],
         "options": [
-          "XdYd.",
-          "XdY.",
-          "XDYD.",
+          "X^dY^d.",
+          "X^dY.",
+          "X^DY^D.",
           "XDyd."
         ],
         "correct_index": 1,
@@ -3981,9 +3981,9 @@
         "images": [],
         "tables": [],
         "options": [
-          "XAY. B. XYa.",
-          "XaYA.",
-          "XAYa."
+          "X^AY. B. XY^a.",
+          "X^aY^A.",
+          "X^AY^a."
         ],
         "correct_index": 0,
         "answer_key_ready": true,
@@ -4000,10 +4000,10 @@
         "images": [],
         "tables": [],
         "options": [
-          "XAY.",
-          "XYa.",
-          "XaYA.",
-          "XAYa."
+          "X^AY.",
+          "XY^a.",
+          "X^aY^A.",
+          "X^AY^a."
         ],
         "correct_index": 1,
         "answer_key_ready": true,
@@ -4076,7 +4076,7 @@
         "lesson_id": "chu-de-2-bai-1",
         "lesson": "2.1",
         "level": "3. Vị trí của các gene trên NST",
-        "question": "Kiểu gene nào sau đây dị hợp 2 cặp gen?",
+        "question": "Kiểu gene nào sau đây dị hợp 2 cặp gene?",
         "images": [],
         "tables": [],
         "options": [
@@ -4100,10 +4100,10 @@
         "images": [],
         "tables": [],
         "options": [
-          "IA IO.",
-          "IA IB.",
-          "IB IO.",
-          "IA IA."
+          "I^AI^O.",
+          "I^AI^B.",
+          "I^BI^O.",
+          "I^AI^A."
         ],
         "correct_index": 3,
         "answer_key_ready": true,
@@ -5153,10 +5153,10 @@
         ],
         "tables": [],
         "options": [
-          "đột biến gen.",
+          "đột biến gene.",
           "đột biến số lượng nhiễm sắc thể.",
           "đột biến mất đoạn và lặp đoạn.",
-          "hoán vị gen."
+          "hoán vị gene."
         ],
         "correct_index": 2,
         "answer_key_ready": true,
@@ -7423,14 +7423,14 @@
         "lesson_id": "chu-de-2-bai-2",
         "lesson": "2.2",
         "level": "7. Bài tập xác định giao tử đột biến",
-        "question": "Một cơ thể có tế bào chứa cặp NST giới tính XAXa. Trong quá trình giảm phân phát sinh giao\ntử, ở một số tế bào cặp NST này không phân li trong giảm phân II. Các loại giao tử có thể được tạo ra từ cơ thể trên là",
+        "question": "Một cơ thể có tế bào chứa cặp NST giới tính X^AX^a. Trong quá trình giảm phân phát sinh giao\ntử, ở một số tế bào cặp NST này không phân li trong giảm phân II. Các loại giao tử có thể được tạo ra từ cơ thể trên là",
         "images": [],
         "tables": [],
         "options": [
-          "XAXa, XaXa, XA, Xa, O.",
-          "XAXA, XAXa, XA, Xa, O.",
-          "XAXA XaXa, XA,Xa,O.",
-          "XAXa, O, XA, XAXA ."
+          "X^AX^a, X^aX^a, XA, Xa, O.",
+          "X^AX^A, X^AX^a, XA, Xa, O.",
+          "X^AX^A X^aX^a, XA,Xa,O.",
+          "X^AX^a, O, XA, X^AX^A ."
         ],
         "correct_index": 2,
         "answer_key_ready": true,
@@ -7847,10 +7847,10 @@
         "images": [],
         "tables": [],
         "options": [
-          "XaY và XAY.",
-          "XAXAY và XaXaY.",
-          "XAXAY và XaY.",
-          "XAXaY và XaY."
+          "X^aY và X^AY.",
+          "XAX^AY và XaX^aY.",
+          "XAX^AY và X^aY.",
+          "XAX^aY và X^aY."
         ],
         "correct_index": 3,
         "answer_key_ready": true,
@@ -7883,7 +7883,7 @@
         "lesson_id": "chu-de-2-bai-2",
         "lesson": "2.2",
         "level": "8. Bài tập đột biến lệch bội",
-        "question": "Mẹ có kiểu gene XAXa, bố có kiểu gene XAY, con gái có kiểu gene XAXaXa. Cho biết quá trình giảm phân ở bố và mẹ không xảy ra đột biến gene và đột biến cấu trúc NST. Kết luận nào sau đây về quá trình giảm phân ở bố và mẹ là đúng?",
+        "question": "Mẹ có kiểu gene X^AX^a, bố có kiểu gene X^AY, con gái có kiểu gene X^AX^aX^a. Cho biết quá trình giảm phân ở bố và mẹ không xảy ra đột biến gene và đột biến cấu trúc NST. Kết luận nào sau đây về quá trình giảm phân ở bố và mẹ là đúng?",
         "images": [],
         "tables": [],
         "options": [
@@ -7907,10 +7907,10 @@
         "images": [],
         "tables": [],
         "options": [
-          "Con trai đó có kiểu gene XMXMY và bị lệch bội do mẹ.",
-          "Con trai đó có kiểu gene XMXmY và bị lệch bội do mẹ.",
-          "Con trai đó có kiểu gene XMXMY và bị lệch bội do bố.",
-          "Con trai đó có kiểu gene XMXmY và bị lệch bội do bố."
+          "Con trai đó có kiểu gene XMX^MY và bị lệch bội do mẹ.",
+          "Con trai đó có kiểu gene XMX^mY và bị lệch bội do mẹ.",
+          "Con trai đó có kiểu gene XMX^MY và bị lệch bội do bố.",
+          "Con trai đó có kiểu gene XMX^mY và bị lệch bội do bố."
         ],
         "correct_index": 3,
         "answer_key_ready": true,
@@ -7927,10 +7927,10 @@
         "images": [],
         "tables": [],
         "options": [
-          "Mẹ XHXH bố XhY, đột biến lệch bội xảy ra trong phát sinh giao tử của mẹ.",
-          "Mẹ XHXh, bố XHY, đột biến lệch bội xảy ra trong phát sinh giao tử của bố.",
-          "Mẹ XHXh bố XHY, đột biến lệch bội xảy ra trong phát sinh giao tử của mẹ.",
-          "Mẹ XHXH bố XHY, đột biến lệch bội xảy ra trong phát sinh giao tử của bố."
+          "Mẹ X^HX^H bố X^hY, đột biến lệch bội xảy ra trong phát sinh giao tử của mẹ.",
+          "Mẹ X^HX^h, bố X^HY, đột biến lệch bội xảy ra trong phát sinh giao tử của bố.",
+          "Mẹ X^HX^h bố X^HY, đột biến lệch bội xảy ra trong phát sinh giao tử của mẹ.",
+          "Mẹ X^HX^H bố X^HY, đột biến lệch bội xảy ra trong phát sinh giao tử của bố."
         ],
         "correct_index": 2,
         "answer_key_ready": true,
@@ -8663,7 +8663,7 @@
         "lesson_id": "chu-de-2-bai-3",
         "lesson": "2.3",
         "level": "1. Bài tập giao tử",
-        "question": "Có 100 tế bào sinh tinh của cơ thể đực có kiểu gene Ab/aB tiến hành giảm phân tạo tinh trùng, trong đó có 20 tế bào xảy ra hoán vị gen. Biết rằng không xảy ra đột biến, tần số hoán vị gene là",
+        "question": "Có 100 tế bào sinh tinh của cơ thể đực có kiểu gene Ab/aB tiến hành giảm phân tạo tinh trùng, trong đó có 20 tế bào xảy ra hoán vị gene. Biết rằng không xảy ra đột biến, tần số hoán vị gene là",
         "images": [],
         "tables": [],
         "options": [
@@ -8722,7 +8722,7 @@
         "lesson_id": "chu-de-2-bai-3",
         "lesson": "2.3",
         "level": "1. Bài tập giao tử",
-        "question": "Một tế bào sinh tinh có kiểu gene AaXBXb giảm phân bình thường sẽ tạo ra bao nhiêu loại giao tử?",
+        "question": "Một tế bào sinh tinh có kiểu gene AaX^BX^b giảm phân bình thường sẽ tạo ra bao nhiêu loại giao tử?",
         "images": [],
         "tables": [],
         "options": [
@@ -10133,7 +10133,7 @@
         "orig_num": 8,
         "lesson_id": "chu-de-2-bai-2",
         "lesson": "2.2",
-        "question": "Cho biết mỗi cặp gene quy định một tính trạng và gene trội là trội hoàn toàn; Cơ thể tứ bội giảm phân chỉ sinh ra giao tử lưỡng bội có khả năng thụ tinh. Xét các phép lai sau:\nI. AAaaBbbb × aaaaBBbb II. AAaaBBbb × AaaaBbbb\nIII. AaaaBBBb × AaaaBbbb IV. AaaaBBbb × AaBb\nV. AaaaBBbb × aaaaBbbb VI. AaaaBBbb × aabb\nTheo lí thuyết, trong 6 phép lai nói trên có bao nhiêu phép lai mà đời con có 12 kiểu gen, 4 kiểu hình?",
+        "question": "Cho biết mỗi cặp gene quy định một tính trạng và gene trội là trội hoàn toàn; Cơ thể tứ bội giảm phân chỉ sinh ra giao tử lưỡng bội có khả năng thụ tinh. Xét các phép lai sau:\nI. AAaaBbbb × aaaaBBbb II. AAaaBBbb × AaaaBbbb\nIII. AaaaBBBb × AaaaBbbb IV. AaaaBBbb × AaBb\nV. AaaaBBbb × aaaaBbbb VI. AaaaBBbb × aabb\nTheo lí thuyết, trong 6 phép lai nói trên có bao nhiêu phép lai mà đời con có 12 kiểu gene, 4 kiểu hình?",
         "images": [],
         "tables": [],
         "placeholder": "Nhập kết quả của bạn...",
@@ -10185,5 +10185,5 @@
       }
     ]
   },
-  "bundled_version": "2026.11.26-exercises-v3"
+  "bundled_version": "2026.11.26-dna-geno-v4"
 }

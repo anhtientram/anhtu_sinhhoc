@@ -296,6 +296,11 @@ export const api = {
       method: "PUT",
       body: JSON.stringify({ content }),
     }),
+  updateTopicMeta: (id, payload) =>
+    apiRequest(`/api/topics/${encodeURIComponent(id)}/meta`, {
+      method: "PUT",
+      body: JSON.stringify(payload),
+    }),
 
   importTopicFile: (id, fileOrPayload, meta = {}) => {
     if (typeof Blob !== "undefined" && fileOrPayload instanceof Blob) {

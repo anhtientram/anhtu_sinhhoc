@@ -1742,6 +1742,55 @@ class Bio12Handler(BaseHTTPRequestHandler):
                     record_password_change(conn, updated, reason="profile_change")
                 return self.send_json(200, {"user": sanitize_user(updated), "message": "Đã cập nhật hồ sơ thành công!"})
 
+            # Staff: Chỉnh sửa nhanh tên / mô tả / thứ tự Chủ đề tại mục Quản trị hệ thống
+            m_meta = re.match(r"^/api/topics/([a-zA-Z0-9_-]+)/meta$", path)
+            if m_meta:
+                teacher = self.require_teacher(conn, qs, body)
+                if not teacher:
+                    return
+                tid = m_meta.group(1)
+                row = conn.execute("SELECT * FROM topics WHERE id = ?", (tid,)).fetchone()
+                if not row:
+                    return self.send_json(404, {"error": "Không tìm thấy chủ đề."})
+
+                new_title = (body.get("title") or "").strip()
+                if not new_title:
+                    return self.send_json(400, {"error": "Tên Chủ đề không được để trống."})
+                new_subtitle = (body.get("subtitle") if "subtitle" in body else (row["subtitle"] or "")).strip()
+                new_order = int(body.get("order_index") or row["order_index"] or 1)
+                ts = now_iso()
+
+                content = json.loads(row["content_json"])
+                content["title"] = new_title
+                content["subtitle"] = new_subtitle
+                content["order_index"] = new_order
+
+                conn.execute(
+                    """
+                    UPDATE topics
+                    SET order_index = ?, title = ?, subtitle = ?, content_json = ?, updated_by = ?, updated_at = ?
+                    WHERE id = ?
+                    """,
+                    (new_order, new_title, new_subtitle, json.dumps(content, ensure_ascii=False), teacher["id"], ts, tid),
+                )
+                conn.commit()
+                app_cache.invalidate_topics(tid)
+                return self.send_json(
+                    200,
+                    {
+                        "ok": True,
+                        "topic": {
+                            "id": tid,
+                            "order_index": new_order,
+                            "title": new_title,
+                            "subtitle": new_subtitle,
+                            "status": row["status"],
+                            "updated_at": ts,
+                        },
+                        "message": f"Đã cập nhật tên Chủ đề thành '{new_title}'.",
+                    },
+                )
+
             # Teacher: Update topic content (lessons, interactive video, knowledge system, quiz bank)
             m = re.match(r"^/api/topics/([a-zA-Z0-9_-]+)$", path)
             if m:

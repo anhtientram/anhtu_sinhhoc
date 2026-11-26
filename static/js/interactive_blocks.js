@@ -312,6 +312,15 @@ function renderInteractiveTable(block) {
     const bodyHtml = body
       .map((r, bi) => {
         const rowIndex = bi + headerCount;
+        if (r.length === 1 && headerRow.length > 1) {
+          const spanCols = headerRow.length + (isChecked ? 1 : 0);
+          return `<tr class="ex-subhead-row"><td colspan="${spanCols}"><strong>${formatBioHtml(r[0])}</strong></td></tr>`;
+        }
+        if (!(String(rowIndex) in radioAnswers)) {
+          const spanCols = headerRow.length + (isChecked ? 1 : 0);
+          const merged = r.filter((x) => (x || "").trim()).join(" ");
+          return `<tr class="ex-subhead-row"><td colspan="${spanCols}"><strong>${formatBioHtml(merged)}</strong></td></tr>`;
+        }
         const key = `${tid}::rad::${rowIndex}`;
         const chosenCol = answerStore.has(key) ? Number(answerStore.get(key)) : -1;
         const correctCol = Number(radioAnswers[String(rowIndex)]);
@@ -482,6 +491,102 @@ function renderInteractiveTable(block) {
         <div class="data-table-wrap" style="margin:0;">
           <table class="data-table ex-interactive-table">
             <thead><tr>${headerRow.map((c) => `<th>${formatBioHtml(c)}</th>`).join("")}</tr></thead>
+            <tbody>${bodyHtml}</tbody>
+          </table>
+        </div>
+        ${renderActionBar(tid, isChecked, summary)}
+      </div>
+    `;
+  }
+
+  // --- Mode 3c: check_multi (chọn nhiều ô × trên cùng một hàng — VD: 6.3 Câu 2, 7.5 Câu 1) ---
+  if (mode === "check_multi") {
+    const headerCount = inter.header_rows || 2;
+    const headerRow = rows[headerCount - 1] || rows[0];
+    const body = rows.slice(headerCount);
+    const checkCols = inter.check_cols || [];
+    const colLabels = inter.col_labels || {};
+    const rowAnswers = inter.row_answers || {};
+    let rightRows = 0;
+    const totalRows = Object.keys(rowAnswers).length;
+
+    const bodyHtml = body
+      .map((r, bi) => {
+        const rowIndex = bi + headerCount;
+        const expected = rowAnswers[String(rowIndex)];
+        if (!expected) {
+          const spanCols = headerRow.length + (isChecked ? 1 : 0);
+          return `<tr class="ex-subhead-row"><td colspan="${spanCols}"><strong>${formatBioHtml(r[0] || "")}</strong></td></tr>`;
+        }
+        const expectedCols = Array.isArray(expected) ? expected : expected.cols || [];
+        const noteText = Array.isArray(expected) ? "" : expected.note || "";
+        const expectedSet = new Set(expectedCols.map(Number));
+        let allMatch = true;
+        let anyPicked = false;
+        for (const ci of checkCols) {
+          const cKey = `${tid}::cm::${rowIndex}:${ci}`;
+          const marked = Boolean(answerStore.get(cKey));
+          if (marked) anyPicked = true;
+          if (marked !== expectedSet.has(ci)) allMatch = false;
+        }
+        if (isChecked && allMatch) rightRows++;
+
+        const cellsHtml = r
+          .map((c, ci) => {
+            if (checkCols.includes(ci)) {
+              const cKey = `${tid}::cm::${rowIndex}:${ci}`;
+              const selected = Boolean(answerStore.get(cKey));
+              const shouldMark = expectedSet.has(ci);
+              let extraCls = "";
+              if (isChecked) {
+                if (selected && shouldMark) extraCls = "ex-input-correct";
+                else if (selected && !shouldMark) extraCls = "ex-input-wrong";
+                else if (!selected && shouldMark) extraCls = "ex-radio-reveal";
+              }
+              return `
+                <td style="text-align:center;">
+                  <button type="button" class="ex-check-box ${selected ? "is-marked" : ""} ${extraCls}" data-chk-key="${escapeHtml(
+                cKey
+              )}" aria-pressed="${selected ? "true" : "false"}">
+                    ${selected ? "✕" : ""}
+                  </button>
+                </td>
+              `;
+            }
+            return ci === 0
+              ? `<td><strong>${formatBioHtml(c)}</strong></td>`
+              : `<td style="white-space:pre-line;">${formatBioHtml(c)}</td>`;
+          })
+          .join("");
+
+        const officialLabels = expectedCols.map((col) => colLabels[String(col)] || "").filter(Boolean).join(", ");
+        const fullAns = noteText ? `${officialLabels} (${noteText})` : officialLabels;
+        const sideCell = isChecked
+          ? `<td class="ex-table-interactive-cell ex-radio-answer-col">
+               <div class="ex-answer-side ${!anyPicked ? "ex-ans-empty" : allMatch ? "ex-ans-correct" : "ex-ans-wrong"}">
+                 <div class="ex-answer-badge"><span>${!anyPicked ? "•" : allMatch ? "✓" : "✕"}</span> ${
+              !anyPicked ? "Chưa chọn" : allMatch ? "Chính xác" : "Chưa đúng"
+            }</div>
+                 <div class="ex-answer-text"><strong>Đáp án:</strong> ${escapeHtml(fullAns)}</div>
+               </div>
+             </td>`
+          : "";
+
+        return `<tr>${cellsHtml}${sideCell}</tr>`;
+      })
+      .join("");
+
+    const summary = isChecked ? `Đúng ${rightRows}/${totalRows} dòng` : "";
+    return `
+      <div class="ex-block-card" data-ex-unit="${escapeHtml(tid)}">
+        <div class="data-table-wrap" style="margin:0;">
+          <table class="data-table ex-interactive-table">
+            <thead>
+              <tr>
+                ${headerRow.map((c) => `<th>${formatBioHtml(c)}</th>`).join("")}
+                ${isChecked ? `<th>Đáp án đúng</th>` : ""}
+              </tr>
+            </thead>
             <tbody>${bodyHtml}</tbody>
           </table>
         </div>

@@ -969,15 +969,15 @@ def extract_body_items_from_txt(file_bytes: bytes) -> Dict:
 RE_TOPIC_TITLE = re.compile(r"^CHỦ\s*ĐỀ\s*\d+\s*[:\.\-]?\s*(.*)$", re.IGNORECASE)
 RE_HTKT_MARKER = re.compile(r"^(?:PHẦN\s+)?HỆ\s*THỐNG\s*KIẾN\s*THỨC\b", re.IGNORECASE)
 RE_MCQ_MARKER = re.compile(
-    r"^(?:PHẦN\s*(?:I\b|1\b)\s*[\.\:\-]\s*.*TRẮC\s*NGHIỆM|CÂU\s*HỎI\s*TRẮC\s*NGHIỆM\s*NHIỀU|TRẮC\s*NGHIỆM\s*(?:4\s*ĐÁP\s*ÁN|NHIỀU))",
+    r"^(?:PHẦN\s*(?:I\b|1\b)\s*[\.\:\-]\s*.*TRẮC\s*NGHIỆM|CÂU\s*HỎI\s*TRẮC\s*NGHIỆM\s*(?:NHIỀU\s*)?LỰA\s*CHỌN|CÂU\s*HỎI\s*TRẮC\s*NGHIỆM\s*NHIỀU|TRẮC\s*NGHIỆM\s*(?:4\s*ĐÁP\s*ÁN|NHIỀU))",
     re.IGNORECASE,
 )
 RE_TF_MARKER = re.compile(
-    r"^(?:PHẦN\s*(?:II\b|2\b)\s*[\.\:\-]\s*.*ĐÚNG|CÂU\s*HỎI\s*TRẮC\s*NGHIỆM\s*ĐÚNG\s*[/\-]?\s*SAI|TRẮC\s*NGHIỆM\s*ĐÚNG\s*[/\-]?\s*SAI)",
+    r"^(?:PHẦN\s*(?:II\b|2\b)\s*[\.\:\-]\s*.*ĐÚNG|CÂU\s*HỎI\s*(?:TRẮC\s*NGHIỆM\s*)?ĐÚNG\s*[/\-]?\s*SAI|TRẮC\s*NGHIỆM\s*ĐÚNG\s*[/\-]?\s*SAI)",
     re.IGNORECASE,
 )
 RE_SA_MARKER = re.compile(
-    r"^(?:PHẦN\s*(?:III\b|3\b)\s*[\.\:\-]\s*.*TRẢ\s*LỜI|CÂU\s*HỎI\s*TRẮC\s*NGHIỆM\s*TRẢ\s*LỜI\s*NGẮN|TRẮC\s*NGHIỆM\s*TRẢ\s*LỜI\s*NGẮN)",
+    r"^(?:PHẦN\s*(?:III\b|3\b)\s*[\.\:\-]\s*.*TRẢ\s*LỜI|CÂU\s*HỎI\s*(?:TRẮC\s*NGHIỆM\s*)?TRẢ\s*LỜI\s*NGẮN|TRẮC\s*NGHIỆM\s*TRẢ\s*LỜI\s*NGẮN)",
     re.IGNORECASE,
 )
 
@@ -985,7 +985,7 @@ RE_SA_MARKER = re.compile(
 RE_BAI_LESSON = re.compile(r"^(?:BÀI\s*\d+\s*[:\.\-]|CHỦ\s*ĐỀ\s*BÀI\s*TẬP\b)", re.IGNORECASE)
 RE_UPPER_SECTION_LESSON = re.compile(r"^(?:[A-B]\.\s+[A-ZÀ-ỸĐ]|[1-9]\.\d+[\.:]?\s+[A-ZÀ-ỸĐ]{2,})")
 
-RE_QUESTION_START = re.compile(r"^(?:Câu|Question)\s*([lI]?\d+)\s*[:\.\)]\s*(.*)$", re.IGNORECASE)
+RE_QUESTION_START = re.compile(r"^(?:Câu|Cân|Question)\s*([lI]?\d+)\s*[:\.\)]\s*(.*)$", re.IGNORECASE)
 RE_OPT_LINE = re.compile(r"^([A-D])\s*[\.\)]\s*(.+)$")
 RE_TF_STMT = re.compile(r"^[\.\…\s\-–•]*([a-dA-D])\s*[\.\)]\s+(.+)$")
 RE_ANSWER_LINE = re.compile(r"^(?:Đáp\s*án|ĐA|Trả\s*lời|Kết\s*quả)\s*[:\.\-]?\s*(.*)$", re.IGNORECASE)

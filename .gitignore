@@ -11,10 +11,12 @@ data/sinhhoc12.db
 data/sinhhoc12.db-wal
 data/sinhhoc12.db-shm
 tools/crop_img_bin
-# Chỉ giữ ảnh gốc của 5 chủ đề mặc định (chu-de-1..5); bỏ qua ảnh phát sinh khi test/import local
+# Chỉ giữ ảnh gốc của 7 chủ đề mặc định (chu-de-1..7); bỏ qua ảnh phát sinh khi test/import local
 static/uploads/*
 !static/uploads/chu-de-1/
 !static/uploads/chu-de-2/
 !static/uploads/chu-de-3/
 !static/uploads/chu-de-4/
 !static/uploads/chu-de-5/
+!static/uploads/chu-de-6/
+!static/uploads/chu-de-7/
