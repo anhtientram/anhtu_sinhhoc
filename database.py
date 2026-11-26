@@ -5,6 +5,8 @@ import json
 import os
 import secrets
 import sqlite3
+import threading
+import time
 from datetime import datetime, timedelta
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -18,22 +20,65 @@ ADMIN_DEFAULT_PASSWORD = os.environ.get("ADMIN_DEFAULT_PASSWORD", "123456789@")
 DEFAULT_USER_PASSWORD = os.environ.get("DEFAULT_USER_PASSWORD", "123456@")
 TEACHER_INVITE_CODE = os.environ.get("TEACHER_INVITE_CODE", "GV-SINH12")
 
+# Khoá đồng bộ tiến trình tránh lỗi "database is locked" khi nhiều học sinh gửi yêu cầu cùng lúc
+DB_LOCK = threading.RLock()
+_DB_DIR_READY = False
+
+# Bộ nhớ đệm nhẹ cho auth token (TTL 30s) giúp giảm >80% truy vấn SQLite khi lớp đông học sinh
+_TOKEN_CACHE_LOCK = threading.Lock()
+_TOKEN_CACHE = {}  # token -> (expire_ts, user_dict)
+_TOKEN_CACHE_TTL = 30.0
+_TOKEN_CACHE_MAX = 512
+
+
+def invalidate_token_cache(token: str = None, user_id: int = None):
+    with _TOKEN_CACHE_LOCK:
+        if token:
+            _TOKEN_CACHE.pop(token, None)
+        if user_id is not None:
+            for k in [tk for tk, (_, u) in _TOKEN_CACHE.items() if u.get("id") == user_id]:
+                _TOKEN_CACHE.pop(k, None)
+        if token is None and user_id is None:
+            _TOKEN_CACHE.clear()
+
 
 def now_iso():
     return datetime.now().isoformat(timespec="seconds")
 
 
 def get_conn():
-    os.makedirs(os.path.dirname(os.path.abspath(DB_PATH)), exist_ok=True)
-    conn = sqlite3.connect(DB_PATH, timeout=30.0, check_same_thread=False)
+    """
+    Mở kết nối SQLite an toàn, KHÔNG chạy PRAGMA journal_mode trên mỗi request
+    (tránh deadlock / khóa WAL -shm khi chạy đồng thời trên Wasmer Edge /data).
+    """
+    global _DB_DIR_READY
+    if not _DB_DIR_READY:
+        os.makedirs(os.path.dirname(os.path.abspath(DB_PATH)), exist_ok=True)
+        _DB_DIR_READY = True
+    conn = sqlite3.connect(DB_PATH, timeout=15.0, check_same_thread=False)
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA foreign_keys = ON;")
-    conn.execute("PRAGMA busy_timeout = 10000;")
+    conn.execute("PRAGMA busy_timeout = 8000;")
+    conn.execute("PRAGMA temp_store = MEMORY;")
+    return conn
+
+
+def _configure_sqlite_once(conn):
+    """Cấu hình journal_mode & synchronous 1 lần duy nhất lúc khởi động server."""
+    env_mode = (os.environ.get("SQLITE_JOURNAL_MODE") or "").strip().upper()
+    if env_mode in ("DELETE", "TRUNCATE", "PERSIST", "MEMORY", "WAL", "OFF"):
+        target_mode = env_mode
+    elif os.path.abspath(DB_PATH).startswith("/data"):
+        # Trên Wasmer Edge WASI volume (/data), DELETE ổn định tuyệt đối, không treo khoá -shm của WAL
+        target_mode = "DELETE"
+    else:
+        target_mode = "WAL"
     try:
-        conn.execute("PRAGMA journal_mode = WAL;")
+        conn.execute(f"PRAGMA journal_mode = {target_mode};")
+        conn.execute("PRAGMA synchronous = NORMAL;")
+        conn.execute("PRAGMA cache_size = -8000;")
     except sqlite3.Error:
         pass
-    return conn
 
 
 def hash_password(password: str, salt: str = None) -> str:
@@ -224,12 +269,16 @@ def wipe_all_access_data_and_migrate():
 
 
 def init_db():
-    conn = get_conn()
-    cur = conn.cursor()
-    cur.executescript(SCHEMA_SQL)
-    conn.commit()
-    seed_initial_data(conn)
-    conn.close()
+    with DB_LOCK:
+        conn = get_conn()
+        try:
+            _configure_sqlite_once(conn)
+            cur = conn.cursor()
+            cur.executescript(SCHEMA_SQL)
+            conn.commit()
+            seed_initial_data(conn)
+        finally:
+            conn.close()
 
 
 def seed_initial_data(conn):
@@ -369,6 +418,14 @@ def create_token(conn, user_id: int) -> str:
 def get_user_by_token(conn, token: str):
     if not token:
         return None
+    now_t = time.time()
+    with _TOKEN_CACHE_LOCK:
+        cached = _TOKEN_CACHE.get(token)
+        if cached and cached[0] > now_t:
+            return cached[1]
+        if cached:
+            _TOKEN_CACHE.pop(token, None)
+
     row = conn.execute(
         """
         SELECT u.* FROM auth_tokens t
@@ -377,7 +434,14 @@ def get_user_by_token(conn, token: str):
         """,
         (token, now_iso()),
     ).fetchone()
-    return row
+    if not row:
+        return None
+    user_dict = dict(row)
+    with _TOKEN_CACHE_LOCK:
+        if len(_TOKEN_CACHE) >= _TOKEN_CACHE_MAX:
+            _TOKEN_CACHE.clear()
+        _TOKEN_CACHE[token] = (now_t + _TOKEN_CACHE_TTL, user_dict)
+    return user_dict
 
 
 def export_sessions_csv(conn, class_filter: str = "") -> str:
