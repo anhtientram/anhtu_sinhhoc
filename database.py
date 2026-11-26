@@ -9,7 +9,9 @@ import sqlite3
 import ssl
 import threading
 import time
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
+
+VN_TZ = timezone(timedelta(hours=7))
 
 try:
     import pymysql
@@ -81,8 +83,46 @@ def invalidate_token_cache(token: str = None, user_id: int = None):
             _TOKEN_CACHE.clear()
 
 
-def now_iso():
-    return datetime.now().isoformat(timespec="seconds")
+def now_vn() -> datetime:
+    """Luôn trả về thời điểm hiện tại theo múi giờ Việt Nam (Asia/Ho_Chi_Minh, UTC+07:00)."""
+    return datetime.now(VN_TZ)
+
+
+def now_iso() -> str:
+    """Chuỗi ISO-8601 chuẩn theo múi giờ Việt Nam (+07:00), không phụ thuộc múi giờ máy chủ (UTC)."""
+    return now_vn().isoformat(timespec="seconds")
+
+
+def parse_vn_datetime(ts: str):
+    """Chuyển chuỗi ISO (có Z, có +07:00 hoặc không có offset) về datetime aware múi giờ Việt Nam (+07:00)."""
+    if not ts:
+        return None
+    s = str(ts).strip()
+    if not s:
+        return None
+    if s.endswith("Z") or s.endswith("z"):
+        s = s[:-1] + "+00:00"
+    try:
+        dt = datetime.fromisoformat(s)
+    except Exception:
+        return None
+    if dt.tzinfo is None:
+        return dt.replace(tzinfo=VN_TZ)
+    return dt.astimezone(VN_TZ)
+
+
+def to_vn_iso(ts: str) -> str:
+    dt = parse_vn_datetime(ts)
+    if not dt:
+        return ""
+    return dt.isoformat(timespec="seconds")
+
+
+def format_vn_display(ts: str) -> str:
+    dt = parse_vn_datetime(ts)
+    if not dt:
+        return str(ts or "")
+    return dt.strftime("%d/%m/%Y %H:%M:%S")
 
 
 class CompatRow(dict):
@@ -911,7 +951,7 @@ def record_password_change(conn, user_row, reason: str = "profile_update"):
 def create_token(conn, user_id: int) -> str:
     token = secrets.token_urlsafe(32)
     ts = now_iso()
-    exp = (datetime.now() + timedelta(days=7)).isoformat(timespec="seconds")
+    exp = (now_vn() + timedelta(days=7)).isoformat(timespec="seconds")
     conn.execute(
         "INSERT INTO auth_tokens (token, user_id, created_at, expires_at) VALUES (?, ?, ?, ?)",
         (token, user_id, ts, exp),
@@ -933,15 +973,18 @@ def get_user_by_token(conn, token: str):
 
     row = conn.execute(
         """
-        SELECT u.* FROM auth_tokens t
+        SELECT u.*, t.expires_at AS _token_expires_at FROM auth_tokens t
         JOIN users u ON u.id = t.user_id
-        WHERE t.token = ? AND t.expires_at > ?
+        WHERE t.token = ?
         """,
-        (token, now_iso()),
+        (token,),
     ).fetchone()
     if not row:
         return None
-    user_dict = dict(row)
+    exp_dt = parse_vn_datetime(row["_token_expires_at"])
+    if exp_dt is not None and exp_dt <= now_vn():
+        return None
+    user_dict = {k: v for k, v in dict(row).items() if k != "_token_expires_at"}
     with _TOKEN_CACHE_LOCK:
         if len(_TOKEN_CACHE) >= _TOKEN_CACHE_MAX:
             _TOKEN_CACHE.clear()
@@ -986,7 +1029,12 @@ def export_sessions_csv(conn, class_filter: str = "") -> str:
     )
     for r in rows:
         mins = round((r["duration_seconds"] or 0) / 60.0, 1)
-        leave_display = r["leave_time"] or f"Đang học (cập nhật: {r['last_heartbeat']})"
+        enter_display = format_vn_display(r["enter_time"])
+        leave_display = (
+            format_vn_display(r["leave_time"])
+            if r["leave_time"]
+            else f"Đang học (cập nhật: {format_vn_display(r['last_heartbeat'])})"
+        )
         status_vn = "Đang trong lớp" if r["status"] == "active" else "Đã rời lớp"
         writer.writerow(
             [
@@ -997,8 +1045,8 @@ def export_sessions_csv(conn, class_filter: str = "") -> str:
                 r["school_name"],
                 r["phone"],
                 r["topic_id"],
-                r["enter_time"].replace("T", " "),
-                leave_display.replace("T", " "),
+                enter_display,
+                leave_display,
                 mins,
                 r["last_tab"],
                 status_vn,

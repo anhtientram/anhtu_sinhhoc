@@ -8,7 +8,7 @@
 //  - Chấm điểm tự động theo thang điểm Bộ GD&ĐT + hiển thị đáp án gợi ý chi tiết
 //  - Phân quyền chặt chẽ: Quản trị viên (toàn quyền) | Giáo viên (chỉ thêm, không xoá) | Học sinh (chỉ làm bài)
 
-import { api, formatDateTimeVN, formatDuration } from "./api.js";
+import { api, formatDateTimeVN, formatDuration, nowVnIso, VN_TIMEZONE } from "./api.js";
 import { escapeHtml, formatBioHtml } from "./format.js";
 
 const LETTERS = ["A", "B", "C", "D"];
@@ -199,6 +199,7 @@ export function stopMockExamTimers() {
 
 function formatClockHMS(dateObj) {
   return dateObj.toLocaleTimeString("vi-VN", {
+    timeZone: VN_TIMEZONE,
     hour: "2-digit",
     minute: "2-digit",
     second: "2-digit",
@@ -207,6 +208,7 @@ function formatClockHMS(dateObj) {
 
 function formatDateDMY(dateObj) {
   return dateObj.toLocaleDateString("vi-VN", {
+    timeZone: VN_TIMEZONE,
     day: "2-digit",
     month: "2-digit",
     year: "numeric",
@@ -1668,7 +1670,7 @@ export function mountMockExamSection(container, { currentUser, effectiveStudentV
     const now = new Date();
     st.activeExam = exam;
     st.startedAtDate = now;
-    st.startedAtIso = now.toISOString();
+    st.startedAtIso = nowVnIso();
     st.durationSecondsLimit = (Number(exam.duration_minutes) || 45) * 60;
     st.elapsedSeconds = 0;
     st.answers = { mcq: {}, true_false: {}, short_answer: {} };

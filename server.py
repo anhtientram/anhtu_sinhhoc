@@ -36,9 +36,12 @@ from database import (
     init_db,
     invalidate_token_cache,
     now_iso,
+    now_vn,
+    parse_vn_datetime,
     record_login,
     record_password_change,
     sanitize_user,
+    to_vn_iso,
     upsert_lesson_progress,
     upsert_topic,
     verify_password,
@@ -130,10 +133,7 @@ def strip_base_path(path: str) -> str:
 
 
 def parse_iso_seconds(ts: str):
-    try:
-        return datetime.fromisoformat(ts)
-    except Exception:
-        return None
+    return parse_vn_datetime(ts)
 
 
 def calc_duration_seconds(enter_time: str, end_time: str) -> int:
@@ -155,7 +155,7 @@ class Bio12Handler(BaseHTTPRequestHandler):
             pass
 
     def log_message(self, fmt, *args):
-        sys.stdout.write(f"[{datetime.now().strftime('%H:%M:%S')}] {self.address_string()} - {fmt % args}\n")
+        sys.stdout.write(f"[{now_vn().strftime('%H:%M:%S')}] {self.address_string()} - {fmt % args}\n")
         sys.stdout.flush()
 
     def _client_accepts_gzip(self) -> bool:
@@ -489,8 +489,8 @@ class Bio12Handler(BaseHTTPRequestHandler):
                 if not teacher:
                     return
 
-                # Auto-close stale sessions whose last heartbeat was > 10 minutes ago
-                cutoff = datetime.now().timestamp() - 600
+                # Auto-close stale sessions whose last heartbeat was > 10 minutes ago (múi giờ Việt Nam +07:00)
+                cutoff = now_vn().timestamp() - 600
                 active_rows = conn.execute("SELECT * FROM study_sessions WHERE status = 'active'").fetchall()
                 stale_updates = []
                 for ar in active_rows:
@@ -1692,7 +1692,7 @@ class Bio12Handler(BaseHTTPRequestHandler):
                     return self.send_json(400, {"error": str(e)})
 
                 job_id = secrets.token_urlsafe(12)
-                stamp = datetime.now().strftime("%Y%m%d-%H%M")
+                stamp = now_vn().strftime("%Y%m%d-%H%M")
                 EXAM_EXPORTS[job_id] = {
                     "docx": pkg["docx_bytes"],
                     "xlsx": pkg["xlsx_bytes"],
@@ -2093,7 +2093,7 @@ class Bio12Handler(BaseHTTPRequestHandler):
 
                 result = grade_mock_exam_submission(content, answers)
                 ts_now = now_iso()
-                started_at = (body.get("started_at") or "").strip() or ts_now
+                started_at = to_vn_iso(body.get("started_at") or "") or ts_now
                 duration_seconds = max(0, int(body.get("duration_seconds") or 0))
 
                 cur = conn.execute(
