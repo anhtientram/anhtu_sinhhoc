@@ -430,6 +430,12 @@ export const api = {
       body: JSON.stringify({}),
     }),
 
+  adminResetPasswordByUsername: (username) =>
+    apiRequest("/api/admin/users/reset-by-username", {
+      method: "POST",
+      body: JSON.stringify({ username }),
+    }),
+
   adminMarkPasswordAlertsRead: () =>
     apiRequest("/api/admin/password-alerts/mark-read", {
       method: "POST",
@@ -520,11 +526,40 @@ export function sendBeaconCheckout(sessionId, currentTab) {
   }
 }
 
+export const VN_TIMEZONE = "Asia/Ho_Chi_Minh";
+
+export function parseServerDate(isoStr) {
+  if (!isoStr) return new Date(NaN);
+  const raw = String(isoStr).trim();
+  if (!raw) return new Date(NaN);
+  // Nếu chuỗi cũ chưa có offset múi giờ (naive ISO), hiểu mặc định là giờ Việt Nam (+07:00)
+  const hasTz = /(?:Z|[+\-]\d{2}:?\d{2})$/i.test(raw);
+  const normalized = hasTz ? raw : `${raw.replace(" ", "T")}+07:00`;
+  return new Date(normalized);
+}
+
+export function nowVnIso() {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: VN_TIMEZONE,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: false,
+  }).formatToParts(new Date());
+  const map = Object.fromEntries(parts.map((p) => [p.type, p.value]));
+  const hh = map.hour === "24" ? "00" : map.hour;
+  return `${map.year}-${map.month}-${map.day}T${hh}:${map.minute}:${map.second}+07:00`;
+}
+
 export function formatDateTimeVN(isoStr) {
   if (!isoStr) return "—";
-  const d = new Date(isoStr);
+  const d = parseServerDate(isoStr);
   if (Number.isNaN(d.getTime())) return isoStr;
   return d.toLocaleString("vi-VN", {
+    timeZone: VN_TIMEZONE,
     hour: "2-digit",
     minute: "2-digit",
     second: "2-digit",
@@ -536,9 +571,13 @@ export function formatDateTimeVN(isoStr) {
 
 export function formatTimeShort(isoStr) {
   if (!isoStr) return "--:--";
-  const d = new Date(isoStr);
+  const d = parseServerDate(isoStr);
   if (Number.isNaN(d.getTime())) return "--:--";
-  return d.toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" });
+  return d.toLocaleTimeString("vi-VN", {
+    timeZone: VN_TIMEZONE,
+    hour: "2-digit",
+    minute: "2-digit",
+  });
 }
 
 export function formatDuration(seconds) {

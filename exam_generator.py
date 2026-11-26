@@ -15,7 +15,9 @@ import os
 import random
 import re
 import zipfile
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
+
+VN_TZ = timezone(timedelta(hours=7))
 from typing import Dict, List, Tuple
 from xml.sax.saxutils import escape as xml_escape
 
@@ -511,7 +513,7 @@ def build_answer_keys_xlsx(exams: List[Dict], meta: Dict, actual_counts: Dict) -
         ["Tổng điểm phần", f"{mcq_n * 0.25:.2f}", f"{tf_n * 1.0:.2f}", f"{sa_n * 0.25:.2f}", f"{total_pts:.2f}"],
         ["", "", "", "", ""],
         ["Kỳ kiểm tra", meta.get("title") or "Đề kiểm tra Sinh học 12", "", "Số lượng đề", len(exams)],
-        ["Danh sách Mã đề", ", ".join(codes), "", "Ngày xuất", datetime.now().strftime("%d/%m/%Y %H:%M")],
+        ["Danh sách Mã đề", ", ".join(codes), "", "Ngày xuất", datetime.now(VN_TZ).strftime("%d/%m/%Y %H:%M")],
     ]
 
     sheets = [

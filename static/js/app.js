@@ -6,6 +6,7 @@ import {
   formatTimeShort,
   getStoredSessionId,
   getToken,
+  parseServerDate,
   sendBeaconCheckout,
   setStoredSessionId,
   setToken,
@@ -110,7 +111,7 @@ function startSessionTimers() {
   stopSessionTimers();
   if (!state.activeSession) return;
 
-  const enterMs = new Date(state.activeSession.enter_time).getTime();
+  const enterMs = parseServerDate(state.activeSession.enter_time).getTime();
   state.sessionElapsedSeconds = Number.isNaN(enterMs)
     ? state.activeSession.duration_seconds || 0
     : Math.max(0, Math.floor((Date.now() - enterMs) / 1000));
