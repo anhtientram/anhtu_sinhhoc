@@ -2,6 +2,115 @@
 
 const TOKEN_KEY = "sinhhoc12_auth_token";
 const SESSION_KEY = "sinhhoc12_active_session_id";
+const TOPIC_STORAGE_PREFIX = "sh12_topic_v1:";
+
+const _topicMemCache = new Map();
+const _attemptsMemCache = new Map();
+const _teacherMemState = {
+  overview: null,
+  cacheInfo: null,
+  examPool: null,
+  loadedAt: 0,
+  subtab: "members",
+  contentSubMode: "add_topic",
+};
+
+export const clientCache = {
+  getTopic(id, expectedUpdatedAt = "") {
+    if (!id) return null;
+    const mem = _topicMemCache.get(id);
+    if (mem && (!expectedUpdatedAt || !mem.updated_at || mem.updated_at === expectedUpdatedAt)) {
+      return mem;
+    }
+    try {
+      const raw = sessionStorage.getItem(TOPIC_STORAGE_PREFIX + id);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        const topic = parsed?.topic;
+        if (topic && (!expectedUpdatedAt || !topic.updated_at || topic.updated_at === expectedUpdatedAt)) {
+          _topicMemCache.set(id, topic);
+          return topic;
+        }
+      }
+    } catch {}
+    return null;
+  },
+
+  setTopic(id, topic) {
+    if (!id || !topic) return;
+    _topicMemCache.set(id, topic);
+    const payload = JSON.stringify({ updated_at: topic.updated_at || "", topic });
+    try {
+      sessionStorage.setItem(TOPIC_STORAGE_PREFIX + id, payload);
+    } catch {
+      try {
+        for (let i = 0; i < sessionStorage.length; i++) {
+          const k = sessionStorage.key(i);
+          if (k && k.startsWith(TOPIC_STORAGE_PREFIX) && k !== TOPIC_STORAGE_PREFIX + id) {
+            sessionStorage.removeItem(k);
+            break;
+          }
+        }
+        sessionStorage.setItem(TOPIC_STORAGE_PREFIX + id, payload);
+      } catch {}
+    }
+  },
+
+  invalidateTopic(id = "") {
+    if (id) {
+      _topicMemCache.delete(id);
+      try {
+        sessionStorage.removeItem(TOPIC_STORAGE_PREFIX + id);
+      } catch {}
+      return;
+    }
+    _topicMemCache.clear();
+    try {
+      const keys = [];
+      for (let i = 0; i < sessionStorage.length; i++) {
+        const k = sessionStorage.key(i);
+        if (k && k.startsWith(TOPIC_STORAGE_PREFIX)) keys.push(k);
+      }
+      keys.forEach((k) => sessionStorage.removeItem(k));
+    } catch {}
+  },
+
+  getAttempts(topicId = "") {
+    return _attemptsMemCache.get(topicId || "__all__") || null;
+  },
+
+  setAttempts(topicId = "", attempts = []) {
+    _attemptsMemCache.set(topicId || "__all__", attempts);
+  },
+
+  invalidateAttempts(topicId = "") {
+    if (topicId) _attemptsMemCache.delete(topicId);
+    else _attemptsMemCache.clear();
+  },
+
+  getTeacherData() {
+    return _teacherMemState;
+  },
+
+  setTeacherData(partial) {
+    Object.assign(_teacherMemState, partial || {});
+  },
+
+  invalidateTeacherData() {
+    _teacherMemState.overview = null;
+    _teacherMemState.cacheInfo = null;
+    _teacherMemState.examPool = null;
+    _teacherMemState.loadedAt = 0;
+  },
+
+  clearAll() {
+    this.invalidateTopic("");
+    _attemptsMemCache.clear();
+    this.invalidateTeacherData();
+    _teacherMemState.subtab = "members";
+    _teacherMemState.contentSubMode = "add_topic";
+  },
+};
 
 export const BASE_PATH = window.location.pathname.startsWith("/sinhhoc12") ? "/sinhhoc12" : "";
 
@@ -81,6 +190,29 @@ export async function apiRequest(path, options = {}) {
   throw lastErr || new Error("Không thể kết nối máy chủ.");
 }
 
+async function apiBinaryUpload(path, file) {
+  const token = getToken();
+  const headers = { "Content-Type": "application/octet-stream" };
+  if (token) headers["Authorization"] = `Bearer ${token}`;
+
+  const res = await fetch(withBase(path), {
+    method: "POST",
+    headers,
+    body: file,
+  });
+  const text = await res.text();
+  let data = {};
+  try {
+    data = text ? JSON.parse(text) : {};
+  } catch {
+    data = { raw: text };
+  }
+  if (!res.ok) {
+    throw new Error(data.error || `Lỗi máy chủ (${res.status})`);
+  }
+  return data;
+}
+
 export const api = {
   login: (identifier, password, role = "") =>
     apiRequest("/api/auth/login", {
@@ -127,17 +259,37 @@ export const api = {
       body: JSON.stringify({ content }),
     }),
 
-  importTopicFile: (id, payload) =>
-    apiRequest(`/api/topics/${id}/import-file`, {
+  importTopicFile: (id, fileOrPayload, meta = {}) => {
+    if (typeof Blob !== "undefined" && fileOrPayload instanceof Blob) {
+      const qs = new URLSearchParams({
+        filename: fileOrPayload.name || meta.filename || "upload.docx",
+        preview_only: meta.preview_only === false ? "0" : "1",
+        replace_review: meta.replace_review === false ? "0" : "1",
+      });
+      if (meta.sections) qs.set("sections", JSON.stringify(meta.sections));
+      return apiBinaryUpload(`/api/topics/${encodeURIComponent(id)}/import-file?${qs.toString()}`, fileOrPayload);
+    }
+    return apiRequest(`/api/topics/${encodeURIComponent(id)}/import-file`, {
       method: "POST",
-      body: JSON.stringify(payload),
-    }),
+      body: JSON.stringify(fileOrPayload),
+    });
+  },
 
-  previewNewTopicFile: (payload) =>
-    apiRequest("/api/topics/preview-new-file", {
+  previewNewTopicFile: (fileOrPayload, meta = {}) => {
+    if (typeof Blob !== "undefined" && fileOrPayload instanceof Blob) {
+      const qs = new URLSearchParams({
+        filename: fileOrPayload.name || meta.filename || "upload.docx",
+        order_index: String(meta.order_index || ""),
+        title: meta.title || "",
+        subtitle: meta.subtitle || "",
+      });
+      return apiBinaryUpload(`/api/topics/preview-new-file?${qs.toString()}`, fileOrPayload);
+    }
+    return apiRequest("/api/topics/preview-new-file", {
       method: "POST",
-      body: JSON.stringify(payload),
-    }),
+      body: JSON.stringify(fileOrPayload),
+    });
+  },
 
   publishNewTopic: (payload) =>
     apiRequest("/api/topics/publish-new", {

@@ -59,7 +59,11 @@ _raw_base = os.environ.get("BASE_PATH", "sinhhoc12").strip("/")
 BASE_PATH = f"/{_raw_base}" if _raw_base else "/"
 PUBLIC_HOST = os.environ.get("PUBLIC_HOST", "lms.bachanhtu")
 EXTRA_UPLOADS_DIR = os.environ.get("UPLOADS_DIR", "").strip()
-MAX_BODY_BYTES = int(os.environ.get("MAX_BODY_BYTES", str(50 * 1024 * 1024)))
+MAX_BODY_BYTES = int(os.environ.get("MAX_BODY_BYTES", str(100 * 1024 * 1024)))
+
+
+class _PayloadTooLargeError(Exception):
+    pass
 
 # Bộ nhớ tạm lưu các gói đề trộn (.docx + .xlsx) vừa tạo để tải xuống nhanh
 EXAM_EXPORTS = {}
@@ -223,11 +227,18 @@ class Bio12Handler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(payload)
 
-    def read_json_body(self):
+    def read_raw_body(self) -> bytes:
         length = int(self.headers.get("Content-Length", "0") or 0)
-        if length <= 0 or length > MAX_BODY_BYTES:
+        if length <= 0:
+            return b""
+        if length > MAX_BODY_BYTES:
+            raise _PayloadTooLargeError()
+        return self.rfile.read(length)
+
+    def read_json_body(self):
+        raw = self.read_raw_body()
+        if not raw:
             return {}
-        raw = self.rfile.read(length)
         try:
             return json.loads(raw.decode("utf-8"))
         except Exception:
@@ -668,6 +679,8 @@ class Bio12Handler(BaseHTTPRequestHandler):
     def do_POST(self):
         try:
             self._handle_post()
+        except _PayloadTooLargeError:
+            self.send_json(413, {"error": "File vượt quá giới hạn dung lượng cho phép (tối đa 100 MB)."})
         except (BrokenPipeError, ConnectionResetError, TimeoutError):
             return
         except Exception as e:
@@ -677,16 +690,202 @@ class Bio12Handler(BaseHTTPRequestHandler):
             except Exception:
                 pass
 
+    def _parse_upload_request(self, qs):
+        ctype = (self.headers.get("Content-Type") or "").lower()
+        if "application/octet-stream" in ctype:
+            file_bytes = self.read_raw_body()
+            filename = (qs.get("filename", [""])[0] or "").strip()
+            meta = {
+                "filename": filename,
+                "order_index": qs.get("order_index", [""])[0],
+                "title": (qs.get("title", [""])[0] or "").strip(),
+                "subtitle": (qs.get("subtitle", [""])[0] or "").strip(),
+                "id": (qs.get("id", [""])[0] or "").strip(),
+                "preview_only": qs.get("preview_only", ["1"])[0] not in ("0", "false", "False"),
+                "replace_review": qs.get("replace_review", ["1"])[0] not in ("0", "false", "False"),
+            }
+            sec_raw = qs.get("sections", [""])[0]
+            if sec_raw:
+                try:
+                    meta["sections"] = json.loads(sec_raw)
+                except Exception:
+                    pass
+            return meta, file_bytes
+
+        body = self.read_json_body()
+        content_b64 = body.get("content_base64") or ""
+        file_bytes = base64.b64decode(content_b64) if content_b64 else b""
+        return body, file_bytes
+
     def _handle_post(self):
         parsed = urlparse(self.path)
         path = strip_base_path(parsed.path)
         qs = parse_qs(parsed.query)
+
+        # Xử lý đọc & phân tích file Word/PDF NGOÀI DB_LOCK để không làm nghẽn request của học sinh
+        if path == "/api/topics/preview-new-file":
+            meta, file_bytes = self._parse_upload_request(qs)
+            return self._handle_preview_new_topic_file(meta, file_bytes, qs)
+
+        m_imp = re.match(r"^/api/topics/([a-zA-Z0-9_-]+)/import-file$", path)
+        if m_imp:
+            meta, file_bytes = self._parse_upload_request(qs)
+            return self._handle_import_topic_file(m_imp.group(1), meta, file_bytes, qs)
+
         body = self.read_json_body()
 
         with DB_LOCK:
             conn = get_conn()
             try:
                 self._dispatch_post(conn, path, qs, body)
+            finally:
+                conn.close()
+
+    def _handle_preview_new_topic_file(self, body, file_bytes: bytes, qs):
+        filename = (body.get("filename") or "").strip()
+        if not filename or not file_bytes:
+            return self.send_json(400, {"error": "Vui lòng chọn file Word (.docx) hoặc PDF (.pdf)."})
+
+        ext = os.path.splitext(filename)[1].lower()
+        if ext not in (".docx", ".pdf", ".txt", ".md"):
+            return self.send_json(400, {"error": "Chỉ hỗ trợ file Word (.docx), PDF (.pdf) hoặc văn bản (.txt)."})
+
+        conn = get_conn()
+        try:
+            teacher = self.require_teacher(conn, qs, body)
+            if not teacher:
+                return
+            max_ord = conn.execute("SELECT COALESCE(MAX(order_index), 0) FROM topics").fetchone()[0]
+            order_index = int(body.get("order_index") or (max_ord + 1))
+            tid = (body.get("id") or "").strip()
+            if not tid:
+                base_tid = f"chu-de-{order_index}"
+                if conn.execute("SELECT id FROM topics WHERE id = ?", (base_tid,)).fetchone():
+                    tid = f"{base_tid}-{secrets.token_hex(2)}"
+                else:
+                    tid = base_tid
+        finally:
+            conn.close()
+
+        custom_title = (body.get("title") or "").strip()
+        custom_subtitle = (body.get("subtitle") or "").strip()
+
+        try:
+            parsed = parse_document_to_topic(
+                file_bytes,
+                filename,
+                tid,
+                {"id": tid, "order_index": order_index, "title": custom_title},
+            )
+        except Exception as e:
+            return self.send_json(400, {"error": f"Lỗi khi đọc & trích xuất file: {e}"})
+
+        extracted = parsed["extracted"]
+        extracted["id"] = tid
+        extracted["order_index"] = order_index
+        if custom_title:
+            extracted["title"] = custom_title
+        elif not re.match(r"^Chủ đề\s*\d+", extracted["title"], re.IGNORECASE):
+            extracted["title"] = f"Chủ đề {order_index}. {extracted['title']}"
+        if custom_subtitle:
+            extracted["subtitle"] = custom_subtitle
+
+        return self.send_json(
+            200,
+            {
+                "ok": True,
+                "topic_id": tid,
+                "order_index": order_index,
+                "preview": parsed,
+            },
+        )
+
+    def _handle_import_topic_file(self, tid: str, body, file_bytes: bytes, qs):
+        filename = (body.get("filename") or "").strip()
+        preview_only = bool(body.get("preview_only", True))
+        sections = body.get("sections") or {
+            "theory": True,
+            "knowledge": True,
+            "video": True,
+            "review": True,
+        }
+        replace_review = bool(body.get("replace_review", True))
+
+        if not filename or not file_bytes:
+            return self.send_json(400, {"error": "Vui lòng chọn file tài liệu (.docx, .pdf hoặc .txt)."})
+
+        conn = get_conn()
+        try:
+            teacher = self.require_teacher(conn, qs, body)
+            if not teacher:
+                return
+            row = conn.execute("SELECT * FROM topics WHERE id = ?", (tid,)).fetchone()
+            if not row:
+                return self.send_json(404, {"error": "Không tìm thấy chủ đề."})
+            existing = json.loads(row["content_json"])
+            teacher_id = teacher["id"]
+        finally:
+            conn.close()
+
+        try:
+            parsed = parse_document_to_topic(file_bytes, filename, tid, existing)
+        except Exception as e:
+            return self.send_json(400, {"error": f"Lỗi khi đọc & trích xuất file: {e}"})
+
+        if preview_only:
+            return self.send_json(200, {"ok": True, "preview": parsed})
+
+        ext_data = parsed["extracted"]
+        with DB_LOCK:
+            conn = get_conn()
+            try:
+                row = conn.execute("SELECT * FROM topics WHERE id = ?", (tid,)).fetchone()
+                if not row:
+                    return self.send_json(404, {"error": "Không tìm thấy chủ đề."})
+                merged = json.loads(row["content_json"])
+                merged["status"] = "published"
+                merged["source_note"] = ext_data["source_note"]
+
+                if sections.get("theory") and ext_data["lessons"]:
+                    merged["title"] = ext_data["title"] or merged["title"]
+                    merged["lessons"] = ext_data["lessons"]
+                if sections.get("knowledge"):
+                    ks = ext_data["knowledge_system"]
+                    if ks.get("mindmap", {}).get("branches") or ks.get("comparison_tables") or ks.get("units"):
+                        merged["knowledge_system"] = ks
+                if sections.get("video") and (ext_data.get("interactive_video") or {}).get("scenes"):
+                    merged["interactive_video"] = ext_data["interactive_video"]
+                if sections.get("review"):
+                    rev = ext_data["review"]
+                    if replace_review:
+                        if rev["mcq"] or rev["true_false"] or rev["short_answer"]:
+                            merged["review"] = rev
+                    else:
+                        merged.setdefault("review", {"mcq": [], "true_false": [], "short_answer": []})
+                        merged["review"]["mcq"].extend(rev["mcq"])
+                        merged["review"]["true_false"].extend(rev["true_false"])
+                        merged["review"]["short_answer"].extend(rev["short_answer"])
+
+                ts = now_iso()
+                conn.execute(
+                    """
+                    UPDATE topics
+                    SET title = ?, status = 'published', content_json = ?, updated_by = ?, updated_at = ?
+                    WHERE id = ?
+                    """,
+                    (merged["title"], json.dumps(merged, ensure_ascii=False), teacher_id, ts, tid),
+                )
+                conn.commit()
+                app_cache.invalidate_topics(tid)
+                return self.send_json(
+                    200,
+                    {
+                        "ok": True,
+                        "topic": merged,
+                        "stats": parsed["stats"],
+                        "message": f"Đã trích xuất và cập nhật 100% dữ liệu từ file '{filename}'!",
+                    },
+                )
             finally:
                 conn.close()
 
@@ -1018,64 +1217,6 @@ class Bio12Handler(BaseHTTPRequestHandler):
                 app_cache.invalidate_topics(tid)
                 return self.send_json(201, {"topic": content})
 
-            # Staff: Import & Xem trước Chủ đề MỚI từ file Word (.docx) hoặc PDF (.pdf) — chưa lưu DB
-            if path == "/api/topics/preview-new-file":
-                teacher = self.require_teacher(conn, qs, body)
-                if not teacher:
-                    return
-                filename = (body.get("filename") or "").strip()
-                content_b64 = body.get("content_base64") or ""
-                if not filename or not content_b64:
-                    return self.send_json(400, {"error": "Vui lòng chọn file Word (.docx) hoặc PDF (.pdf)."})
-
-                ext = os.path.splitext(filename)[1].lower()
-                if ext not in (".docx", ".pdf", ".txt", ".md"):
-                    return self.send_json(400, {"error": "Chỉ hỗ trợ file Word (.docx), PDF (.pdf) hoặc văn bản (.txt)."})
-
-                max_ord = conn.execute("SELECT COALESCE(MAX(order_index), 0) FROM topics").fetchone()[0]
-                order_index = int(body.get("order_index") or (max_ord + 1))
-                tid = (body.get("id") or "").strip()
-                if not tid:
-                    base_tid = f"chu-de-{order_index}"
-                    if conn.execute("SELECT id FROM topics WHERE id = ?", (base_tid,)).fetchone():
-                        tid = f"{base_tid}-{secrets.token_hex(2)}"
-                    else:
-                        tid = base_tid
-
-                custom_title = (body.get("title") or "").strip()
-                custom_subtitle = (body.get("subtitle") or "").strip()
-
-                try:
-                    file_bytes = base64.b64decode(content_b64)
-                    parsed = parse_document_to_topic(
-                        file_bytes,
-                        filename,
-                        tid,
-                        {"id": tid, "order_index": order_index, "title": custom_title},
-                    )
-                except Exception as e:
-                    return self.send_json(400, {"error": f"Lỗi khi đọc & trích xuất file: {e}"})
-
-                extracted = parsed["extracted"]
-                extracted["id"] = tid
-                extracted["order_index"] = order_index
-                if custom_title:
-                    extracted["title"] = custom_title
-                elif not re.match(r"^Chủ đề\s*\d+", extracted["title"], re.IGNORECASE):
-                    extracted["title"] = f"Chủ đề {order_index}. {extracted['title']}"
-                if custom_subtitle:
-                    extracted["subtitle"] = custom_subtitle
-
-                return self.send_json(
-                    200,
-                    {
-                        "ok": True,
-                        "topic_id": tid,
-                        "order_index": order_index,
-                        "preview": parsed,
-                    },
-                )
-
             # Staff: Cập nhật & Lưu Chủ đề MỚI đã xem trước vào SQLite + xoá cache
             if path == "/api/topics/publish-new":
                 teacher = self.require_teacher(conn, qs, body)
@@ -1135,16 +1276,19 @@ class Bio12Handler(BaseHTTPRequestHandler):
                     },
                 )
 
-            # Admin ONLY: Xoá Chủ đề
+            # Staff (Admin / Teacher): Xoá Chủ đề (giữ lại ít nhất 1 chủ đề)
             m_del_tp = re.match(r"^/api/topics/([a-zA-Z0-9_-]+)/delete$", path)
             if m_del_tp:
-                admin = self.require_admin(conn, qs, body)
-                if not admin:
+                staff = self.require_teacher(conn, qs, body)
+                if not staff:
                     return
                 tid = m_del_tp.group(1)
                 row = conn.execute("SELECT id, title FROM topics WHERE id = ?", (tid,)).fetchone()
                 if not row:
                     return self.send_json(404, {"error": "Không tìm thấy chủ đề."})
+                total_cnt = conn.execute("SELECT COUNT(*) FROM topics").fetchone()[0]
+                if total_cnt <= 1:
+                    return self.send_json(400, {"error": "Không thể xoá chủ đề cuối cùng của hệ thống."})
                 conn.execute("DELETE FROM topics WHERE id = ?", (tid,))
                 conn.commit()
                 app_cache.invalidate_topics(tid)
@@ -1159,88 +1303,6 @@ class Bio12Handler(BaseHTTPRequestHandler):
                 return self.send_json(
                     200,
                     {"ok": True, "cache": app_cache.stats(), "message": "Đã làm mới toàn bộ bộ nhớ đệm (Cache)!"},
-                )
-
-            # Teacher: Import & extract topic content from .docx / .pdf / .txt
-            m_imp = re.match(r"^/api/topics/([a-zA-Z0-9_-]+)/import-file$", path)
-            if m_imp:
-                teacher = self.require_teacher(conn, qs, body)
-                if not teacher:
-                    return
-                tid = m_imp.group(1)
-                row = conn.execute("SELECT * FROM topics WHERE id = ?", (tid,)).fetchone()
-                if not row:
-                    return self.send_json(404, {"error": "Không tìm thấy chủ đề."})
-
-                filename = (body.get("filename") or "").strip()
-                content_b64 = body.get("content_base64") or ""
-                preview_only = bool(body.get("preview_only", True))
-                sections = body.get("sections") or {
-                    "theory": True,
-                    "knowledge": True,
-                    "video": True,
-                    "review": True,
-                }
-                replace_review = bool(body.get("replace_review", True))
-
-                if not filename or not content_b64:
-                    return self.send_json(400, {"error": "Vui lòng chọn file tài liệu (.docx, .pdf hoặc .txt)."})
-
-                try:
-                    file_bytes = base64.b64decode(content_b64)
-                    existing = json.loads(row["content_json"])
-                    parsed = parse_document_to_topic(file_bytes, filename, tid, existing)
-                except Exception as e:
-                    return self.send_json(400, {"error": f"Lỗi khi đọc & trích xuất file: {e}"})
-
-                if preview_only:
-                    return self.send_json(200, {"ok": True, "preview": parsed})
-
-                # Merge extracted data into existing topic based on selected sections
-                ext_data = parsed["extracted"]
-                merged = json.loads(row["content_json"])
-                merged["status"] = "published"
-                merged["source_note"] = ext_data["source_note"]
-
-                if sections.get("theory") and ext_data["lessons"]:
-                    merged["title"] = ext_data["title"] or merged["title"]
-                    merged["lessons"] = ext_data["lessons"]
-                if sections.get("knowledge"):
-                    ks = ext_data["knowledge_system"]
-                    if ks.get("mindmap", {}).get("branches") or ks.get("comparison_tables"):
-                        merged["knowledge_system"] = ks
-                if sections.get("video") and (ext_data.get("interactive_video") or {}).get("scenes"):
-                    merged["interactive_video"] = ext_data["interactive_video"]
-                if sections.get("review"):
-                    rev = ext_data["review"]
-                    if replace_review:
-                        if rev["mcq"] or rev["true_false"] or rev["short_answer"]:
-                            merged["review"] = rev
-                    else:
-                        merged.setdefault("review", {"mcq": [], "true_false": [], "short_answer": []})
-                        merged["review"]["mcq"].extend(rev["mcq"])
-                        merged["review"]["true_false"].extend(rev["true_false"])
-                        merged["review"]["short_answer"].extend(rev["short_answer"])
-
-                ts = now_iso()
-                conn.execute(
-                    """
-                    UPDATE topics
-                    SET title = ?, status = 'published', content_json = ?, updated_by = ?, updated_at = ?
-                    WHERE id = ?
-                    """,
-                    (merged["title"], json.dumps(merged, ensure_ascii=False), teacher["id"], ts, tid),
-                )
-                conn.commit()
-                app_cache.invalidate_topics(tid)
-                return self.send_json(
-                    200,
-                    {
-                        "ok": True,
-                        "topic": merged,
-                        "stats": parsed["stats"],
-                        "message": f"Đã trích xuất và cập nhật 100% dữ liệu từ file '{filename}'!",
-                    },
                 )
 
             # Admin: Trộn đề trắc nghiệm theo Ma trận 3x3 & xuất Word (.docx) + Excel (.xlsx)

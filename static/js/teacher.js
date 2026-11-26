@@ -4,25 +4,28 @@
 // - Chỉnh sửa & Thêm nội dung mới (Chủ đề, Bài học Lý thuyết, Câu hỏi mới, Video YouTube, Nhập file Word)
 // - Kết quả Ôn tập & Danh sách Thành viên
 
-import { api, formatDateTimeVN, formatDuration, withBase } from "./api.js";
+import { api, clientCache, formatDateTimeVN, formatDuration, withBase } from "./api.js";
 import { escapeHtml } from "./format.js";
 import { openTopicPreviewModal } from "./topic_preview.js";
 import { mountYoutubeLibrary } from "./youtube_videos.js";
 
 export function mountTeacherDashboard(container, activeTopic, onTopicUpdated, showToast, opts = {}) {
   const onTopicsReload = opts.onTopicsReload || (async () => {});
+  const onSelectTopic = opts.onSelectTopic || null;
+  const topicsList = Array.isArray(opts.topicsList) ? opts.topicsList : [];
   const currentUser = opts.currentUser || { role: "teacher" };
   const isAdmin = currentUser.role === "admin";
+  const cachedTeacher = clientCache.getTeacherData();
 
-  let subtab = "members"; // 'members' | 'attendance' | 'exam_mixer' | 'content' | 'scores' | 'pw_alerts'
-  let overview = null;
+  let subtab = cachedTeacher.subtab || "members"; // 'members' | 'attendance' | 'exam_mixer' | 'content' | 'scores' | 'pw_alerts'
+  let overview = cachedTeacher.overview || null;
   let classFilter = "";
   let searchFilter = "";
   let studentExcelResult = null;
   let studentExcelLoading = false;
 
   // Trạng thái Trộn đề Ma trận 3x3
-  let examPool = null; // [{id, title, lessons: [{id, number, title, counts}]}]
+  let examPool = cachedTeacher.examPool || null; // [{id, title, lessons: [{id, number, title, counts}]}]
   let selectedLessonIds = new Set();
   let matrix = {
     mcq: { nhan_biet: 8, thong_hieu: 6, van_dung: 4 },
@@ -40,13 +43,17 @@ export function mountTeacherDashboard(container, activeTopic, onTopicUpdated, sh
   let examResult = null; // { job_id, summary }
 
   // Trạng thái Chỉnh sửa / Thêm nội dung
-  let contentSubMode = "add_topic"; // 'add_topic' | 'add_question' | 'edit_lesson' | 'youtube' | 'import'
+  let contentSubMode = cachedTeacher.contentSubMode || "add_topic"; // 'add_topic' | 'add_question' | 'edit_lesson' | 'youtube' | 'import'
   let newQuestionType = "mcq";
   let editLessonId = (activeTopic?.lessons || [])[0]?.id || "__new__";
 
+  const maxTopicOrder = topicsList.length
+    ? Math.max(...topicsList.map((x) => Number(x.order_index || 0)), topicsList.length) + 1
+    : 5;
+
   // Trạng thái Tạo Chủ đề mới từ file Word (.docx) / PDF (.pdf) kèm Xem trước & Đẩy dữ liệu
   let newTopicDraft = {
-    order_index: 5,
+    order_index: maxTopicOrder,
     title: "",
     subtitle: "",
     file: null,
@@ -55,8 +62,9 @@ export function mountTeacherDashboard(container, activeTopic, onTopicUpdated, sh
     preview: null, // { stats, detected_title, extracted }
   };
 
-  let cacheInfo = null;
+  let cacheInfo = cachedTeacher.cacheInfo || null;
   let cacheClearing = false;
+  let deletingTopicId = "";
 
   let importState = {
     file: null,
@@ -80,19 +88,25 @@ export function mountTeacherDashboard(container, activeTopic, onTopicUpdated, sh
     });
   }
 
-  async function loadOverview() {
+  async function loadOverview(force = false) {
+    const cached = clientCache.getTeacherData();
+    if (!force && cached.overview && Date.now() - (cached.loadedAt || 0) < 60000) {
+      overview = cached.overview;
+      if (cached.cacheInfo) cacheInfo = cached.cacheInfo;
+      return;
+    }
     try {
-      const [ov, cs, tlist] = await Promise.all([
+      const [ov, cs] = await Promise.all([
         api.teacherOverview(),
         api.cacheStatus().catch(() => null),
-        api.listTopics().catch(() => null),
       ]);
       overview = ov;
       if (cs?.cache) cacheInfo = cs.cache;
-      if (tlist?.topics?.length && !newTopicDraft.preview) {
-        const maxIdx = Math.max(...tlist.topics.map((x) => Number(x.order_index || 0)), tlist.topics.length);
-        newTopicDraft.order_index = maxIdx + 1;
-      }
+      clientCache.setTeacherData({
+        overview: ov,
+        cacheInfo,
+        loadedAt: Date.now(),
+      });
       render();
     } catch (err) {
       container.innerHTML = `<div class="card"><p style="color:var(--red);">${escapeHtml(err.message)}</p></div>`;
@@ -104,6 +118,7 @@ export function mountTeacherDashboard(container, activeTopic, onTopicUpdated, sh
     try {
       const res = await api.adminExamPool();
       examPool = res.topics || [];
+      clientCache.setTeacherData({ examPool });
       // Mặc định chọn tất cả các bài trong chủ đề đang mở
       if (selectedLessonIds.size === 0 && examPool.length) {
         const activeTp = examPool.find((t) => t.id === activeTopic?.id) || examPool[0];
@@ -225,6 +240,7 @@ export function mountTeacherDashboard(container, activeTopic, onTopicUpdated, sh
     container.querySelectorAll("[data-tsub]").forEach((btn) => {
       btn.addEventListener("click", () => {
         subtab = btn.dataset.tsub;
+        clientCache.setTeacherData({ subtab });
         if (subtab === "exam_mixer" && !examPool) {
           render();
           ensureExamPoolLoaded();
@@ -236,7 +252,8 @@ export function mountTeacherDashboard(container, activeTopic, onTopicUpdated, sh
 
     container.querySelector("#teacher-refresh-btn")?.addEventListener("click", () => {
       examPool = null;
-      loadOverview();
+      clientCache.invalidateTeacherData();
+      loadOverview(true);
       if (subtab === "exam_mixer") ensureExamPoolLoaded();
       showToast("Đã làm mới dữ liệu.", "success");
     });
@@ -826,6 +843,62 @@ export function mountTeacherDashboard(container, activeTopic, onTopicUpdated, sh
                         `
                     }
                   </div>
+
+                  <div class="card">
+                    <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:12px;">
+                      <div>
+                        <h3 class="card-title" style="margin:0 0 2px;">Danh sách Chủ đề hiện có (${topicsList.length})</h3>
+                        <p style="margin:0;font-size:0.83rem;color:var(--text-muted);">
+                          Mở xem nhanh hoặc xoá bớt Chủ đề không còn sử dụng (luôn giữ lại ít nhất 1 Chủ đề).
+                        </p>
+                      </div>
+                    </div>
+                    <div class="data-table-wrap">
+                      <table class="data-table">
+                        <thead>
+                          <tr>
+                            <th style="width:90px;">Thứ tự</th>
+                            <th>Tên Chủ đề</th>
+                            <th style="width:120px;">Trạng thái</th>
+                            <th style="width:200px;">Thao tác</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          ${
+                            topicsList.length
+                              ? topicsList
+                                  .map((tp) => {
+                                    const isCur = tp.id === activeTopic?.id;
+                                    const isDel = deletingTopicId === tp.id;
+                                    const disableDel = topicsList.length <= 1 || Boolean(deletingTopicId);
+                                    return `
+                                      <tr>
+                                        <td><span class="pill pill-primary">Chủ đề ${escapeHtml(String(tp.order_index || ""))}</span></td>
+                                        <td>
+                                          <strong>${escapeHtml(tp.title)}</strong>
+                                          ${tp.subtitle ? `<div style="font-size:0.78rem;color:var(--text-muted);margin-top:2px;">${escapeHtml(tp.subtitle)}</div>` : ""}
+                                        </td>
+                                        <td>
+                                          ${isCur ? `<span class="pill pill-green">Đang mở</span>` : `<span class="pill pill-muted">Đã xuất bản</span>`}
+                                        </td>
+                                        <td>
+                                          <div style="display:flex;gap:8px;flex-wrap:wrap;">
+                                            <button type="button" class="btn btn-secondary btn-sm" data-open-topic="${escapeHtml(tp.id)}">Mở xem</button>
+                                            <button type="button" class="btn btn-danger btn-sm" data-delete-topic="${escapeHtml(tp.id)}" data-delete-topic-title="${escapeHtml(tp.title)}" ${disableDel ? "disabled" : ""}>
+                                              ${isDel ? "Đang xoá..." : "Xoá chủ đề"}
+                                            </button>
+                                          </div>
+                                        </td>
+                                      </tr>
+                                    `;
+                                  })
+                                  .join("")
+                              : `<tr><td colspan="4" style="text-align:center;color:var(--text-muted);padding:18px;">Chưa có Chủ đề nào.</td></tr>`
+                          }
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
                 `;
               })()
             : contentSubMode === "youtube"
@@ -1218,7 +1291,7 @@ export function mountTeacherDashboard(container, activeTopic, onTopicUpdated, sh
           const res = await api.adminAddTeacher(String(fd.get("username") || "").trim(), String(fd.get("password") || "123456@"));
           showToast(res.message || "Đã thêm Giáo viên mới!", "success");
           e.target.reset();
-          await loadOverview();
+          await loadOverview(true);
         } catch (err) {
           showToast(err.message, "error");
         }
@@ -1231,7 +1304,7 @@ export function mountTeacherDashboard(container, activeTopic, onTopicUpdated, sh
           try {
             const res = await api.adminDeleteUser(btn.dataset.deleteUser);
             showToast(res.message || "Đã xoá tài khoản.", "success");
-            await loadOverview();
+            await loadOverview(true);
           } catch (err) {
             showToast(err.message, "error");
           }
@@ -1257,7 +1330,7 @@ export function mountTeacherDashboard(container, activeTopic, onTopicUpdated, sh
           });
           showToast(res.message || "Đã tạo tài khoản học sinh!", "success");
           e.target.reset();
-          await loadOverview();
+          await loadOverview(true);
         } catch (err) {
           showToast(err.message, "error");
         }
@@ -1274,7 +1347,7 @@ export function mountTeacherDashboard(container, activeTopic, onTopicUpdated, sh
           const res = await api.staffImportStudentsExcel(file.name, b64);
           studentExcelResult = res;
           showToast(res.message || "Đã nhập danh sách học sinh từ Excel!", "success");
-          await loadOverview();
+          await loadOverview(true);
         } catch (err) {
           showToast(err.message, "error");
         } finally {
@@ -1289,7 +1362,7 @@ export function mountTeacherDashboard(container, activeTopic, onTopicUpdated, sh
         try {
           await api.adminMarkPasswordAlertsRead();
           showToast("Đã đánh dấu tất cả báo cáo là đã xem.", "success");
-          await loadOverview();
+          await loadOverview(true);
         } catch (err) {
           showToast(err.message, "error");
         }
@@ -1420,6 +1493,7 @@ export function mountTeacherDashboard(container, activeTopic, onTopicUpdated, sh
       container.querySelectorAll("[data-csub]").forEach((btn) => {
         btn.addEventListener("click", () => {
           contentSubMode = btn.dataset.csub;
+          clientCache.setTeacherData({ contentSubMode });
           render();
         });
       });
@@ -1488,6 +1562,7 @@ export function mountTeacherDashboard(container, activeTopic, onTopicUpdated, sh
           activeTopic = res.topic;
           onTopicUpdated(res.topic);
           examPool = null; // Force refresh pool next time
+          clientCache.setTeacherData({ examPool: null });
           e.target.reset();
           showToast("Đã thêm câu hỏi mới vào ngân hàng!", "success");
         } catch (err) {
@@ -1547,6 +1622,7 @@ export function mountTeacherDashboard(container, activeTopic, onTopicUpdated, sh
           activeTopic = res.topic;
           onTopicUpdated(res.topic);
           examPool = null;
+          clientCache.setTeacherData({ examPool: null });
           showToast("Đã lưu nội dung bài học Lý thuyết!", "success");
           render();
         } catch (err) {
@@ -1561,6 +1637,8 @@ export function mountTeacherDashboard(container, activeTopic, onTopicUpdated, sh
           const res = await api.cacheClear();
           cacheInfo = res.cache || cacheInfo;
           examPool = null;
+          clientCache.invalidateTopic("");
+          clientCache.setTeacherData({ cacheInfo, examPool: null });
           showToast(res.message || "Đã làm mới toàn bộ Cache!", "success");
         } catch (err) {
           showToast(err.message, "error");
@@ -1600,7 +1678,7 @@ export function mountTeacherDashboard(container, activeTopic, onTopicUpdated, sh
           newTopicDraft.title = "";
           newTopicDraft.subtitle = "";
           showToast(res.message || `Đã xuất bản "${res.topic.title}"!`, "success");
-          await onTopicsReload(res.topic.id);
+          await onTopicsReload(res.topic.id, { changedTopicId: res.topic.id });
         } catch (err) {
           showToast(err.message, "error");
           throw err;
@@ -1619,10 +1697,7 @@ export function mountTeacherDashboard(container, activeTopic, onTopicUpdated, sh
         newTopicDraft.preview = null;
         render();
         try {
-          const b64 = await fileToBase64(file);
-          const res = await api.previewNewTopicFile({
-            filename: file.name,
-            content_base64: b64,
+          const res = await api.previewNewTopicFile(file, {
             order_index: newTopicDraft.order_index,
             title: newTopicDraft.title,
             subtitle: newTopicDraft.subtitle,
@@ -1637,8 +1712,10 @@ export function mountTeacherDashboard(container, activeTopic, onTopicUpdated, sh
           }
           showToast(`Đã trích xuất xong "${file.name}". Bấm "Xem trước" hoặc "Cập nhật & Đẩy lên dữ liệu"!`, "success");
         } catch (err) {
+          newTopicDraft.file = null;
           showToast(err.message, "error");
         } finally {
+          e.target.value = "";
           newTopicDraft.loading = false;
           render();
         }
@@ -1667,6 +1744,48 @@ export function mountTeacherDashboard(container, activeTopic, onTopicUpdated, sh
         render();
       });
 
+      container.querySelectorAll("[data-open-topic]").forEach((btn) => {
+        btn.addEventListener("click", async () => {
+          const tid = btn.dataset.openTopic;
+          if (!tid) return;
+          if (onSelectTopic) {
+            await onSelectTopic(tid);
+          }
+        });
+      });
+
+      container.querySelectorAll("[data-delete-topic]").forEach((btn) => {
+        btn.addEventListener("click", async () => {
+          const tid = btn.dataset.deleteTopic;
+          const title = btn.dataset.deleteTopicTitle || tid;
+          if (!tid || deletingTopicId) return;
+          if (topicsList.length <= 1) {
+            showToast("Không thể xoá Chủ đề cuối cùng của hệ thống.", "error");
+            return;
+          }
+          if (!window.confirm(`Xác nhận xoá "${title}"?\nToàn bộ bài học và câu hỏi thuộc chủ đề này sẽ bị xoá khỏi hệ thống.`)) {
+            return;
+          }
+          deletingTopicId = tid;
+          render();
+          try {
+            const res = await api.deleteTopic(tid);
+            examPool = null;
+            clientCache.invalidateTopic(tid);
+            clientCache.invalidateTeacherData();
+            const remaining = topicsList.filter((x) => x.id !== tid);
+            const nextTopicId = tid === activeTopic?.id ? remaining[0]?.id || "" : activeTopic?.id || remaining[0]?.id || "";
+            showToast(res.message || `Đã xoá "${title}".`, "success");
+            await onTopicsReload(nextTopicId, { deletedTopicId: tid });
+          } catch (err) {
+            showToast(err.message, "error");
+          } finally {
+            deletingTopicId = "";
+            render();
+          }
+        });
+      });
+
       container.querySelector("#btn-create-empty-topic")?.addEventListener("click", async () => {
         syncNewTopicMeta();
         if (!newTopicDraft.title) {
@@ -1683,7 +1802,7 @@ export function mountTeacherDashboard(container, activeTopic, onTopicUpdated, sh
           newTopicDraft.title = "";
           newTopicDraft.subtitle = "";
           showToast(`Đã tạo chủ đề "${res.topic.title}"!`, "success");
-          await onTopicsReload(res.topic.id);
+          await onTopicsReload(res.topic.id, { changedTopicId: res.topic.id });
         } catch (err) {
           showToast(err.message, "error");
         }
@@ -1698,6 +1817,29 @@ export function mountTeacherDashboard(container, activeTopic, onTopicUpdated, sh
       }
 
       if (contentSubMode === "import") {
+        const applyDocImport = async () => {
+          if (!importState.file) return;
+          importState.loading = true;
+          render();
+          try {
+            const res = await api.importTopicFile(activeTopic.id, importState.file, {
+              preview_only: false,
+              sections: importState.sections,
+              replace_review: importState.replaceReview,
+            });
+            activeTopic = res.topic;
+            onTopicUpdated(res.topic);
+            examPool = null;
+            clientCache.invalidateTeacherData();
+            showToast(res.message || "Đã cập nhật nội dung chủ đề.", "success");
+          } catch (err) {
+            showToast(err.message, "error");
+          } finally {
+            importState.loading = false;
+            render();
+          }
+        };
+
         container.querySelectorAll("[data-imp-sec]").forEach((cb) => {
           cb.addEventListener("change", () => {
             importState.sections[cb.dataset.impSec] = cb.checked;
@@ -1714,18 +1856,16 @@ export function mountTeacherDashboard(container, activeTopic, onTopicUpdated, sh
           importState.preview = null;
           render();
           try {
-            const b64 = await fileToBase64(file);
-            importState.base64 = b64;
-            const res = await api.importTopicFile(activeTopic.id, {
-              filename: file.name,
-              content_base64: b64,
+            const res = await api.importTopicFile(activeTopic.id, file, {
               preview_only: true,
             });
             importState.preview = res.preview;
             showToast(`Đã đọc xong "${file.name}".`, "success");
           } catch (err) {
+            importState.file = null;
             showToast(err.message, "error");
           } finally {
+            e.target.value = "";
             importState.loading = false;
             render();
           }
@@ -1734,34 +1874,10 @@ export function mountTeacherDashboard(container, activeTopic, onTopicUpdated, sh
           if (!importState.preview?.extracted) return;
           openTopicPreviewModal(importState.preview.extracted, {
             publishLabel: "Cập nhật vào Chủ đề hiện tại",
-            onPublish: async () => {
-              container.querySelector("#btn-apply-doc-import")?.click();
-            },
+            onPublish: applyDocImport,
           });
         });
-        container.querySelector("#btn-apply-doc-import")?.addEventListener("click", async () => {
-          if (!importState.file || !importState.base64) return;
-          importState.loading = true;
-          render();
-          try {
-            const res = await api.importTopicFile(activeTopic.id, {
-              filename: importState.file.name,
-              content_base64: importState.base64,
-              preview_only: false,
-              sections: importState.sections,
-              replace_review: importState.replaceReview,
-            });
-            activeTopic = res.topic;
-            onTopicUpdated(res.topic);
-            examPool = null;
-            showToast("Đã cập nhật nội dung chủ đề.", "success");
-          } catch (err) {
-            showToast(err.message, "error");
-          } finally {
-            importState.loading = false;
-            render();
-          }
-        });
+        container.querySelector("#btn-apply-doc-import")?.addEventListener("click", applyDocImport);
       }
     }
   }

@@ -14,11 +14,15 @@ import hashlib
 import io
 import json
 import os
+import posixpath
 import re
+import shutil
 import subprocess
 import sys
 import tempfile
 import uuid
+import xml.etree.ElementTree as ET
+import zipfile
 from typing import Any, Dict, List, Optional, Tuple
 
 try:
@@ -237,10 +241,333 @@ def _extract_images_from_elem(elem, image_resolver) -> List[str]:
     return imgs
 
 
+def _local_tag(el) -> str:
+    tag = el.tag or ""
+    return tag.split("}", 1)[-1] if "}" in tag else tag
+
+
+def _get_w_attr(el, name: str, default: str = "") -> str:
+    w_key = f"{{http://schemas.openxmlformats.org/wordprocessingml/2006/main}}{name}"
+    if w_key in el.attrib:
+        return el.attrib[w_key]
+    if name in el.attrib:
+        return el.attrib[name]
+    for k, v in el.attrib.items():
+        if k.endswith(f"}}{name}"):
+            return v
+    return default
+
+
+def _extract_images_from_elem_stdlib(elem, image_resolver, cur_rot: int = 0) -> List[str]:
+    imgs = []
+
+    def walk(node, rot_deg: int):
+        lt = _local_tag(node)
+        if lt == "Fallback":
+            return
+        if lt == "pic":
+            for sp in node:
+                if _local_tag(sp) == "spPr":
+                    for x in sp:
+                        if _local_tag(x) == "xfrm":
+                            raw_rot = x.attrib.get("rot")
+                            if raw_rot:
+                                try:
+                                    rot_deg = int(round(int(raw_rot) / 60000.0)) % 360
+                                except Exception:
+                                    pass
+        if lt == "blipFill":
+            rid = ""
+            l = t = r = b = 0
+            for ch in node:
+                clt = _local_tag(ch)
+                if clt == "blip":
+                    for ak, av in ch.attrib.items():
+                        if ak == "embed" or ak.endswith("}embed"):
+                            rid = av
+                            break
+                elif clt == "srcRect":
+                    try:
+                        l = int(ch.attrib.get("l") or 0)
+                        t = int(ch.attrib.get("t") or 0)
+                        r = int(ch.attrib.get("r") or 0)
+                        b = int(ch.attrib.get("b") or 0)
+                    except Exception:
+                        l = t = r = b = 0
+            if rid:
+                url = image_resolver(rid, l, t, r, b, rot_deg)
+                if url and url not in imgs:
+                    imgs.append(url)
+            return
+        for ch in node:
+            walk(ch, rot_deg)
+
+    walk(elem, cur_rot)
+    return imgs
+
+
+def _analyze_paragraph_stdlib(p_elem, style_map: Dict[str, str]):
+    style_id = ""
+    has_numpr = False
+    non_empty_bold = []
+    marked = []
+
+    for child in p_elem:
+        ct = _local_tag(child)
+        if ct == "pPr":
+            for pchild in child:
+                pct = _local_tag(pchild)
+                if pct == "pStyle":
+                    style_id = _get_w_attr(pchild, "val", "")
+                elif pct == "numPr":
+                    has_numpr = True
+        elif ct in ("r", "hyperlink", "smartTag"):
+            runs = [child] if ct == "r" else [rc for rc in child if _local_tag(rc) == "r"]
+            for r_el in runs:
+                r_texts = []
+                r_bold = False
+                r_under = False
+                r_red = False
+                r_hl = False
+                for rch in r_el:
+                    rt = _local_tag(rch)
+                    if rt == "t" and rch.text:
+                        r_texts.append(rch.text)
+                    elif rt == "rPr":
+                        for rp in rch:
+                            rpt = _local_tag(rp)
+                            if rpt == "b":
+                                val = _get_w_attr(rp, "val", "1").lower()
+                                r_bold = val not in ("0", "false", "off")
+                            elif rpt == "u":
+                                val = _get_w_attr(rp, "val", "single").lower()
+                                r_under = val not in ("none", "0", "false", "")
+                            elif rpt == "color":
+                                rgb = _get_w_attr(rp, "val", "").upper()
+                                if len(rgb) == 6:
+                                    try:
+                                        rr, gg, bb = int(rgb[0:2], 16), int(rgb[2:4], 16), int(rgb[4:6], 16)
+                                        if rr >= 150 and gg <= 80 and bb <= 80:
+                                            r_red = True
+                                    except Exception:
+                                        pass
+                            elif rpt == "highlight":
+                                val = _get_w_attr(rp, "val", "").lower()
+                                r_hl = bool(val and val != "none")
+                rt_str = "".join(r_texts).strip()
+                if not rt_str:
+                    continue
+                non_empty_bold.append(r_bold)
+                if r_under or r_red or r_hl:
+                    m = re.match(r"^([A-D])\s*[\.\)]?$", rt_str)
+                    if m:
+                        marked.append(m.group(1))
+                    else:
+                        m2 = re.match(r"^([A-D])[\.\)]\s+", rt_str)
+                        if m2:
+                            marked.append(m2.group(1))
+                        else:
+                            marked.append("*")
+
+    style_name = style_map.get(style_id, style_id or "")
+    heading_level = 0
+    hm = re.match(r"Heading\s*(\d+)", style_name, re.IGNORECASE) or re.match(
+        r"Heading\s*(\d+)", style_id or "", re.IGNORECASE
+    )
+    if hm:
+        heading_level = int(hm.group(1))
+    elif style_name.lower().startswith("title") or (style_id or "").lower().startswith("title"):
+        heading_level = 1
+
+    is_all_bold = bool(non_empty_bold) and all(non_empty_bold)
+    return style_name, heading_level, is_all_bold, has_numpr, marked
+
+
+def _extract_body_items_from_docx_stdlib(file_bytes: bytes, topic_id: str) -> Dict:
+    """Trình đọc .docx thuần Python stdlib (zipfile + ElementTree), không phụ thuộc python-docx/lxml."""
+    topic_upload_dir = os.path.join(UPLOADS_DIR, topic_id)
+    os.makedirs(topic_upload_dir, exist_ok=True)
+    tmp_dir = tempfile.mkdtemp(prefix="bio12_crop_")
+
+    rid_raw_info = {}
+    style_map = {}
+    items = []
+    tables_count = 0
+    crop_cache = {}
+    crop_jobs = []
+    extracted_images = []
+
+    def resolve_image(rid: str, l: int, t: int, r: int, b: int, rot: int = 0) -> Optional[str]:
+        if rid not in rid_raw_info:
+            return None
+        key = (rid, l, t, r, b, rot)
+        if key in crop_cache:
+            return crop_cache[key]
+        raw_path, ext, blob = rid_raw_info[rid]
+        sig = hashlib.md5(f"{topic_id}:{rid}:{l}:{t}:{r}:{b}:{rot}".encode()).hexdigest()[:10]
+        needs_transform = any(v > 0 for v in (l, t, r, b)) or (rot % 360 != 0)
+        out_ext = ".png" if ext == ".png" else ".jpg"
+        fname = f"img_{sig}{out_ext}"
+        dst_path = os.path.join(topic_upload_dir, fname)
+        url = f"/uploads/{topic_id}/{fname}"
+        if needs_transform and sys.platform == "darwin" and os.path.exists(CROP_BIN):
+            crop_jobs.append({"src": raw_path, "dst": dst_path, "l": l, "t": t, "r": r, "b": b, "rot": rot})
+        else:
+            with open(dst_path, "wb") as f:
+                f.write(blob)
+        crop_cache[key] = url
+        extracted_images.append(url)
+        return url
+
+    try:
+        with zipfile.ZipFile(io.BytesIO(file_bytes)) as zf:
+            names = set(zf.namelist())
+
+            if "word/styles.xml" in names:
+                try:
+                    sroot = ET.fromstring(zf.read("word/styles.xml"))
+                    for st_el in sroot:
+                        if _local_tag(st_el) == "style":
+                            sid = _get_w_attr(st_el, "styleId", "")
+                            sname = ""
+                            for ch in st_el:
+                                if _local_tag(ch) == "name":
+                                    sname = _get_w_attr(ch, "val", "")
+                                    break
+                            if sid:
+                                style_map[sid] = sname or sid
+                except Exception:
+                    pass
+
+            if "word/_rels/document.xml.rels" in names:
+                try:
+                    rroot = ET.fromstring(zf.read("word/_rels/document.xml.rels"))
+                    for rel_el in rroot:
+                        if _local_tag(rel_el) != "Relationship":
+                            continue
+                        rid = rel_el.attrib.get("Id", "")
+                        rtype = rel_el.attrib.get("Type", "")
+                        target = rel_el.attrib.get("Target", "")
+                        if not rid or not target:
+                            continue
+                        if "image" not in rtype.lower() and not re.search(
+                            r"\.(png|jpe?g|gif|webp|bmp|emf|wmf)$", target, re.IGNORECASE
+                        ):
+                            continue
+                        clean_target = target.lstrip("/")
+                        if not clean_target.startswith("word/"):
+                            clean_target = posixpath.normpath(posixpath.join("word", clean_target))
+                        if clean_target not in names:
+                            continue
+                        blob = zf.read(clean_target)
+                        if len(blob) < 100:
+                            continue
+                        ext = os.path.splitext(clean_target)[1].lower() or ".png"
+                        if ext not in (".png", ".jpg", ".jpeg", ".gif", ".webp"):
+                            ext = ".png"
+                        raw_path = os.path.join(tmp_dir, f"{rid}{ext}")
+                        with open(raw_path, "wb") as f:
+                            f.write(blob)
+                        rid_raw_info[rid] = (raw_path, ext, blob)
+                except Exception:
+                    pass
+
+            if "word/document.xml" not in names:
+                raise ValueError("File Word (.docx) không hợp lệ: thiếu word/document.xml.")
+
+            doc_root = ET.fromstring(zf.read("word/document.xml"))
+            body_el = None
+            for ch in doc_root:
+                if _local_tag(ch) == "body":
+                    body_el = ch
+                    break
+            if body_el is None:
+                body_el = doc_root
+
+            for child in body_el:
+                tag = _local_tag(child)
+                if tag == "p":
+                    raw_text = _extract_paragraph_text_with_math(child)
+                    clean_lines = [_clean(x) for x in raw_text.splitlines()]
+                    text = "\n".join(x for x in clean_lines if x).strip()
+                    imgs = _extract_images_from_elem_stdlib(child, resolve_image)
+                    if not text and not imgs:
+                        continue
+                    style_name, heading_level, is_all_bold, has_numpr, marked_letters = _analyze_paragraph_stdlib(
+                        child, style_map
+                    )
+                    items.append(
+                        {
+                            "type": "p",
+                            "text": text,
+                            "raw_text": raw_text,
+                            "style": style_name,
+                            "heading_level": heading_level,
+                            "is_bold": is_all_bold,
+                            "has_numpr": has_numpr,
+                            "marked_letters": marked_letters,
+                            "images": imgs,
+                        }
+                    )
+                elif tag == "tbl":
+                    rows_data = []
+                    tbl_images = []
+                    for tr in child:
+                        if _local_tag(tr) != "tr":
+                            continue
+                        row_cells = []
+                        for tc in tr:
+                            if _local_tag(tc) != "tc":
+                                continue
+                            cell_parts = []
+                            for cp in tc:
+                                if _local_tag(cp) != "p":
+                                    continue
+                                ct = _clean(_extract_paragraph_text_with_math(cp))
+                                if ct:
+                                    cell_parts.append(ct)
+                                for im in _extract_images_from_elem_stdlib(cp, resolve_image):
+                                    if im not in tbl_images:
+                                        tbl_images.append(im)
+                            row_cells.append(" ".join(cell_parts).strip())
+                        if any(row_cells) or tbl_images:
+                            rows_data.append(row_cells)
+                    if rows_data or tbl_images:
+                        tables_count += 1
+                        items.append(
+                            {
+                                "type": "table",
+                                "rows": rows_data,
+                                "images": tbl_images,
+                            }
+                        )
+
+        if crop_jobs and sys.platform == "darwin" and os.path.exists(CROP_BIN):
+            jobs_file = os.path.join(tmp_dir, "jobs.json")
+            with open(jobs_file, "w", encoding="utf-8") as jf:
+                json.dump(crop_jobs, jf)
+            subprocess.run([CROP_BIN, jobs_file], check=False, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    finally:
+        shutil.rmtree(tmp_dir, ignore_errors=True)
+
+    return {
+        "items": items,
+        "images": extracted_images,
+        "tables_count": tables_count,
+    }
+
+
 def extract_body_items_from_docx(file_bytes: bytes, topic_id: str) -> Dict:
     """Đọc toàn bộ file Word theo đúng thứ tự tự nhiên: paragraph + table + ảnh (đã cắt đúng srcRect) + công thức."""
     if docx is None:
-        raise RuntimeError("Thiếu thư viện python-docx trên máy chủ.")
+        return _extract_body_items_from_docx_stdlib(file_bytes, topic_id)
+    try:
+        return _extract_body_items_from_docx_python_docx(file_bytes, topic_id)
+    except Exception:
+        return _extract_body_items_from_docx_stdlib(file_bytes, topic_id)
+
+
+def _extract_body_items_from_docx_python_docx(file_bytes: bytes, topic_id: str) -> Dict:
 
     doc = docx.Document(io.BytesIO(file_bytes))
     topic_upload_dir = os.path.join(UPLOADS_DIR, topic_id)
@@ -1404,10 +1731,71 @@ def parse_document_to_topic(
     }
 
 
+def _build_sample_docx_template_stdlib() -> bytes:
+    """Tạo file Word (.docx) mẫu bằng pure-Python stdlib khi không có python-docx."""
+    from xml.sax.saxutils import escape as xml_escape
+
+    paragraphs = [
+        ("CHỦ ĐỀ 1: CƠ SỞ PHÂN TỬ CỦA HIỆN TƯỢNG DI TRUYỀN VÀ BIẾN DỊ", True),
+        ("BÀI 1: DNA VÀ CƠ CHẾ TÁI BẢN DNA", True),
+        ("1. Cấu trúc của phân tử DNA", True),
+        ("- DNA cấu tạo theo nguyên tắc đa phân, đơn phân là 4 loại nucleotide: A, T, G, C.", False),
+        ("- Hai mạch polynucleotide xoắn ngược chiều nhau (5' -> 3' và 3' -> 5'), liên kết theo nguyên tắc bổ sung: A = T (2 liên kết H), G ≡ C (3 liên kết H).", False),
+        ("HỆ THỐNG KIẾN THỨC", True),
+        ("Câu 1: Hoàn thành bảng so sánh DNA và RNA bên dưới:", False),
+        ("CÂU HỎI TRẮC NGHIỆM NHIỀU LỰA CHỌN", True),
+        ("Câu 1: Đơn phân cấu tạo nên phân tử DNA là gì?", False),
+        ("A. Amino acid", False),
+        ("B. Nucleotide", False),
+        ("C. Glucose", False),
+        ("D. Acid béo", False),
+        ("Đáp án: B", False),
+        ("CÂU HỎI TRẮC NGHIỆM ĐÚNG SAI", True),
+        ("Câu 1: Xét cấu trúc của một phân tử DNA mạch kép, các nhận định sau là Đúng hay Sai?", False),
+        ("......a. A liên kết với T bằng 2 liên kết hydrogen. (Đúng)", False),
+        ("......b. G liên kết với C bằng 2 liên kết hydrogen. (Sai)", False),
+        ("......c. Hai mạch của DNA song song ngược chiều nhau. (Đúng)", False),
+        ("......d. Trong DNA có chứa loại base Uracil (U). (Sai)", False),
+        ("CÂU HỎI TRẮC NGHIỆM TRẢ LỜI NGẮN", True),
+        ("Câu 1: Một đoạn DNA có A = 500 và G = 700. Tổng số liên kết hydrogen của đoạn DNA này là bao nhiêu?", False),
+        ("Đáp án: 3100", False),
+    ]
+    body_xml = []
+    for txt, bold in paragraphs:
+        rpr = "<w:rPr><w:b/></w:rPr>" if bold else ""
+        body_xml.append(f'<w:p><w:r>{rpr}<w:t xml:space="preserve">{xml_escape(txt)}</w:t></w:r></w:p>')
+
+    doc_xml = (
+        '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+        '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">'
+        f'<w:body>{"".join(body_xml)}<w:sectPr/></w:body></w:document>'
+    )
+    content_types = (
+        '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+        '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">'
+        '<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>'
+        '<Default Extension="xml" ContentType="application/xml"/>'
+        '<Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>'
+        "</Types>"
+    )
+    rels = (
+        '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+        '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'
+        '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/>'
+        "</Relationships>"
+    )
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
+        zf.writestr("[Content_Types].xml", content_types)
+        zf.writestr("_rels/.rels", rels)
+        zf.writestr("word/document.xml", doc_xml)
+    return buf.getvalue()
+
+
 def build_sample_docx_template() -> bytes:
     """Tạo file Word (.docx) mẫu chuẩn cấu trúc để Giáo viên tham khảo."""
     if docx is None:
-        raise RuntimeError("Thiếu python-docx.")
+        return _build_sample_docx_template_stdlib()
     doc = docx.Document()
     doc.add_heading("CHỦ ĐỀ 1: CƠ SỞ PHÂN TỬ CỦA HIỆN TƯỢNG DI TRUYỀN VÀ BIẾN DỊ", level=1)
 

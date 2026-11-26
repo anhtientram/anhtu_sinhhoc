@@ -1,5 +1,6 @@
 import {
   api,
+  clientCache,
   formatDateTimeVN,
   formatDuration,
   formatTimeShort,
@@ -54,6 +55,7 @@ const state = {
   sessionElapsedSeconds: 0,
   sessionTickTimer: null,
   heartbeatTimer: null,
+  lastHeartbeatTs: 0,
 
   completedLessonIds: new Set(),
   mySessions: [],
@@ -122,9 +124,18 @@ function startSessionTimers() {
   state.heartbeatTimer = setInterval(async () => {
     if (!state.activeSession) return;
     try {
+      state.lastHeartbeatTs = Date.now();
       await api.heartbeatSession(state.activeSession.id, state.activeTopicId, state.activeTab);
     } catch {}
-  }, 25000);
+  }, 45000);
+}
+
+function sendThrottledHeartbeat(topicId, tab) {
+  if (!state.activeSession) return;
+  const nowMs = Date.now();
+  if (nowMs - (state.lastHeartbeatTs || 0) < 20000) return;
+  state.lastHeartbeatTs = nowMs;
+  api.heartbeatSession(state.activeSession.id, topicId, tab).catch(() => {});
 }
 
 async function ensureStudentCheckedIn() {
@@ -161,7 +172,11 @@ async function handleLeaveClass(shouldLogout = false) {
       await api.logout();
     } catch {}
     setToken("");
+    clientCache.clearAll();
     state.user = null;
+    state.topicsList = [];
+    state.topicCache = {};
+    state.activeTopic = null;
     state.activeTab = "theory";
     state.teacherPreviewAsStudent = false;
     document.body.classList.remove("presentation-mode");
@@ -183,15 +198,21 @@ async function loadTopicsAndActive(topicId = state.activeTopicId, forceRefresh =
     const listRes = await api.listTopics();
     state.topicsList = listRes.topics || [];
   }
-  const chosenId = topicId || state.topicsList[0]?.id || "chu-de-1";
+  const chosenId =
+    (topicId && state.topicsList.some((t) => t.id === topicId) ? topicId : state.topicsList[0]?.id) ||
+    "chu-de-1";
   state.activeTopicId = chosenId;
+  const topicMeta = state.topicsList.find((t) => t.id === chosenId);
+  const cached = !forceRefresh ? (state.topicCache[chosenId] || clientCache.getTopic(chosenId, topicMeta?.updated_at)) : null;
 
-  if (!forceRefresh && state.topicCache[chosenId]) {
-    state.activeTopic = state.topicCache[chosenId];
+  if (cached) {
+    state.activeTopic = cached;
+    state.topicCache[chosenId] = cached;
   } else {
     const detailRes = await api.getTopic(chosenId);
     state.activeTopic = detailRes.topic;
     state.topicCache[chosenId] = detailRes.topic;
+    clientCache.setTopic(chosenId, detailRes.topic);
   }
 
   if (state.activeTopic?.lessons?.length) {
@@ -206,28 +227,39 @@ async function switchTopicSmoothly(targetId) {
   if (targetId === state.activeTopicId && state.activeTopic && !state.topicLoading) return;
 
   state.mobileMenuOpen = false;
+  const topicMeta = state.topicsList.find((t) => t.id === targetId);
+  const cached = state.topicCache[targetId] || clientCache.getTopic(targetId, topicMeta?.updated_at);
+
+  // Cache hit: đổi chủ đề tức thì, 0 request GET /api/topics/<id>
+  if (cached) {
+    state.topicCache[targetId] = cached;
+    state.activeTopicId = targetId;
+    state.activeTopic = cached;
+    state.topicLoading = false;
+    state.loadingTopicId = "";
+    state.activeLessonId = cached?.lessons?.[0]?.id || "";
+    sendThrottledHeartbeat(targetId, state.activeTab);
+    renderMainShell();
+    window.scrollTo({ top: 0, behavior: "smooth" });
+    return;
+  }
+
   state.activeTopicId = targetId;
   state.loadingTopicId = targetId;
   state.topicLoading = true;
   renderMainShell();
 
   try {
-    // Luôn tạo cảm giác chuyển cảnh mượt với biểu tượng loading rõ ràng (kể cả khi đã có trong cache)
-    const fetchPromise = state.topicCache[targetId]
-      ? Promise.resolve({ topic: state.topicCache[targetId] })
-      : api.getTopic(targetId);
-    const minDelay = new Promise((resolve) => setTimeout(resolve, 180));
-    const [detailRes] = await Promise.all([fetchPromise, minDelay]);
+    const detailRes = await api.getTopic(targetId);
 
     // Tránh race-condition nếu người dùng bấm đổi sang chủ đề khác trong lúc đang tải
     if (state.activeTopicId !== targetId) return;
 
     state.activeTopic = detailRes.topic;
     state.topicCache[targetId] = detailRes.topic;
+    clientCache.setTopic(targetId, detailRes.topic);
     state.activeLessonId = detailRes.topic?.lessons?.[0]?.id || "";
-    if (state.activeSession) {
-      api.heartbeatSession(state.activeSession.id, targetId, state.activeTab).catch(() => {});
-    }
+    sendThrottledHeartbeat(targetId, state.activeTab);
   } catch (err) {
     showToast(err.message, "error");
   } finally {
@@ -749,9 +781,7 @@ function renderMainShell() {
     btn.addEventListener("click", () => {
       state.mobileMenuOpen = false;
       state.activeTab = btn.dataset.tab || btn.dataset.drawerTab;
-      if (state.activeSession) {
-        api.heartbeatSession(state.activeSession.id, state.activeTopicId, state.activeTab).catch(() => {});
-      }
+      sendThrottledHeartbeat(state.activeTopicId, state.activeTab);
       render();
     });
   });
@@ -807,13 +837,28 @@ function renderMainShell() {
       state.activeTopic,
       (updatedTopic) => {
         state.activeTopic = updatedTopic;
-        if (updatedTopic?.id) state.topicCache[updatedTopic.id] = updatedTopic;
+        if (updatedTopic?.id) {
+          state.topicCache[updatedTopic.id] = updatedTopic;
+          clientCache.setTopic(updatedTopic.id, updatedTopic);
+        }
       },
       showToast,
       {
         currentUser: state.user,
-        onTopicsReload: async (newTopicId) => {
-          state.topicCache = {};
+        topicsList: state.topicsList,
+        onSelectTopic: async (tid) => {
+          state.activeTab = "theory";
+          await switchTopicSmoothly(tid);
+        },
+        onTopicsReload: async (newTopicId, reloadOpts = {}) => {
+          if (reloadOpts.deletedTopicId) {
+            delete state.topicCache[reloadOpts.deletedTopicId];
+            clientCache.invalidateTopic(reloadOpts.deletedTopicId);
+          } else if (reloadOpts.changedTopicId) {
+            delete state.topicCache[reloadOpts.changedTopicId];
+            clientCache.invalidateTopic(reloadOpts.changedTopicId);
+          }
+          clientCache.invalidateTeacherData();
           await loadTopicsAndActive(newTopicId || state.activeTopicId, true);
           render();
         },

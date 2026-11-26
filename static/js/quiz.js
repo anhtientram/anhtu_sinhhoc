@@ -4,7 +4,7 @@
 // - 3.2 Trắc nghiệm Đúng/Sai: 1 ý = 0,1đ · 2 ý = 0,25đ · 3 ý = 0,5đ · 4 ý = 1,0đ
 // - 3.3 Trắc nghiệm trả lời ngắn: 0,25 điểm / câu đúng (giá trị số tối đa 4 ký tự: số, dấu âm -, dấu phẩy ,)
 
-import { api, formatDateTimeVN, formatDuration, withBase } from "./api.js";
+import { api, clientCache, formatDateTimeVN, formatDuration, withBase } from "./api.js";
 import { escapeHtml, formatBioHtml } from "./format.js";
 
 const LEVEL_MAP = {
@@ -174,10 +174,19 @@ export function mountQuizSection(container, topic, user, showToast, opts = {}) {
     }
   }
 
-  async function loadAttempts() {
+  async function loadAttempts(force = false) {
+    if (!force) {
+      const cached = clientCache.getAttempts(topic.id);
+      if (cached) {
+        recentAttempts = cached;
+        renderHistoryBlock();
+        return;
+      }
+    }
     try {
       const res = await api.myQuizAttempts(topic.id);
       recentAttempts = res.attempts || [];
+      clientCache.setAttempts(topic.id, recentAttempts);
       renderHistoryBlock();
     } catch {}
   }
@@ -297,7 +306,8 @@ export function mountQuizSection(container, topic, user, showToast, opts = {}) {
         maxScore > 0 ? `Đã nộp bài: ${score}/${maxScore} điểm` : `Đã lưu bài làm (${answeredPendingCount} câu)`,
         "success"
       );
-      loadAttempts();
+      clientCache.invalidateAttempts(topic.id);
+      loadAttempts(true);
     } catch (err) {
       showToast(err.message, "error");
     }
