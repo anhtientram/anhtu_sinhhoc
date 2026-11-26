@@ -23,6 +23,7 @@ import tempfile
 import uuid
 import xml.etree.ElementTree as ET
 import zipfile
+import zlib
 from concurrent.futures import ThreadPoolExecutor
 from typing import Any, Dict, List, Optional, Tuple
 
@@ -384,10 +385,116 @@ def _analyze_paragraph_stdlib(p_elem, style_map: Dict[str, str]):
     return style_name, heading_level, is_all_bold, has_numpr, marked
 
 
-def _extract_body_items_from_docx_stdlib(file_bytes: bytes, topic_id: str) -> Dict:
-    """Trình đọc .docx thuần Python stdlib (zipfile + ElementTree), tối ưu ghi ảnh song song cho Wasmer Edge."""
+def _safe_zip_read(zf: zipfile.ZipFile, name: str) -> bytes:
+    """Đọc entry trong ZIP/DOCX an toàn, tự khôi phục kể cả khi file bị lỗi Bad CRC-32."""
+    try:
+        return zf.read(name)
+    except zipfile.BadZipFile:
+        try:
+            zinfo = zf.getinfo(name)
+            fp = zf.fp
+            if fp is None:
+                return b""
+            fp.seek(zinfo.header_offset)
+            lheader = fp.read(30)
+            if len(lheader) < 30 or lheader[:4] != b"PK\x03\x04":
+                return b""
+            fname_len = int.from_bytes(lheader[26:28], "little")
+            extra_len = int.from_bytes(lheader[28:30], "little")
+            fp.seek(zinfo.header_offset + 30 + fname_len + extra_len)
+            raw = fp.read(zinfo.compress_size)
+            if zinfo.compress_type == zipfile.ZIP_STORED:
+                return raw
+            if zinfo.compress_type == zipfile.ZIP_DEFLATED:
+                return zlib.decompress(raw, -zlib.MAX_WBITS)
+        except Exception:
+            return b""
+    except Exception:
+        return b""
+    return b""
+
+
+def _detect_image_ext(blob: bytes, fallback: str = ".png") -> str:
+    """Nhận diện định dạng ảnh thực tế qua magic bytes (hữu ích khi trình duyệt đã nén JPEG)."""
+    if blob.startswith(b"\xff\xd8\xff"):
+        return ".jpg"
+    if blob.startswith(b"\x89PNG\r\n\x1a\n"):
+        return ".png"
+    if blob.startswith(b"GIF8"):
+        return ".gif"
+    if len(blob) >= 12 and blob[:4] == b"RIFF" and blob[8:12] == b"WEBP":
+        return ".webp"
+    return fallback
+
+
+def cleanup_topic_uploads(topic_id: str) -> bool:
+    """Xoá thư mục ảnh upload của một Chủ đề (bảo vệ tuyệt đối thư mục gốc chu-de-1..4 trong static/uploads)."""
+    if not topic_id or not re.match(r"^[a-zA-Z0-9_-]+$", topic_id):
+        return False
+    abs_root = os.path.abspath(UPLOADS_DIR)
+    target = os.path.abspath(os.path.join(abs_root, topic_id))
+    try:
+        if os.path.commonpath([target, abs_root]) != abs_root or target == abs_root:
+            return False
+    except ValueError:
+        return False
+    bundled_root = os.path.abspath(os.path.join(BASE_DIR, "static", "uploads"))
+    if abs_root == bundled_root and topic_id in ("chu-de-1", "chu-de-2", "chu-de-3", "chu-de-4"):
+        return False
+    if os.path.isdir(target):
+        shutil.rmtree(target, ignore_errors=True)
+        return True
+    return False
+
+
+def _flush_pending_images(topic_id: str, pending_writes: Dict[str, bytes]):
+    """Ghi toàn bộ ảnh đã trích xuất xuống UPLOADS_DIR; hoàn tác sạch sẽ nếu có lỗi giữa chừng."""
+    if not pending_writes:
+        return
     topic_upload_dir = os.path.join(UPLOADS_DIR, topic_id)
+    existed_before = os.path.isdir(topic_upload_dir)
     os.makedirs(topic_upload_dir, exist_ok=True)
+    written_paths = []
+
+    def _write_img(item):
+        dst, data = item
+        with open(dst, "wb") as f:
+            f.write(data)
+        return dst
+
+    try:
+        if len(pending_writes) == 1:
+            written_paths.append(_write_img(next(iter(pending_writes.items()))))
+        else:
+            with ThreadPoolExecutor(max_workers=min(12, len(pending_writes))) as pool:
+                for fut in [pool.submit(_write_img, pair) for pair in pending_writes.items()]:
+                    written_paths.append(fut.result())
+    except Exception:
+        for p in written_paths:
+            try:
+                if os.path.isfile(p):
+                    os.remove(p)
+            except Exception:
+                pass
+        if not existed_before:
+            try:
+                if os.path.isdir(topic_upload_dir) and not os.listdir(topic_upload_dir):
+                    os.rmdir(topic_upload_dir)
+            except Exception:
+                pass
+        raise
+
+
+def _extract_body_items_from_docx_stdlib(file_bytes: bytes, topic_id: str) -> Dict:
+    """Trình đọc .docx thuần Python stdlib (zipfile + ElementTree), chỉ gom ảnh trong RAM cho tới khi parse thành công."""
+    topic_upload_dir = os.path.join(UPLOADS_DIR, topic_id)
+    if os.path.isdir(topic_upload_dir):
+        try:
+            existing_files = set(os.listdir(topic_upload_dir))
+        except Exception:
+            existing_files = set()
+    else:
+        existing_files = set()
     use_crop_bin = sys.platform == "darwin" and os.path.exists(CROP_BIN)
     tmp_dir = tempfile.mkdtemp(prefix="bio12_crop_") if use_crop_bin else ""
 
@@ -416,16 +523,20 @@ def _extract_body_items_from_docx_stdlib(file_bytes: bytes, topic_id: str) -> Di
                 if rid in rid_blob_cache:
                     blob = rid_blob_cache[rid]
                 else:
-                    blob = zf.read(clean_target)
+                    blob = _safe_zip_read(zf, clean_target)
                     rid_blob_cache[rid] = blob
                 if not blob or len(blob) < 100:
                     crop_cache[key] = None
                     return None
 
-                blob_sig = hashlib.md5(blob).hexdigest()[:8]
+                sample = blob if len(blob) <= 8192 else blob[:4096] + blob[-4096:]
+                blob_sig = hashlib.md5(f"{len(blob)}:".encode() + sample).hexdigest()[:8]
                 sig = hashlib.md5(f"{topic_id}:{blob_sig}:{l}:{t}:{r}:{b}:{rot}".encode()).hexdigest()[:10]
                 needs_transform = any(v > 0 for v in (l, t, r, b)) or (rot % 360 != 0)
-                out_ext = ".png" if ext == ".png" else ".jpg"
+                if needs_transform and use_crop_bin:
+                    out_ext = ".png" if ext == ".png" else ".jpg"
+                else:
+                    out_ext = _detect_image_ext(blob, ".png" if ext == ".png" else ".jpg")
                 fname = f"img_{sig}{out_ext}"
                 dst_path = os.path.join(topic_upload_dir, fname)
                 url = f"/uploads/{topic_id}/{fname}"
@@ -437,8 +548,9 @@ def _extract_body_items_from_docx_stdlib(file_bytes: bytes, topic_id: str) -> Di
                             f.write(blob)
                     crop_jobs.append({"src": raw_path, "dst": dst_path, "l": l, "t": t, "r": r, "b": b, "rot": rot})
                 else:
-                    if dst_path not in pending_writes and not os.path.isfile(dst_path):
+                    if fname not in existing_files and dst_path not in pending_writes:
                         pending_writes[dst_path] = blob
+                        existing_files.add(fname)
 
                 crop_cache[key] = url
                 if url not in extracted_images:
@@ -447,51 +559,58 @@ def _extract_body_items_from_docx_stdlib(file_bytes: bytes, topic_id: str) -> Di
 
             if "word/styles.xml" in names:
                 try:
-                    sroot = ET.fromstring(zf.read("word/styles.xml"))
-                    for st_el in sroot:
-                        if _local_tag(st_el) == "style":
-                            sid = _get_w_attr(st_el, "styleId", "")
-                            sname = ""
-                            for ch in st_el:
-                                if _local_tag(ch) == "name":
-                                    sname = _get_w_attr(ch, "val", "")
-                                    break
-                            if sid:
-                                style_map[sid] = sname or sid
+                    s_bytes = _safe_zip_read(zf, "word/styles.xml")
+                    if s_bytes:
+                        sroot = ET.fromstring(s_bytes)
+                        for st_el in sroot:
+                            if _local_tag(st_el) == "style":
+                                sid = _get_w_attr(st_el, "styleId", "")
+                                sname = ""
+                                for ch in st_el:
+                                    if _local_tag(ch) == "name":
+                                        sname = _get_w_attr(ch, "val", "")
+                                        break
+                                if sid:
+                                    style_map[sid] = sname or sid
                 except Exception:
                     pass
 
             if "word/_rels/document.xml.rels" in names:
                 try:
-                    rroot = ET.fromstring(zf.read("word/_rels/document.xml.rels"))
-                    for rel_el in rroot:
-                        if _local_tag(rel_el) != "Relationship":
-                            continue
-                        rid = rel_el.attrib.get("Id", "")
-                        rtype = rel_el.attrib.get("Type", "")
-                        target = rel_el.attrib.get("Target", "")
-                        if not rid or not target:
-                            continue
-                        if "image" not in rtype.lower() and not re.search(
-                            r"\.(png|jpe?g|gif|webp|bmp|emf|wmf)$", target, re.IGNORECASE
-                        ):
-                            continue
-                        clean_target = target.lstrip("/")
-                        if not clean_target.startswith("word/"):
-                            clean_target = posixpath.normpath(posixpath.join("word", clean_target))
-                        if clean_target not in names:
-                            continue
-                        ext = os.path.splitext(clean_target)[1].lower() or ".png"
-                        if ext not in (".png", ".jpg", ".jpeg", ".gif", ".webp"):
-                            ext = ".png"
-                        rid_zip_map[rid] = (clean_target, ext)
+                    r_bytes = _safe_zip_read(zf, "word/_rels/document.xml.rels")
+                    if r_bytes:
+                        rroot = ET.fromstring(r_bytes)
+                        for rel_el in rroot:
+                            if _local_tag(rel_el) != "Relationship":
+                                continue
+                            rid = rel_el.attrib.get("Id", "")
+                            rtype = rel_el.attrib.get("Type", "")
+                            target = rel_el.attrib.get("Target", "")
+                            if not rid or not target:
+                                continue
+                            if "image" not in rtype.lower() and not re.search(
+                                r"\.(png|jpe?g|gif|webp|bmp|emf|wmf)$", target, re.IGNORECASE
+                            ):
+                                continue
+                            clean_target = target.lstrip("/")
+                            if not clean_target.startswith("word/"):
+                                clean_target = posixpath.normpath(posixpath.join("word", clean_target))
+                            if clean_target not in names:
+                                continue
+                            ext = os.path.splitext(clean_target)[1].lower() or ".png"
+                            if ext not in (".png", ".jpg", ".jpeg", ".gif", ".webp"):
+                                ext = ".png"
+                            rid_zip_map[rid] = (clean_target, ext)
                 except Exception:
                     pass
 
             if "word/document.xml" not in names:
                 raise ValueError("File Word (.docx) không hợp lệ: thiếu word/document.xml.")
 
-            doc_root = ET.fromstring(zf.read("word/document.xml"))
+            doc_xml = _safe_zip_read(zf, "word/document.xml")
+            if not doc_xml:
+                raise ValueError("Không thể đọc nội dung word/document.xml trong file Word.")
+            doc_root = ET.fromstring(doc_xml)
             body_el = None
             for ch in doc_root:
                 if _local_tag(ch) == "body":
@@ -558,20 +677,8 @@ def _extract_body_items_from_docx_stdlib(file_bytes: bytes, topic_id: str) -> Di
                             }
                         )
 
-        if pending_writes:
-            def _write_img(item):
-                dst, data = item
-                with open(dst, "wb") as f:
-                    f.write(data)
-
-            if len(pending_writes) == 1:
-                _write_img(next(iter(pending_writes.items())))
-            else:
-                with ThreadPoolExecutor(max_workers=min(8, len(pending_writes))) as pool:
-                    for fut in [pool.submit(_write_img, pair) for pair in pending_writes.items()]:
-                        fut.result()
-
-        if crop_jobs and use_crop_bin:
+        if crop_jobs and use_crop_bin and items:
+            os.makedirs(topic_upload_dir, exist_ok=True)
             jobs_file = os.path.join(tmp_dir, "jobs.json")
             with open(jobs_file, "w", encoding="utf-8") as jf:
                 json.dump(crop_jobs, jf)
@@ -584,6 +691,7 @@ def _extract_body_items_from_docx_stdlib(file_bytes: bytes, topic_id: str) -> Di
         "items": items,
         "images": extracted_images,
         "tables_count": tables_count,
+        "pending_writes": pending_writes,
     }
 
 
@@ -756,11 +864,18 @@ def extract_body_items_from_pdf(file_bytes: bytes, topic_id: str = "chu-de-new")
         raise RuntimeError("Thiếu thư viện pypdf trên máy chủ.")
     reader = PdfReader(io.BytesIO(file_bytes))
     topic_upload_dir = os.path.join(UPLOADS_DIR, topic_id)
-    os.makedirs(topic_upload_dir, exist_ok=True)
+    if os.path.isdir(topic_upload_dir):
+        try:
+            existing_files = set(os.listdir(topic_upload_dir))
+        except Exception:
+            existing_files = set()
+    else:
+        existing_files = set()
 
     items = []
     extracted_images = []
     seen_hashes = set()
+    pending_writes = {}
 
     for page_idx, page in enumerate(reader.pages):
         page_imgs = []
@@ -774,13 +889,14 @@ def extract_body_items_from_pdf(file_bytes: bytes, topic_id: str = "chu-de-new")
                     continue
                 seen_hashes.add(h)
                 raw_name = getattr(img_obj, "name", "") or f"pdf_p{page_idx + 1}.png"
-                ext = os.path.splitext(raw_name)[1].lower()
+                ext = _detect_image_ext(img_bytes, os.path.splitext(raw_name)[1].lower() or ".png")
                 if ext not in (".png", ".jpg", ".jpeg", ".gif", ".webp"):
                     ext = ".png"
                 fname = f"img_{h}{ext}"
                 dst = os.path.join(topic_upload_dir, fname)
-                with open(dst, "wb") as f:
-                    f.write(img_bytes)
+                if fname not in existing_files and dst not in pending_writes:
+                    pending_writes[dst] = img_bytes
+                    existing_files.add(fname)
                 url = f"/uploads/{topic_id}/{fname}"
                 page_imgs.append(url)
                 extracted_images.append(url)
@@ -821,7 +937,7 @@ def extract_body_items_from_pdf(file_bytes: bytes, topic_id: str = "chu-de-new")
                     "images": page_imgs,
                 }
             )
-    return {"items": items, "images": extracted_images, "tables_count": 0}
+    return {"items": items, "images": extracted_images, "tables_count": 0, "pending_writes": pending_writes}
 
 
 def extract_body_items_from_txt(file_bytes: bytes) -> Dict:
@@ -1725,7 +1841,7 @@ def parse_document_to_topic(
     tf_keyed = sum(1 for q in all_tf if q.get("answer_key_ready"))
     sa_keyed = sum(1 for q in all_sa if q.get("answer_key_ready"))
 
-    return {
+    result = {
         "filename": filename,
         "detected_title": detected_title,
         "stats": {
@@ -1759,6 +1875,8 @@ def parse_document_to_topic(
             },
         },
     }
+    _flush_pending_images(topic_id, raw.get("pending_writes") or {})
+    return result
 
 
 def _build_sample_docx_template_stdlib() -> bytes:

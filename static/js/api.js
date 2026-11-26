@@ -341,6 +341,12 @@ export const api = {
       body: JSON.stringify({}),
     }),
 
+  cleanupDraftTopic: (id) =>
+    apiRequest(`/api/topics/${encodeURIComponent(id)}/cleanup-draft`, {
+      method: "POST",
+      body: JSON.stringify({}),
+    }),
+
   cacheStatus: () => apiRequest("/api/admin/cache-status"),
 
   cacheClear: () =>

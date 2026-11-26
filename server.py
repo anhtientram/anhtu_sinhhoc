@@ -45,7 +45,7 @@ from database import (
 )
 from cache_layer import app_cache
 from exam_generator import build_exam_pool_summary, generate_shuffled_exam_package
-from importer import build_sample_docx_template, parse_document_to_topic
+from importer import build_sample_docx_template, cleanup_topic_uploads, parse_document_to_topic
 from student_excel import (
     build_student_import_template_xlsx,
     parse_students_from_file,
@@ -63,6 +63,10 @@ MAX_BODY_BYTES = int(os.environ.get("MAX_BODY_BYTES", str(100 * 1024 * 1024)))
 
 
 class _PayloadTooLargeError(Exception):
+    pass
+
+
+class _IncompleteUploadError(Exception):
     pass
 
 # Bộ nhớ tạm lưu các gói đề trộn (.docx + .xlsx) vừa tạo để tải xuống nhanh
@@ -277,6 +281,10 @@ class Bio12Handler(BaseHTTPRequestHandler):
                 break
             buf.extend(piece)
             remaining -= len(piece)
+        if remaining > 0:
+            raise _IncompleteUploadError(
+                f"Tải file bị gián đoạn giữa chừng (thiếu {remaining} bytes). Vui lòng thử lại."
+            )
         return bytes(buf)
 
     def read_json_body(self):
@@ -725,6 +733,8 @@ class Bio12Handler(BaseHTTPRequestHandler):
             self._handle_post()
         except _PayloadTooLargeError:
             self.send_json(413, {"error": "File vượt quá giới hạn dung lượng cho phép (tối đa 100 MB)."})
+        except _IncompleteUploadError as e:
+            self.send_json(400, {"error": str(e)})
         except (BrokenPipeError, ConnectionResetError, TimeoutError):
             return
         except Exception as e:
@@ -1336,7 +1346,21 @@ class Bio12Handler(BaseHTTPRequestHandler):
                 conn.execute("DELETE FROM topics WHERE id = ?", (tid,))
                 conn.commit()
                 app_cache.invalidate_topics(tid)
+                cleanup_topic_uploads(tid)
                 return self.send_json(200, {"ok": True, "message": f"Đã xoá '{row['title']}'."})
+
+            # Staff: Dọn ảnh nháp nếu giáo viên huỷ/đổi file xem trước chưa xuất bản
+            m_clean_draft = re.match(r"^/api/topics/([a-zA-Z0-9_-]+)/cleanup-draft$", path)
+            if m_clean_draft:
+                staff = self.require_teacher(conn, qs, body)
+                if not staff:
+                    return
+                tid = m_clean_draft.group(1)
+                exists = conn.execute("SELECT id FROM topics WHERE id = ?", (tid,)).fetchone()
+                if exists:
+                    return self.send_json(200, {"ok": True, "cleaned": False})
+                cleaned = cleanup_topic_uploads(tid)
+                return self.send_json(200, {"ok": True, "cleaned": cleaned})
 
             # Staff: Xoá toàn bộ cache Redis + L1 Memory thủ công
             if path == "/api/admin/cache-clear":

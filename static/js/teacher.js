@@ -5,6 +5,7 @@
 // - Kết quả Ôn tập & Danh sách Thành viên
 
 import { api, clientCache, formatDateTimeVN, formatDuration, withBase } from "./api.js";
+import { slimDocxFile } from "./docx_slim.js";
 import { escapeHtml } from "./format.js";
 import { openTopicPreviewModal } from "./topic_preview.js";
 import { mountYoutubeLibrary } from "./youtube_videos.js";
@@ -1705,26 +1706,35 @@ export function mountTeacherDashboard(container, activeTopic, onTopicUpdated, sh
       container.querySelector("#new-topic-file-input")?.addEventListener("change", async (e) => {
         const file = e.target.files?.[0];
         if (!file) return;
+        const prevDraftId = newTopicDraft.preview?.extracted?.id;
+        if (prevDraftId) {
+          api.cleanupDraftTopic(prevDraftId).catch(() => {});
+        }
         syncNewTopicMeta();
         newTopicDraft.file = file;
         newTopicDraft.loading = true;
         newTopicDraft.preview = null;
         render();
         try {
+          const txtEl = container.querySelector("#new-topic-upload-text");
+          const barEl = container.querySelector("#new-topic-upload-bar");
+          const slimRes = await slimDocxFile(file, (msg) => {
+            if (txtEl) txtEl.textContent = msg;
+            if (barEl) barEl.style.width = "10%";
+          });
+          const uploadFile = slimRes.file || file;
           const updateProgressUi = (p) => {
-            const txtEl = container.querySelector("#new-topic-upload-text");
-            const barEl = container.querySelector("#new-topic-upload-bar");
             if (p.phase === "uploading") {
               const mbDone = (p.loaded / (1024 * 1024)).toFixed(1);
               const mbTotal = (p.total / (1024 * 1024)).toFixed(1);
               if (txtEl) txtEl.textContent = `Đang tải file lên: ${p.percent}% (${mbDone} / ${mbTotal} MB)...`;
-              if (barEl) barEl.style.width = `${Math.max(8, p.percent)}%`;
+              if (barEl) barEl.style.width = `${Math.max(10, p.percent)}%`;
             } else {
               if (txtEl) txtEl.textContent = "Đã tải lên 100% — Máy chủ đang trích xuất bài học, hình ảnh & câu hỏi...";
               if (barEl) barEl.style.width = "100%";
             }
           };
-          const res = await api.previewNewTopicFile(file, {
+          const res = await api.previewNewTopicFile(uploadFile, {
             order_index: newTopicDraft.order_index,
             title: newTopicDraft.title,
             subtitle: newTopicDraft.subtitle,
@@ -1765,6 +1775,10 @@ export function mountTeacherDashboard(container, activeTopic, onTopicUpdated, sh
       });
 
       container.querySelector("#btn-reset-new-topic")?.addEventListener("click", () => {
+        const draftId = newTopicDraft.preview?.extracted?.id;
+        if (draftId) {
+          api.cleanupDraftTopic(draftId).catch(() => {});
+        }
         newTopicDraft.file = null;
         newTopicDraft.preview = null;
         newTopicDraft.title = "";
@@ -1884,20 +1898,26 @@ export function mountTeacherDashboard(container, activeTopic, onTopicUpdated, sh
           importState.preview = null;
           render();
           try {
+            const txtEl = container.querySelector("#doc-import-upload-text");
+            const barEl = container.querySelector("#doc-import-upload-bar");
+            const slimRes = await slimDocxFile(file, (msg) => {
+              if (txtEl) txtEl.textContent = msg;
+              if (barEl) barEl.style.width = "10%";
+            });
+            const uploadFile = slimRes.file || file;
+            importState.file = uploadFile;
             const updateDocProgressUi = (p) => {
-              const txtEl = container.querySelector("#doc-import-upload-text");
-              const barEl = container.querySelector("#doc-import-upload-bar");
               if (p.phase === "uploading") {
                 const mbDone = (p.loaded / (1024 * 1024)).toFixed(1);
                 const mbTotal = (p.total / (1024 * 1024)).toFixed(1);
                 if (txtEl) txtEl.textContent = `Đang tải file lên: ${p.percent}% (${mbDone} / ${mbTotal} MB)...`;
-                if (barEl) barEl.style.width = `${Math.max(8, p.percent)}%`;
+                if (barEl) barEl.style.width = `${Math.max(10, p.percent)}%`;
               } else {
                 if (txtEl) txtEl.textContent = "Đã tải lên 100% — Máy chủ đang phân tích tài liệu...";
                 if (barEl) barEl.style.width = "100%";
               }
             };
-            const res = await api.importTopicFile(activeTopic.id, file, {
+            const res = await api.importTopicFile(activeTopic.id, uploadFile, {
               preview_only: true,
               onProgress: updateDocProgressUi,
             });
