@@ -12,7 +12,7 @@
       "number": "3.1",
       "title": "HỌC THUYẾT DI TRUYỀN CỦA MENDEL",
       "duration_minutes": 45,
-      "summary": "- Vào những nǎm đầu thế kỷ XIX, cho rằng vật chất di truyền pha trộn ra đời, cho rằng vật chất di truyền tồn tại dưới dạng chất lỏng nên ở đời con có sự pha trộn giữa vật chất di truyền của bố và mẹ (Hình 6.1A)",
+      "summary": "- Vào những năm đầu thế kỷ XIX, cho rằng vật chất di truyền pha trộn ra đời, cho rằng vật chất di truyền tồn tại dưới dạng chất lỏng nên ở đời con có sự pha trộn giữa vật chất di truyền của bố và mẹ (Hình 6.1A)",
       "image": "/uploads/chu-de-3/img_53a7e849d0.jpg",
       "image_caption": "",
       "interactive_diagram": "",
@@ -64,7 +64,7 @@
             },
             {
               "type": "text",
-              "text": "- Vào những nǎm đầu thế kỷ XIX, cho rằng vật chất di truyền pha trộn ra đời, cho rằng vật chất di truyền tồn tại dưới dạng chất lỏng nên ở đời con có sự pha trộn giữa vật chất di truyền của bố và mẹ (Hình 6.1A)",
+              "text": "- Vào những năm đầu thế kỷ XIX, cho rằng vật chất di truyền pha trộn ra đời, cho rằng vật chất di truyền tồn tại dưới dạng chất lỏng nên ở đời con có sự pha trộn giữa vật chất di truyền của bố và mẹ (Hình 6.1A)",
               "is_bold": false
             },
             {
@@ -84,7 +84,7 @@
             }
           ],
           "points": [
-            "- Vào những nǎm đầu thế kỷ XIX, cho rằng vật chất di truyền pha trộn ra đời, cho rằng vật chất di truyền tồn tại dưới dạng chất lỏng nên ở đời con có sự pha trộn giữa vật chất di truyền của bố và mẹ (Hình 6.1A)",
+            "- Vào những năm đầu thế kỷ XIX, cho rằng vật chất di truyền pha trộn ra đời, cho rằng vật chất di truyền tồn tại dưới dạng chất lỏng nên ở đời con có sự pha trộn giữa vật chất di truyền của bố và mẹ (Hình 6.1A)",
             "- Theo Mendel, thuyết di truyền pha trộn chưa đúng vì có nhiều đặc điểm của sinh vật được truyền một cách nguyên vẹn từ thế hệ này sang thế hệ khác (Hình 6.1B).",
             "- Ông tiến hành nghiên cứu trên đậu Hà Lan.",
             "- Kết quả thí nghiệm bác bỏ học thuyết di truyền pha trộn, cho rằng tính trạng được quy định bởi các cặp nhân tố di truyền và đề xuất học thuyết di truyền hạt với 2 quy luật phân li và phân li độc lập."
@@ -1773,7 +1773,7 @@
           },
           {
             "type": "text",
-            "text": "Bài tập quy luật di truyền nói chung được chia thành 2 dạng cơ bản: bài toán thuận và bài toán nghich. Trong đó bài toán thuận là dạng bài tập mà để bài cho dữ kiện của P (có thể là kiểu hình hoặc kiểu gene) → yêu cầu xác định kết quả phép lai ở đời con. Cách giải dạng bài tập này như sau:",
+            "text": "Bài tập quy luật di truyền nói chung được chia thành 2 dạng cơ bản: bài toán thuận và bài toán nghich. Trong đó bài toán thuận là dạng bài tập mà đề bài cho dữ kiện của P (có thể là kiểu hình hoặc kiểu gene) → yêu cầu xác định kết quả phép lai ở đời con. Cách giải dạng bài tập này như sau:",
             "is_bold": false
           },
           {
@@ -1783,7 +1783,7 @@
           },
           {
             "type": "text",
-            "text": "- Bước 2: Quy ước gene (nếu đề bài chưa cho quy uớc)",
+            "text": "- Bước 2: Quy ước gene (nếu đề bài chưa cho quy ước)",
             "is_bold": false
           },
           {
@@ -1793,7 +1793,7 @@
           },
           {
             "type": "text",
-            "text": "- Buớc 4: Dựa vào kết quả phép lai để trả lời các yêu cầu của đề bài",
+            "text": "- Bước 4: Dựa vào kết quả phép lai để trả lời các yêu cầu của đề bài",
             "is_bold": false
           },
           {
@@ -1875,12 +1875,12 @@
           },
           {
             "type": "text",
-            "text": "- Bước 2: Quy ước gene (nếu để bàí chưa cho quy uớc)",
+            "text": "- Bước 2: Quy ước gene (nếu đề bài chưa cho quy ước)",
             "is_bold": false
           },
           {
             "type": "text",
-            "text": "- Buớc 3: Dựa vào kiểu hình của đời con → kíếu gene của P",
+            "text": "- Bước 3: Dựa vào kiểu hình của đời con → kiểu gene của P",
             "is_bold": false
           },
           {
@@ -1895,7 +1895,7 @@
           },
           {
             "type": "text",
-            "text": "- Buớc 4: Viết sơ đổ lại kíểm tra (trong một số trường hợp)",
+            "text": "- Bước 4: Viết sơ đồ lại kiểm tra (trong một số trường hợp)",
             "is_bold": false
           },
           {
@@ -1951,7 +1951,7 @@
           },
           {
             "type": "text",
-            "text": "*Xác suất trực tiếp: Khi biết kiểu gene P → tính xác suất các kiểu gene hoặc các kiểu hình có thể có ở đời con. Đối với dạng này chỉ cần viết sơ đồ lai và dựa vào kết quả phép lai đề trả lời các câu hỏi theo yêu cầu của để bài.",
+            "text": "*Xác suất trực tiếp: Khi biết kiểu gene P → tính xác suất các kiểu gene hoặc các kiểu hình có thể có ở đời con. Đối với dạng này chỉ cần viết sơ đồ lai và dựa vào kết quả phép lai đề trả lời các câu hỏi theo yêu cầu của đề bài.",
             "is_bold": false
           },
           {
@@ -2062,7 +2062,7 @@
           },
           {
             "type": "text",
-            "text": "- Buớc 2: Viết sơ đồ lai liên quan trực tiếp đến phép tính",
+            "text": "- Bước 2: Viết sơ đồ lai liên quan trực tiếp đến phép tính",
             "is_bold": false
           },
           {
@@ -2072,7 +2072,7 @@
           },
           {
             "type": "text",
-            "text": "- Buớc 4: Kết quả = xác suất gặp P x xác suẩt đời con.",
+            "text": "- Bước 4: Kết quả = xác suất gặp P x xác suẩt đời con.",
             "is_bold": false
           },
           {
@@ -2177,17 +2177,17 @@
           },
           {
             "type": "text",
-            "text": "- Buớc 1: Tách phép lai tổng thành các phép lai đơn",
+            "text": "- Bước 1: Tách phép lai tổng thành các phép lai đơn",
             "is_bold": false
           },
           {
             "type": "text",
-            "text": "- Buớc 2: Viết sơ đổ lai để xác định kết quả của từng phép lai đơn",
+            "text": "- Bước 2: Viết sơ đồ lai để xác định kết quả của từng phép lai đơn",
             "is_bold": false
           },
           {
             "type": "text",
-            "text": "- Buớc 3: Áp dụng công thức, phép lai tổng = tích các phép lai đơn → kết quả phép lai",
+            "text": "- Bước 3: Áp dụng công thức, phép lai tổng = tích các phép lai đơn → kết quả phép lai",
             "is_bold": false
           },
           {
@@ -2530,7 +2530,7 @@
           },
           {
             "type": "text",
-            "text": "3.6. Tỉ lê kiểu hình có 2 cặp tính trạng lặn:",
+            "text": "3.6. Tỉ lệ kiểu hình có 2 cặp tính trạng lặn:",
             "is_bold": false,
             "exercise": {
               "id": "cd3-ks-3.1-pldl-vd2-3-6",
@@ -2548,7 +2548,7 @@
           },
           {
             "type": "text",
-            "text": "3.7. Tỉ lê kiểu hình thân cao, hoa vàng, quả tròn:",
+            "text": "3.7. Tỉ lệ kiểu hình thân cao, hoa vàng, quả tròn:",
             "is_bold": false,
             "exercise": {
               "id": "cd3-ks-3.1-pldl-vd2-3-7",
@@ -2566,7 +2566,7 @@
           },
           {
             "type": "text",
-            "text": "3.8. Tỉ lê kiểu hình aaB-D-:",
+            "text": "3.8. Tỉ lệ kiểu hình aaB-D-:",
             "is_bold": false,
             "exercise": {
               "id": "cd3-ks-3.1-pldl-vd2-3-8",
@@ -2599,7 +2599,7 @@
           },
           {
             "type": "text",
-            "text": "- Bứớc 2: Xét riêng từng cặp tính trạng → kiểu gene ở từng cặp tính trạng của P.",
+            "text": "- Bước 2: Xét riêng từng cặp tính trạng → kiểu gene ở từng cặp tính trạng của P.",
             "is_bold": false
           },
           {
@@ -3505,7 +3505,7 @@
           "title": "3.1: HỌC THUYẾT DI TRUYỀN CỦA MENDEL",
           "color": "#0f766e",
           "nodes": [
-            "1. Bối cảnh ra đời thí nghiệm của Mendel: - Vào những nǎm đầu thế kỷ XIX, cho rằng vật chất di truyền pha trộn ra đời, cho rằng vật chất di truyền tồn tại dưới dạng chất lỏng nên ở đời con có sự ph",
+            "1. Bối cảnh ra đời thí nghiệm của Mendel: - Vào những năm đầu thế kỷ XIX, cho rằng vật chất di truyền pha trộn ra đời, cho rằng vật chất di truyền tồn tại dưới dạng chất lỏng nên ở đời con có sự ph",
             "2. Thí nghiệm lai một cặp tính trạng và quy luật phân li: a. Bố trí thí nghiệm",
             "3. Thí nghiệm lai hai cặp tính trạng và quy luật phân li độc lập: a. Bố trí thí nghiệm: Lai cặp P khác nhau 2 cặp tính trạng tương phản."
           ]
@@ -3532,7 +3532,7 @@
     "flashcards": [
       {
         "front": "[Phần A] 1. Bối cảnh ra đời thí nghiệm của Mendel",
-        "back": "- Vào những nǎm đầu thế kỷ XIX, cho rằng vật chất di truyền pha trộn ra đời, cho rằng vật chất di truyền tồn tại dưới dạng chất lỏng nên ở đời con có sự pha trộn giữa vật chất di truyền của bố và mẹ (Hình 6.1A) - Theo Mendel, thuyết di truyền pha trộn chưa đúng vì có nhiều đặc đi"
+        "back": "- Vào những năm đầu thế kỷ XIX, cho rằng vật chất di truyền pha trộn ra đời, cho rằng vật chất di truyền tồn tại dưới dạng chất lỏng nên ở đời con có sự pha trộn giữa vật chất di truyền của bố và mẹ (Hình 6.1A) - Theo Mendel, thuyết di truyền pha trộn chưa đúng vì có nhiều đặc đi"
       },
       {
         "front": "[Phần A] 2. Thí nghiệm lai một cặp tính trạng và quy luật phân li",
@@ -3970,7 +3970,7 @@
         "tables": [],
         "options": [
           "di truyền cùng nhau tạo thành nhóm gene liên kết.",
-          "sẽ phân li độc lập trong quá trinh giảm phân hình thành giao tử.",
+          "sẽ phân li độc lập trong quá trình giảm phân hình thành giao tử.",
           "luôn tương tác với nhau cùng quy đinh một tính trạng.",
           "luôn có số lượng, thành phần và trật tự các nucleotide giống nhau."
         ],
@@ -4010,7 +4010,7 @@
         "tables": [],
         "options": [
           "tự thụ phấn chặt chẽ.",
-          "có thể tiến hành giao phấn gíữa các cá thể khác nhau.",
+          "có thể tiến hành giao phấn giữa các cá thể khác nhau.",
           "thời gian sinh trưởng dài.",
           "có nhiều cặp tính trạng tương phản."
         ],
@@ -4625,7 +4625,7 @@
         "lesson_id": "chu-de-3-bai-1",
         "lesson": "3.1",
         "level": "Học thuyết di truyền của Mendel",
-        "question": "Cho biẾt quá trình giảm phân không xảy ra đột biên, các gene phân li độc lập và tác động riêng rẽ, các allele trội là trội hoàn toàn. Theo lí thuyết, phép lai AaBbDd x AaBbDD cho đời con có tối đa",
+        "question": "Cho biẾt quá trình giảm phân không xảy ra đột biến, các gene phân li độc lập và tác động riêng rẽ, các allele trội là trội hoàn toàn. Theo lí thuyết, phép lai AaBbDd x AaBbDD cho đời con có tối đa",
         "images": [],
         "tables": [],
         "options": [
@@ -4705,7 +4705,7 @@
         "lesson_id": "chu-de-3-bai-1",
         "lesson": "3.1",
         "level": "Học thuyết di truyền của Mendel",
-        "question": "Cho biết mỗi gene quy đnh một tính trạng, allele trội là trội hoàn toàn và không xảy ra đột biến. Theo lí thuyết, các phép lai nào sau đây cho đời con có tỉ lệ phân li kiểu gene khác với tỉ lệ phân li kiểu hình?",
+        "question": "Cho biết mỗi gene quy định một tính trạng, allele trội là trội hoàn toàn và không xảy ra đột biến. Theo lí thuyết, các phép lai nào sau đây cho đời con có tỉ lệ phân li kiểu gene khác với tỉ lệ phân li kiểu hình?",
         "images": [],
         "tables": [],
         "options": [
@@ -4884,7 +4884,7 @@
         "lesson_id": "chu-de-3-bai-1",
         "lesson": "3.1",
         "level": "Học thuyết di truyền của Mendel",
-        "question": "Ở một loài thực vât lưỡng bội, allele A quy định thân cao trội hoàn toàn so với allele a quy định thân thấp: allele B quy định hoa đỏ trội hoàn toàn so với allele b quy định hoa vàng, các gene phân li độc lập. Cho cây thân cao, hoa đỏ (P) tự thụ phấn, thu được F1 gồm 4 loại kiểu hình. Cho cây P giao phấn với hai cây khác nhau:\n- Với cây thứ nhất, thu được đời con có kiểu hình phân li theo tỉ lệ 1:1:1:1.\n- Với cây thứ hai, thu được đời con chi có một loại kiểu hình.\nBiết rằng không xảy ra đột biến và các cá thế con có sức sống như nhau. Kiểu gene của cây P, cây thứ nhất và cây thứ hai lần lượt là",
+        "question": "Ở một loài thực vật lưỡng bội, allele A quy định thân cao trội hoàn toàn so với allele a quy định thân thấp: allele B quy định hoa đỏ trội hoàn toàn so với allele b quy định hoa vàng, các gene phân li độc lập. Cho cây thân cao, hoa đỏ (P) tự thụ phấn, thu được F1 gồm 4 loại kiểu hình. Cho cây P giao phấn với hai cây khác nhau:\n- Với cây thứ nhất, thu được đời con có kiểu hình phân li theo tỉ lệ 1:1:1:1.\n- Với cây thứ hai, thu được đời con chi có một loại kiểu hình.\nBiết rằng không xảy ra đột biến và các cá thế con có sức sống như nhau. Kiểu gene của cây P, cây thứ nhất và cây thứ hai lần lượt là",
         "images": [],
         "tables": [],
         "options": [
@@ -5064,7 +5064,7 @@
         "lesson_id": "chu-de-3-bai-1",
         "lesson": "3.1",
         "level": "Học thuyết di truyền của Mendel",
-        "question": "Cho biết mỗi cặp tính trạng do một cặp gene nằm trên NST thường quy định. Cho cây thân cao, hoa đỏ giao phân với cây thân thấp, hoa trằng được F1 gồm 100% cây thân cao, hoa đỏ. Cho F1 tự thụ phấn đời F2 có tỉ lệ 56,25% cây thân cao, hoa đỏ : 18,75% cây thân cao, hoa trắng : 18,75% cây thân thấp, hoa đỏ : 6,25% cây thân thấp, hoa trắng. Hỏi tỉ lệ cây thân cao, hoa trắng thuẩn chủng trong tổng số những cây thân cao, hoa trắng ở F2 là",
+        "question": "Cho biết mỗi cặp tính trạng do một cặp gene nằm trên NST thường quy định. Cho cây thân cao, hoa đỏ giao phấn với cây thân thấp, hoa trằng được F1 gồm 100% cây thân cao, hoa đỏ. Cho F1 tự thụ phấn đời F2 có tỉ lệ 56,25% cây thân cao, hoa đỏ : 18,75% cây thân cao, hoa trắng : 18,75% cây thân thấp, hoa đỏ : 6,25% cây thân thấp, hoa trắng. Hỏi tỉ lệ cây thân cao, hoa trắng thuẩn chủng trong tổng số những cây thân cao, hoa trắng ở F2 là",
         "images": [],
         "tables": [],
         "options": [
@@ -5084,7 +5084,7 @@
         "lesson_id": "chu-de-3-bai-1",
         "lesson": "3.1",
         "level": "Học thuyết di truyền của Mendel",
-        "question": "Ở đậu Hà Lan, gene A: thân cao, allele a: thân thấp, gene B: hoa đỏ, allele b: hoa trắng nẫm trên 2 cặp nhiễm sắc thể tương đồng. Cho đậu thân cao, hoa đỏ dị hợp về 2 cặp gene tự thụ phấn được F1. Nếu không có đột biên, tính theo lí thuyết thì xác suất các thể đồng hợp về 2 cặp gene thu được ở F1 là",
+        "question": "Ở đậu Hà Lan, gene A: thân cao, allele a: thân thấp, gene B: hoa đỏ, allele b: hoa trắng nẫm trên 2 cặp nhiễm sắc thể tương đồng. Cho đậu thân cao, hoa đỏ dị hợp về 2 cặp gene tự thụ phấn được F1. Nếu không có đột biến, tính theo lí thuyết thì xác suất các thể đồng hợp về 2 cặp gene thu được ở F1 là",
         "images": [],
         "tables": [],
         "options": [
@@ -6378,7 +6378,7 @@
         "statements": [
           {
             "key": "a",
-            "text": "Trên mỗi cây Fı có hai loại quả, trong đó có 75% số quả đỏ và 25% số quả vàng.",
+            "text": "Trên mỗi cây Fi có hai loại quả, trong đó có 75% số quả đỏ và 25% số quả vàng.",
             "answer": false,
             "explanation": ""
           },
@@ -6396,7 +6396,7 @@
           },
           {
             "key": "d",
-            "text": "Trên mỗi cây Fı chỉ có một loại quả, quả đỏ hoặc quả vàng.",
+            "text": "Trên mỗi cây Fi chỉ có một loại quả, quả đỏ hoặc quả vàng.",
             "answer": true,
             "explanation": ""
           }
@@ -6485,7 +6485,7 @@
         "orig_num": 7,
         "lesson_id": "chu-de-3-bai-1",
         "lesson": "3.1",
-        "stem": "Cho biết các gene phân li độc lập và không xảy ra đột biến. Một cây có kiểu gene dị hợp tử về 2 cặp gene tự thụ phấn thu được Fı. Mỗi nhận xét sau đây là Đúng hay Sai?",
+        "stem": "Cho biết các gene phân li độc lập và không xảy ra đột biến. Một cây có kiểu gene dị hợp tử về 2 cặp gene tự thụ phấn thu được Fi. Mỗi nhận xét sau đây là Đúng hay Sai?",
         "images": [],
         "tables": [],
         "statements": [
@@ -6577,7 +6577,7 @@
           },
           {
             "key": "c",
-            "text": "Cho các cây thân cao, hoa đỏ (P) giao phấn. Nếu Fı có thân thấp, hoa trắng thì chứng tỏ Fı có 9 loại kiểu gene.",
+            "text": "Cho các cây thân cao, hoa đỏ (P) giao phấn. Nếu Fi có thân thấp, hoa trắng thì chứng tỏ Fi có 9 loại kiểu gene.",
             "answer": true,
             "explanation": ""
           },
@@ -7002,7 +7002,7 @@
         "orig_num": 10,
         "lesson_id": "chu-de-3-bai-2",
         "lesson": "3.2",
-        "stem": "Ở một giống lúa mì, màu sắc hạt do 2 cặp gene phân li độc lập tương tác theo kiểu cộng gộp quy định. Trong đó, mỗi allele A hoặc B đóng góp một lượng sắc tố đỏ như nhau và các allele a hoặc b không đóng góp sắc tố vào sự biểu hiện màu sắc hạt; điều này dẫn đến kiểu gene càng có nhiều allele trội thì hạt có màu càng đậm. Sự tương tác này tạo thành một dãy màu sắc từ trắng → hồng → đỏ nhạt → đỏ → đỏ đậm. Đm cây hạt đỏ đậm thụ phần cho cây hạt trắng thu được F1 và các cây này đều cho hạt có màu đỏ nhạt. Sau đó cho các cây F1 tự thụ phấn, thu được F2. Hãy xác định Đúng hay Sai cho mỗi nhận định sau đây:",
+        "stem": "Ở một giống lúa mì, màu sắc hạt do 2 cặp gene phân li độc lập tương tác theo kiểu cộng gộp quy định. Trong đó, mỗi allele A hoặc B đóng góp một lượng sắc tố đỏ như nhau và các allele a hoặc b không đóng góp sắc tố vào sự biểu hiện màu sắc hạt; điều này dẫn đến kiểu gene càng có nhiều allele trội thì hạt có màu càng đậm. Sự tương tác này tạo thành một dãy màu sắc từ trắng → hồng → đỏ nhạt → đỏ → đỏ đậm. Đem cây hạt đỏ đậm thụ phần cho cây hạt trắng thu được F1 và các cây này đều cho hạt có màu đỏ nhạt. Sau đó cho các cây F1 tự thụ phấn, thu được F2. Hãy xác định Đúng hay Sai cho mỗi nhận định sau đây:",
         "images": [],
         "tables": [],
         "statements": [
@@ -7425,7 +7425,7 @@
         "orig_num": 6,
         "lesson_id": "chu-de-3-bai-1",
         "lesson": "3.1",
-        "question": "Cho biết một gene quy định một tính trạng, gene trội là trội hoàn toàn, các gene phân li độc lập. Cơ thể dị hợp về 2 cặp gene tự thụ phấn, F1 thu đuợc tổng số 240 hạt. Tính theo lí thuyết, số hạt dị hợp tử về 2 cặp gene ở Fı là bao nhiêu?",
+        "question": "Cho biết một gene quy định một tính trạng, gene trội là trội hoàn toàn, các gene phân li độc lập. Cơ thể dị hợp về 2 cặp gene tự thụ phấn, F1 thu đuợc tổng số 240 hạt. Tính theo lí thuyết, số hạt dị hợp tử về 2 cặp gene ở Fi là bao nhiêu?",
         "images": [],
         "tables": [],
         "placeholder": "Nhập kết quả của bạn...",
@@ -7476,7 +7476,7 @@
         "orig_num": 9,
         "lesson_id": "chu-de-3-bai-1",
         "lesson": "3.1",
-        "question": "Ở đầu Hà Lan, gene A quy định hạt vàng là trội hoàn toàn so với allele a quy định hạt xanh, gene B quy định hạt trơn là trội hoàn toàn so với allele b quy định hạt nhăn. Hai cặp gene nay phân li độc lập. Cho giao phấn cây hạt vàng, trơn với cây hạt xanh, trơn Fı thu được 120 hạt vàng trơn; 40 hạt xanh nhăn; 120 hạt xanh, trơn: 40 hạt xanh, nhăn. Tỉ lệ hạt xanh, trơn có kiểu gene đồng hợp trong tồng số hạt xanh, trơn ở F1 là bao nhiêu?",
+        "question": "Ở đầu Hà Lan, gene A quy định hạt vàng là trội hoàn toàn so với allele a quy định hạt xanh, gene B quy định hạt trơn là trội hoàn toàn so với allele b quy định hạt nhăn. Hai cặp gene nay phân li độc lập. Cho giao phấn cây hạt vàng, trơn với cây hạt xanh, trơn Fi thu được 120 hạt vàng trơn; 40 hạt xanh nhăn; 120 hạt xanh, trơn: 40 hạt xanh, nhăn. Tỉ lệ hạt xanh, trơn có kiểu gene đồng hợp trong tồng số hạt xanh, trơn ở F1 là bao nhiêu?",
         "images": [],
         "tables": [],
         "placeholder": "Nhập kết quả của bạn...",
@@ -7690,5 +7690,5 @@
       }
     ]
   },
-  "bundled_version": "2026.11.26-dna-geno-v4"
+  "bundled_version": "2026.11.26-spelling-clean-v6"
 }

@@ -1056,7 +1056,7 @@
             },
             {
               "type": "text",
-              "text": "- Sự biến đổi về kiểu hình của cùng một kiểu gene ở các môi trường khác nhau được gọi là thường biến. Thường biến diễn ra đồng loạt theo hướng xác định, bị chi phối bởi các yếu tố môi trường không liên quan đến biến đổi gene nên không di truyền. Thường biến giúp cơ thể có khả năng thích ứng trước những thay đổi mang tính ngắn hạn hay có tính chu kỳ của môi trường.",
+              "text": "- Sự biến đổi về kiểu hình của cùng một kiểu gene ở các môi trường khác nhau được gọi là thường biến. Thường biến dịễn ra đồng loạt theo hướng xác định, bị chi phối bởi các yếu tố môi trường không liên quan đến biến đổi gene nên không di truyền. Thường biến giúp cơ thể có khả năng thích ứng trước những thay đổi mang tính ngắn hạn hay có tính chu kỳ của môi trường.",
               "is_bold": false
             },
             {
@@ -1068,7 +1068,7 @@
           "points": [
             "- Sự biểu hiện của một số gene có thể bị tác động bởi các yếu tố môi trường. Do đó, cùng một kiểu gene trong những điều kiện môi trường xác định có thể biểu hiện thành những kiểu hình khác nhau → Tương tác giữa kiểu gene và môi trường cho thấy sự ảnh hưởng của môi trường lên quá trình biểu hiện thành kiểu hình của một kiểu gene.",
             "- Kiểu gene quy định thông tin di truyền tạo ra các sản phẩm (protein) nhưng số lượng và chất lượng sản phẩm được tạo ra còn phụ thuộc vào điều kiện môi trường cụ thể. Chính vì thế một số gene có thể cho ra các kiểu hình khác nhau tương ứng với điều kiện môi trường khác nhau. Ví dụ: Cáo tuyết bắc cực lông màu trắng vào mùa đông nhưng lông màu sẫm vào mùa hè, hoa phù dung có màu trắng vào buổi sáng và màu hồng vào buổi trưa.",
-            "- Sự biến đổi về kiểu hình của cùng một kiểu gene ở các môi trường khác nhau được gọi là thường biến. Thường biến diễn ra đồng loạt theo hướng xác định, bị chi phối bởi các yếu tố môi trường không liên quan đến biến đổi gene nên không di truyền. Thường biến giúp cơ thể có khả năng thích ứng trước những thay đổi mang tính ngắn hạn hay có tính chu kỳ của môi trường.",
+            "- Sự biến đổi về kiểu hình của cùng một kiểu gene ở các môi trường khác nhau được gọi là thường biến. Thường biến dịễn ra đồng loạt theo hướng xác định, bị chi phối bởi các yếu tố môi trường không liên quan đến biến đổi gene nên không di truyền. Thường biến giúp cơ thể có khả năng thích ứng trước những thay đổi mang tính ngắn hạn hay có tính chu kỳ của môi trường.",
             "- Trên một cơ thể đa bào các tế bào đều chứa hệ gene giống nhau nhưng biểu hiện gene ở các bộ phận khác nhau cũng có thể khác nhau (Hình 12.1)."
           ]
         },
@@ -2579,7 +2579,7 @@
           },
           {
             "type": "text",
-            "text": "3. Ti lệ cá thể dị hợp 1 cặp gene trong tổng số F2.",
+            "text": "3. Tỉ lệ cá thể dị hợp 1 cặp gene trong tổng số F2.",
             "is_bold": false,
             "exercise": {
               "id": "cd4-ks-4.2-hv-vd2-3",
@@ -4261,7 +4261,7 @@
         "lesson_id": "chu-de-4-bai-1",
         "lesson": "4.1",
         "level": "2. Bài tập di truyền liên kết với giới tính",
-        "question": "Ở người, gene D quy định tính trạng da bình thường, allele d quy định tính trạng bạch tạng, cặp gene này nằm trên NST thường; gene M quy định tính trạng mắt nhìn màu bình thường, allele m quy định tính trạng mù màu, các gene nàỵ nằm trên NST X không có allele tương ứng trên Y. Mẹ bình thường về cả hai tính trạng trên, bố có mắt nhìn màu bình thường và da bạch tạng, con trai vừa bạch tạng vừa mù màu. Trong trường hợp không có đột biến mới xảy ra, kiểu gene của mẹ, bố là",
+        "question": "Ở người, gene D quy định tính trạng da bình thường, allele d quy định tính trạng bạch tạng, cặp gene này nằm trên NST thường; gene M quy định tính trạng mắt nhìn màu bình thường, allele m quy định tính trạng mù màu, các gene này nằm trên NST X không có allele tương ứng trên Y. Mẹ bình thường về cả hai tính trạng trên, bố có mắt nhìn màu bình thường và da bạch tạng, con trai vừa bạch tạng vừa mù màu. Trong trường hợp không có đột biến mới xảy ra, kiểu gene của mẹ, bố là",
         "images": [],
         "tables": [],
         "options": [
@@ -6500,7 +6500,7 @@
         "lesson_id": "chu-de-4-bai-2",
         "lesson": "4.2",
         "level": "5. Bài toán thuận tổng hợp giữa liên kết gene với các quy luật khác",
-        "question": "Ở một loài động vật, allele A quy định lông xám trội hoàn toàn so với allele a quy định lông hung: allele B quy định chân cao trội hoàn toàn so với allele b quy định chân thấp; allele D quy định mắt nâu trội hoàn toàn so với allele d quy định mắt đen. Phép lai P: ♀ AB/abX^DX^d × ♂ AB/abX^dY thu được F1.Trong tổng số cá thể E F1 số cá thể cái có lông hung, chân thấp, mắt đen chiếm tỉ lệ 1%. Biết quá trình giảm phân không xảy ra đột biển nhưng xảy ra hoán vị gene ở cả hai giới với tần số như nhau. Theo lí thuyết, số cá thể lông xám dị hợp, chân thấp, mắt nâu ở F1 chiếm ti lệ",
+        "question": "Ở một loài động vật, allele A quy định lông xám trội hoàn toàn so với allele a quy định lông hung: allele B quy định chân cao trội hoàn toàn so với allele b quy định chân thấp; allele D quy định mắt nâu trội hoàn toàn so với allele d quy định mắt đen. Phép lai P: ♀ AB/abX^DX^d × ♂ AB/abX^dY thu được F1.Trong tổng số cá thể E F1 số cá thể cái có lông hung, chân thấp, mắt đen chiếm tỉ lệ 1%. Biết quá trình giảm phân không xảy ra đột biển nhưng xảy ra hoán vị gene ở cả hai giới với tần số như nhau. Theo lí thuyết, số cá thể lông xám dị hợp, chân thấp, mắt nâu ở F1 chiếm tỉ lệ",
         "images": [],
         "tables": [],
         "options": [
@@ -7002,7 +7002,7 @@
           "Có khả năng tự nhân đôi độc lập với sự phân bào.",
           "Có cấu trúc xoắn kép, mạch vòng, số lượng gene ít.",
           "Lai thuận nghịch cho kết quả khác nhau.",
-          "Gene ngoài nhân bị đột biến di truyền cho tất cả các tế bào con."
+          "Gene ngoài nhân bị đột biến dị truyền cho tất cả các tế bào con."
         ],
         "correct_index": 3,
         "answer_key_ready": true,
@@ -9518,5 +9518,5 @@
       }
     ]
   },
-  "bundled_version": "2026.11.26-dna-geno-v4"
+  "bundled_version": "2026.11.26-spelling-clean-v6"
 }

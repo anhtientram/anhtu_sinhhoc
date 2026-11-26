@@ -46,18 +46,18 @@ RE_PART3 = re.compile(
     re.IGNORECASE,
 )
 RE_ANSWER_SECTION = re.compile(
-    r"^\s*(?:BẢNG\s+ĐÁP\s+ÁN|ĐÁP\s+ÁN\s*(?:CHÍNH\s+THỨC|CHI\s+TIẾT|THAM\s+KHẢO|VÀ\s+HƯỚNG\s+DẪN|&\s*HƯỚNG\s+DẪN|ĐỀ\s+THI)?|HƯỚNG\s+DẪN\s+CHẤM|HƯỚNG\s+DẪN\s+GIẢI\s+CHI\s+TIẾT)\s*[:\-–.]?\s*$",
+    r"^\s*(?:BẢNG\s+ĐÁP\s+ÁN|ĐÁP\s+ÁN\s*(?:CHÍNH\s+THỨC|CHI\s+TIẾT|THAM\s+KHẢO|VÀ\s+HƯỚNG\s+DẪN(?:\s+GIẢI(?:\s+CHI\s+TIẾT)?)?|&\s*HƯỚNG\s+DẪN(?:\s+GIẢI(?:\s+CHI\s+TIẾT)?)?|ĐỀ\s+THI)?|HƯỚNG\s+DẪN\s+CHẤM|HƯỚNG\s+DẪN\s+GIẢI\s+CHI\s+TIẾT|LỜI\s+GIẢI\s+CHI\s+TIẾT)\s*[:\-–.]?\s*$",
     re.IGNORECASE,
 )
 RE_Q_START = re.compile(r"^\s*(?:Câu|Bài)\s*(\d+)\s*[:\.\-–]?\s*(.*)$", re.IGNORECASE)
 RE_OPT_INLINE = re.compile(r"(?:^|\s)([A-D])\s*[\.\)]\s+")
-RE_STMT_START = re.compile(r"^\s*([a-d])\s*[\)\.]\s+(.*)$", re.IGNORECASE)
+RE_STMT_START = re.compile(r"^\s*([a-d])\s*[\)\.]\s*(.*)$", re.IGNORECASE)
 RE_INLINE_ANS = re.compile(
     r"^\s*(?:Đáp\s*án(?:\s*đúng)?|Chọn|Đáp\s*số|Key)\s*[:\.\-–]?\s*(.+)$",
     re.IGNORECASE,
 )
 RE_INLINE_EXPLAIN = re.compile(
-    r"^\s*(?:Hướng\s+dẫn\s+giải|Lời\s+giải|Giải\s+thích|Gợi\s+ý|HDG|Giải)\s*[:\.\-–]\s*(.*)$",
+    r"^\s*(?:Hướng\s+dẫn\s+giải(?:\s+chi\s+tiết)?|Lời\s+giải(?:\s+chi\s+tiết)?|Giải\s+chi\s+tiết|Giải\s+thích|Gợi\s+ý(?:\s+đáp\s+án)?|HDG|Giải)\s*(?:[:\.\-–]\s*(.*)|$)",
     re.IGNORECASE,
 )
 
@@ -105,8 +105,27 @@ def _is_highlight_color(color_val: str) -> bool:
     return False
 
 
+def _run_is_underlined(run_el) -> bool:
+    """Kiểm tra riêng thuộc tính gạch chân (<w:u>) — dùng nhận diện đáp án Đúng trong Phần II Đúng/Sai."""
+    for ch in run_el:
+        if _local_tag(ch) == "rPr":
+            for prop in ch:
+                if _local_tag(prop) == "u":
+                    val = None
+                    for k, v in prop.attrib.items():
+                        if k.endswith("}val") or k == "val":
+                            val = v
+                            break
+                    if val is None or val.lower() not in ("none", ""):
+                        return True
+            break
+    return False
+
+
 def _run_has_answer_mark(run_el) -> bool:
     """Kiểm tra một <w:r> có gạch chân (<w:u>), màu đỏ/xanh nổi bật hoặc highlight hay không."""
+    if _run_is_underlined(run_el):
+        return True
     rpr = None
     for ch in run_el:
         if _local_tag(ch) == "rPr":
@@ -116,15 +135,7 @@ def _run_has_answer_mark(run_el) -> bool:
         return False
     for prop in rpr:
         t = _local_tag(prop)
-        if t == "u":
-            val = ""
-            for k, v in prop.attrib.items():
-                if k.endswith("}val") or k == "val":
-                    val = v
-                    break
-            if val.lower() not in ("none", ""):
-                return True
-        elif t == "highlight":
+        if t == "highlight":
             val = ""
             for k, v in prop.attrib.items():
                 if k.endswith("}val") or k == "val":
@@ -188,13 +199,15 @@ def _extract_docx_elements(file_bytes: bytes) -> List[Dict[str, Any]]:
         def parse_paragraph(p_el) -> Dict[str, Any]:
             parts: List[str] = []
             marked_segments: List[str] = []
+            underlined_segments: List[str] = []
             imgs: List[str] = []
 
             for node in p_el:
                 nt = _local_tag(node)
                 if nt == "r":
                     run_texts: List[str] = []
-                    is_marked = _run_has_answer_mark(node)
+                    is_u = _run_is_underlined(node)
+                    is_marked = is_u or _run_has_answer_mark(node)
                     for sub in node.iter():
                         st = _local_tag(sub)
                         if st == "t" and sub.text:
@@ -220,6 +233,8 @@ def _extract_docx_elements(file_bytes: bytes) -> List[Dict[str, Any]]:
                         parts.append(rtxt)
                         if is_marked:
                             marked_segments.append(rtxt)
+                        if is_u:
+                            underlined_segments.append(rtxt)
                 elif nt in ("oMath", "oMathPara"):
                     om = _omml_to_text(node)
                     if om:
@@ -245,12 +260,25 @@ def _extract_docx_elements(file_bytes: bytes) -> List[Dict[str, Any]]:
                     first_marked = _clean(" ".join(marked_segments))
                     if len(first_marked) >= 1 and first_marked in text:
                         marked_letters.append(m_start.group(1))
+
+            # Kiểm tra nhãn ý Phần II (a), b), c), d)) có được gạch chân (<w:u>) hay không
+            tf_underlined = False
+            if underlined_segments:
+                m_tf_line = re.match(r"^\s*([a-d])\s*[\)\.]", text, re.IGNORECASE)
+                if m_tf_line:
+                    u_joined = "".join(underlined_segments).strip()
+                    tf_key = m_tf_line.group(1).lower()
+                    # Gạch chân chữ a / a) / a. ở đầu dòng HOẶC gạch chân phần lớn nội dung mệnh đề
+                    if re.match(rf"^\s*{tf_key}\s*[\)\.]?", u_joined, re.IGNORECASE) or len(u_joined) >= max(4, int(len(text) * 0.45)):
+                        tf_underlined = True
+
             return {
                 "type": "paragraph",
                 "text": text,
                 "images": imgs,
                 "marked_letters": marked_letters,
                 "marked_text": _clean(" ".join(marked_segments)),
+                "tf_underlined": tf_underlined,
             }
 
         def parse_table(tbl_el) -> Dict[str, Any]:
@@ -475,16 +503,17 @@ def _parse_answer_key_section(
                     continue
 
             elif cur_part == "true_false":
-                # Nhiều câu trên 1 dòng hoặc từng câu: "Câu 1: a-Đ, b-S, c-Đ, d-S"
-                m_tf = re.match(r"^\s*(?:Câu\s*)?(\d+)\s*[:\.\-–]\s*(.+)$", txt, re.IGNORECASE)
-                if m_tf:
+                # Nhiều câu trên 1 dòng hoặc từng câu: "Câu 1: a-Đ, b-S, c-Đ, d-S" hoặc "Câu 1:" (tiếp theo là từng dòng a), b), c), d))
+                m_tf = re.match(r"^\s*(?:Câu\s*)?(\d+)\s*[:\.\-–]?\s*(.*)$", txt, re.IGNORECASE)
+                if m_tf and re.match(r"^\s*(?:Câu\s*\d+|\d+\s*[:\.\-–])", txt, re.IGNORECASE):
                     qnum = int(m_tf.group(1))
-                    rest = m_tf.group(2).strip()
-                    parsed = _parse_tf_string(rest)
-                    if parsed:
-                        tf_keys[qnum] = parsed
-                    if len(rest) > 28:
-                        explanations[("true_false", qnum)] = (explanations.get(("true_false", qnum), "") + "\n" + rest).strip()
+                    rest = (m_tf.group(2) or "").strip()
+                    if rest:
+                        parsed = _parse_tf_string(rest)
+                        if parsed:
+                            tf_keys[qnum] = parsed
+                        if len(rest) > 20 or not parsed:
+                            explanations[("true_false", qnum)] = (explanations.get(("true_false", qnum), "") + "\n" + rest).strip()
                     cur_exp_target = ("true_false", qnum)
                     continue
 
@@ -503,28 +532,52 @@ def _parse_answer_key_section(
                     cur_exp_target = None
                     continue
 
-                m_sa = re.match(r"^\s*(?:Câu\s*)?(\d+)\s*[:\.\-–]\s*(.+)$", txt, re.IGNORECASE)
-                if m_sa:
+                m_sa = re.match(r"^\s*(?:Câu\s*)?(\d+)\s*[:\.\-–]?\s*(.*)$", txt, re.IGNORECASE)
+                if m_sa and re.match(r"^\s*(?:Câu\s*\d+|\d+\s*[:\.\-–])", txt, re.IGNORECASE):
                     qnum = int(m_sa.group(1))
-                    rest = m_sa.group(2).strip()
-                    m_num = re.match(r"^([-+]?\d+(?:[,\.]\d+)?)", rest)
-                    if m_num:
-                        v_clean = m_num.group(1)
-                        acc = [v_clean]
-                        if "," in v_clean:
-                            acc.append(v_clean.replace(",", "."))
-                        elif "." in v_clean:
-                            acc.append(v_clean.replace(".", ","))
-                        sa_keys[qnum] = acc
-                    elif len(rest) <= 24:
-                        sa_keys[qnum] = [rest]
-                    if len(rest) > 10:
-                        explanations[("short_answer", qnum)] = (explanations.get(("short_answer", qnum), "") + "\n" + rest).strip()
+                    rest = (m_sa.group(2) or "").strip()
+                    if rest:
+                        m_num = re.match(r"^(?:(?:Đáp\s*án|Đáp\s*số|Kết\s*quả)\s*[:\.\-–]?\s*)?([-+]?\d+(?:[,\.]\d+)?)", rest, re.IGNORECASE)
+                        if m_num:
+                            v_clean = m_num.group(1)
+                            acc = [v_clean]
+                            if "," in v_clean:
+                                acc.append(v_clean.replace(",", "."))
+                            elif "." in v_clean:
+                                acc.append(v_clean.replace(".", ","))
+                            sa_keys[qnum] = acc
+                        elif len(rest) <= 24:
+                            sa_keys[qnum] = [rest]
+                        if len(rest) > 10:
+                            explanations[("short_answer", qnum)] = (explanations.get(("short_answer", qnum), "") + "\n" + rest).strip()
                     cur_exp_target = ("short_answer", qnum)
                     continue
 
             if cur_exp_target:
                 explanations[cur_exp_target] = (explanations.get(cur_exp_target, "") + "\n" + txt).strip()
+                # Tự trích đáp án nếu xuất hiện trong phần Hướng dẫn giải chi tiết cuối đề
+                part_k, qnum_k = cur_exp_target
+                if part_k == "mcq" and qnum_k not in mcq_keys:
+                    mp = re.search(r"(?:Chọn|Đáp\s*án(?:\s*đúng)?)\s*[:\s]*([A-D])\b", txt, re.IGNORECASE)
+                    if mp:
+                        mcq_keys[qnum_k] = LETTER_TO_IDX[mp.group(1).upper()]
+                elif part_k == "true_false":
+                    m_st_exp = re.match(r"^\s*([a-d])\s*[\)\.\-–:]?\s*(Đúng|Sai|Đ|S)\b", txt, re.IGNORECASE)
+                    if m_st_exp:
+                        arr = list(tf_keys.get(qnum_k) or [None, None, None, None])
+                        si = ("a", "b", "c", "d").index(m_st_exp.group(1).lower())
+                        arr[si] = m_st_exp.group(2).strip().upper() in ("ĐÚNG", "Đ")
+                        tf_keys[qnum_k] = arr
+                elif part_k == "short_answer" and qnum_k not in sa_keys:
+                    msa = re.search(r"(?:Đáp\s*án|Đáp\s*số|Kết\s*quả)\s*[:\s]*([-+]?\d+(?:[,\.]\d+)?)", txt, re.IGNORECASE)
+                    if msa:
+                        vc = msa.group(1)
+                        acc = [vc]
+                        if "," in vc:
+                            acc.append(vc.replace(",", "."))
+                        elif "." in vc:
+                            acc.append(vc.replace(".", ","))
+                        sa_keys[qnum_k] = acc
 
         elif el["type"] == "table":
             rows = el.get("rows", [])
@@ -616,17 +669,48 @@ def parse_mock_exam_document(
     if not elements:
         raise ValueError("Không trích xuất được nội dung từ tệp đã tải lên.")
 
-    # Tách phần đề thi và phần đáp án cuối đề (nếu có)
+    # Tách phần đề thi và phần đáp án cuối đề (nếu có).
+    # Bảo vệ cực chặt: phân biệt "Hướng dẫn giải chi tiết" đặt NGAY DƯỚI từng câu (inline)
+    # với mục "BẢNG ĐÁP ÁN / HƯỚNG DẪN GIẢI CHI TIẾT" tổng hợp ở CUỐI ĐỀ!
     ans_split_idx = None
     seen_questions = 0
+    seen_inline_explain_before = False
+    seen_part3 = False
     for idx, el in enumerate(elements):
         if el["type"] == "paragraph":
             txt = el.get("text", "")
+            if RE_PART3.match(txt):
+                seen_part3 = True
             if RE_Q_START.match(txt):
                 seen_questions += 1
+            if seen_questions < 3 and RE_INLINE_EXPLAIN.match(txt):
+                seen_inline_explain_before = True
             if seen_questions >= 3 and RE_ANSWER_SECTION.match(txt):
-                ans_split_idx = idx
-                break
+                is_explain_only_heading = bool(re.match(r"^\s*(?:HƯỚNG\s+DẪN\s+GIẢI|LỜI\s+GIẢI)", txt, re.IGNORECASE))
+                # Nếu các câu trước đã dùng "Hướng dẫn giải chi tiết" ngay dưới từng câu -> đây cũng là inline!
+                if is_explain_only_heading and seen_inline_explain_before:
+                    continue
+                tail_has_more_exam_body = False
+                for nxt in elements[idx + 1 : idx + 30]:
+                    if nxt["type"] == "paragraph":
+                        ntxt = nxt.get("text", "")
+                        # Nếu phía sau còn xuất hiện PHẦN III lần đầu tiên (chưa gặp ở thân đề) -> vẫn đang ở thân đề!
+                        if not seen_part3 and RE_PART3.match(ntxt):
+                            tail_has_more_exam_body = True
+                            break
+                        if re.search(r"(?:^|\s)A\.\s+\S+.*(?:^|\s)B\.\s+\S+", ntxt):
+                            tail_has_more_exam_body = True
+                            break
+                        if re.match(r"^\s*B\.\s+\S+", ntxt) and any(
+                            re.match(r"^\s*C\.\s+\S+", x.get("text", ""))
+                            for x in elements[idx + 1 : idx + 30]
+                            if x["type"] == "paragraph"
+                        ):
+                            tail_has_more_exam_body = True
+                            break
+                if not tail_has_more_exam_body:
+                    ans_split_idx = idx
+                    break
 
     body_elements = elements[:ans_split_idx] if ans_split_idx is not None else elements
     ans_elements = elements[ans_split_idx + 1 :] if ans_split_idx is not None else []
@@ -756,16 +840,16 @@ def parse_mock_exam_document(
         if not txt:
             continue
 
-        # Dòng giải thích / hướng dẫn giải ngay dưới câu hỏi
+        # Dòng giải thích / hướng dẫn giải chi tiết ngay dưới câu hỏi
         m_exp = RE_INLINE_EXPLAIN.match(txt)
         if m_exp:
             in_explanation = True
-            ex_txt = m_exp.group(1).strip()
+            ex_txt = (m_exp.group(1) or "").strip()
             if ex_txt:
                 cur_q["explanation"] = (cur_q["explanation"] + "\n" + ex_txt).strip()
             continue
 
-        # Dòng đáp án ngay dưới câu hỏi
+        # Dòng đáp án ngay dưới câu hỏi (nếu đang trong khối Hướng dẫn giải chi tiết vẫn lưu vào gợi ý!)
         m_ans = RE_INLINE_ANS.match(txt)
         if m_ans:
             val = m_ans.group(1).strip()
@@ -797,6 +881,29 @@ def parse_mock_exam_document(
 
         if in_explanation:
             cur_q["explanation"] = (cur_q["explanation"] + "\n" + txt).strip()
+            # Nếu trong lời giải chi tiết có ghi "Chọn A" / "a) Đúng" / "Đáp số: 8" mà câu chưa có key -> tự bắt luôn
+            if cur_q["_type"] == "mcq" and cur_q.get("correct_index") is None:
+                mp = re.search(r"(?:Chọn|Đáp\s*án(?:\s*đúng)?)\s*[:\s]*([A-D])\b", txt, re.IGNORECASE)
+                if mp:
+                    cur_q["correct_index"] = LETTER_TO_IDX[mp.group(1).upper()]
+            elif cur_q["_type"] == "true_false":
+                m_st_e = re.match(r"^\s*([a-d])\s*[\)\.\-–:]?\s*(Đúng|Sai)\b", txt, re.IGNORECASE)
+                if m_st_e:
+                    sk = m_st_e.group(1).lower()
+                    sv = m_st_e.group(2).strip().upper() == "ĐÚNG"
+                    for st in cur_q.get("statements", []):
+                        if st["key"] == sk and st.get("answer") is None:
+                            st["answer"] = sv
+            elif cur_q["_type"] == "short_answer" and not cur_q.get("accepted_answers"):
+                msa = re.search(r"(?:Đáp\s*án|Đáp\s*số|Kết\s*quả)\s*[:\s]*([-+]?\d+(?:[,\.]\d+)?)", txt, re.IGNORECASE)
+                if msa:
+                    vc = msa.group(1)
+                    acc = [vc]
+                    if "," in vc:
+                        acc.append(vc.replace(",", "."))
+                    elif "." in vc:
+                        acc.append(vc.replace(".", ","))
+                    cur_q["accepted_answers"] = acc
             continue
 
         # Xử lý từng dòng theo loại câu hỏi
@@ -832,7 +939,12 @@ def parse_mock_exam_document(
                 if m_tail:
                     st_ans = m_tail.group(1).strip().upper() in ("ĐÚNG", "Đ")
                     st_text = st_text[: m_tail.start()].strip()
-                cur_q["statements"].append({"key": key, "text": st_text, "answer": st_ans})
+                cur_q["statements"].append({
+                    "key": key,
+                    "text": st_text,
+                    "answer": st_ans,
+                    "_underlined": bool(el.get("tf_underlined")),
+                })
             else:
                 if cur_q["statements"]:
                     cur_q["statements"][-1]["text"] = (cur_q["statements"][-1]["text"] + " " + txt).strip()
@@ -860,13 +972,29 @@ def parse_mock_exam_document(
         if not q.get("explanation"):
             q["explanation"] = ans_explanations.get(("mcq", on)) or ans_explanations.get(("mcq", idx)) or ""
 
+    # Quy tắc gạch chân cho Phần II (Đúng/Sai): ý có gạch chân (<w:u>) = Đúng, không gạch chân = Sai
+    any_tf_underlined = any(
+        st.get("_underlined") for q in tf_list for st in q.get("statements", [])
+    )
     for idx, q in enumerate(tf_list, start=1):
         on = int(q.get("orig_num") or idx)
+        has_u_here = any(st.get("_underlined") for st in q.get("statements", []))
         vals = tf_keys.get(on) or tf_keys.get(idx)
-        if vals:
+        if has_u_here:
+            for st in q.get("statements", []):
+                if st.get("answer") is None:
+                    st["answer"] = bool(st.get("_underlined"))
+        elif vals:
             for si, st in enumerate(q.get("statements", [])):
                 if st.get("answer") is None and si < len(vals) and vals[si] is not None:
                     st["answer"] = vals[si]
+        elif any_tf_underlined:
+            for st in q.get("statements", []):
+                if st.get("answer") is None:
+                    st["answer"] = False
+        # Dọn cờ tạm _underlined trước khi trả JSON
+        for st in q.get("statements", []):
+            st.pop("_underlined", None)
         if not q.get("explanation"):
             q["explanation"] = ans_explanations.get(("true_false", on)) or ans_explanations.get(("true_false", idx)) or ""
 

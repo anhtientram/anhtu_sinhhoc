@@ -5735,7 +5735,7 @@
         "lesson_id": "chu-de-2-bai-2",
         "lesson": "2.2",
         "level": "2. Đột biến số lượng NST",
-        "question": "Cơ thể mang đột biến biểu hiện ra kiểu hình trong đó bộ NST của tế bảo cơ thể này thừa hoặc thiếu 1 hay một số NST gọi là",
+        "question": "Cơ thể mang đột biến biểu hiện ra kiểu hình trong đó bộ NST của tế bào cơ thể này thừa hoặc thiếu 1 hay một số NST gọi là",
         "images": [],
         "tables": [],
         "options": [
@@ -6017,7 +6017,7 @@
         "lesson_id": "chu-de-2-bai-2",
         "lesson": "2.2",
         "level": "2. Đột biến số lượng NST",
-        "question": "Có một bệnh nhân bị đột biến số lượng NST. Khi sử dụng phương pháp tế bào học để xác định số lượng NST có trong mỗi tế bào sinh dưỡng thì thấy rằng khi tế bảo đang ở kì giữa thì trong mỗi tế bào có 47 NST đang ở dạng kép. Khả năng bệnh nhân này thuộc loại thể đột biến nào sau đây?",
+        "question": "Có một bệnh nhân bị đột biến số lượng NST. Khi sử dụng phương pháp tế bào học để xác định số lượng NST có trong mỗi tế bào sinh dưỡng thì thấy rằng khi tế bào đang ở kì giữa thì trong mỗi tế bào có 47 NST đang ở dạng kép. Khả năng bệnh nhân này thuộc loại thể đột biến nào sau đây?",
         "images": [],
         "tables": [],
         "options": [
@@ -6378,7 +6378,7 @@
         "lesson_id": "chu-de-2-bai-2",
         "lesson": "2.2",
         "level": "2. Đột biến số lượng NST",
-        "question": "Một loài thực vật lưỡng bội có 12 nhóm gene liên kết, Giả sử có 6 thể đột biến của loài này được kí hiệu từ I đến VI có số lượng NST ở kì giữa trong mỗi tế bào sinh dưỡng như sau:\nCho biết số lượng NST trong tất cả các cặp ở mỗi tế bào của mỗi thể đột biên là bằng nhau. Trong các thể đột biến trên, các thể đột biến đa bội chẵn là",
+        "question": "Một loài thực vật lưỡng bội có 12 nhóm gene liên kết, Giả sử có 6 thể đột biến của loài này được kí hiệu từ I đến VI có số lượng NST ở kì giữa trong mỗi tế bào sinh dưỡng như sau:\nCho biết số lượng NST trong tất cả các cặp ở mỗi tế bào của mỗi thể đột biến là bằng nhau. Trong các thể đột biến trên, các thể đột biến đa bội chẵn là",
         "images": [],
         "tables": [
           [
@@ -10185,5 +10185,5 @@
       }
     ]
   },
-  "bundled_version": "2026.11.26-dna-geno-v4"
+  "bundled_version": "2026.11.26-spelling-clean-v6"
 }

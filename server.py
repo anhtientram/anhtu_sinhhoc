@@ -1070,7 +1070,7 @@ class Bio12Handler(BaseHTTPRequestHandler):
 
         conn = get_conn()
         try:
-            teacher = self.require_teacher(conn, qs, body)
+            teacher = self.require_admin(conn, qs, body)
             if not teacher:
                 return
             max_ord = conn.execute("SELECT COALESCE(MAX(order_index), 0) FROM topics").fetchone()[0]
@@ -1134,7 +1134,7 @@ class Bio12Handler(BaseHTTPRequestHandler):
 
         conn = get_conn()
         try:
-            teacher = self.require_teacher(conn, qs, body)
+            teacher = self.require_admin(conn, qs, body)
             if not teacher:
                 return
             row = conn.execute("SELECT * FROM topics WHERE id = ?", (tid,)).fetchone()
@@ -1490,9 +1490,9 @@ class Bio12Handler(BaseHTTPRequestHandler):
                 conn.commit()
                 return self.send_json(200, {"ok": True})
 
-            # Teacher: Create new topic
+            # Admin: Create new topic
             if path == "/api/topics":
-                teacher = self.require_teacher(conn, qs, body)
+                teacher = self.require_admin(conn, qs, body)
                 if not teacher:
                     return
                 title = (body.get("title") or "").strip()
@@ -1535,9 +1535,9 @@ class Bio12Handler(BaseHTTPRequestHandler):
                 app_cache.invalidate_topics(tid)
                 return self.send_json(201, {"topic": content})
 
-            # Staff: Cập nhật & Lưu Chủ đề MỚI đã xem trước vào SQLite + xoá cache
+            # Admin: Cập nhật & Lưu Chủ đề MỚI đã xem trước vào SQLite + xoá cache
             if path == "/api/topics/publish-new":
-                teacher = self.require_teacher(conn, qs, body)
+                teacher = self.require_admin(conn, qs, body)
                 if not teacher:
                     return
                 topic_obj = body.get("topic")
@@ -1594,10 +1594,10 @@ class Bio12Handler(BaseHTTPRequestHandler):
                     },
                 )
 
-            # Staff (Admin / Teacher): Xoá Chủ đề (giữ lại ít nhất 1 chủ đề)
+            # Admin: Xoá Chủ đề (giữ lại ít nhất 1 chủ đề)
             m_del_tp = re.match(r"^/api/topics/([a-zA-Z0-9_-]+)/delete$", path)
             if m_del_tp:
-                staff = self.require_teacher(conn, qs, body)
+                staff = self.require_admin(conn, qs, body)
                 if not staff:
                     return
                 tid = m_del_tp.group(1)
@@ -1613,10 +1613,10 @@ class Bio12Handler(BaseHTTPRequestHandler):
                 cleanup_topic_uploads(tid)
                 return self.send_json(200, {"ok": True, "message": f"Đã xoá '{row['title']}'."})
 
-            # Staff: Dọn ảnh nháp nếu giáo viên huỷ/đổi file xem trước chưa xuất bản
+            # Admin: Dọn ảnh nháp nếu huỷ/đổi file xem trước chưa xuất bản
             m_clean_draft = re.match(r"^/api/topics/([a-zA-Z0-9_-]+)/cleanup-draft$", path)
             if m_clean_draft:
-                staff = self.require_teacher(conn, qs, body)
+                staff = self.require_admin(conn, qs, body)
                 if not staff:
                     return
                 tid = m_clean_draft.group(1)
@@ -2194,10 +2194,10 @@ class Bio12Handler(BaseHTTPRequestHandler):
                     record_password_change(conn, updated, reason="profile_change")
                 return self.send_json(200, {"user": sanitize_user(updated), "message": "Đã cập nhật hồ sơ thành công!"})
 
-            # Staff: Chỉnh sửa nhanh tên / mô tả / thứ tự Chủ đề tại mục Quản trị hệ thống
+            # Admin: Chỉnh sửa nhanh tên / mô tả / thứ tự Chủ đề tại mục Quản trị hệ thống
             m_meta = re.match(r"^/api/topics/([a-zA-Z0-9_-]+)/meta$", path)
             if m_meta:
-                teacher = self.require_teacher(conn, qs, body)
+                teacher = self.require_admin(conn, qs, body)
                 if not teacher:
                     return
                 tid = m_meta.group(1)
@@ -2290,10 +2290,10 @@ class Bio12Handler(BaseHTTPRequestHandler):
                     },
                 )
 
-            # Teacher: Update topic content (lessons, interactive video, knowledge system, quiz bank)
+            # Admin: Update topic content (lessons, interactive video, knowledge system, quiz bank)
             m = re.match(r"^/api/topics/([a-zA-Z0-9_-]+)$", path)
             if m:
-                teacher = self.require_teacher(conn, qs, body)
+                teacher = self.require_admin(conn, qs, body)
                 if not teacher:
                     return
                 tid = m.group(1)

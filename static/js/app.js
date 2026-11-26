@@ -914,7 +914,7 @@ function renderTheoryTab(container) {
   const activeLesson = lessons.find((l) => l.id === state.activeLessonId) || lessons[0];
   state.activeLessonId = activeLesson.id;
   const ytCount = (topic.youtube_videos || []).length;
-  const canManageYt = isStaffRole(state.user?.role) && !state.teacherPreviewAsStudent;
+  const canManageYt = state.user?.role === "admin" && !state.teacherPreviewAsStudent;
 
   container.innerHTML = `
     <div class="page-header">
@@ -1234,7 +1234,7 @@ function renderReviewTab(container) {
     container.innerHTML = `<div class="empty-state"><div class="empty-state-title">Chưa có câu hỏi ôn tập</div></div>`;
     return;
   }
-  const canEditKeys = isStaffRole(state.user?.role) && !state.teacherPreviewAsStudent;
+  const canEditKeys = state.user?.role === "admin" && !state.teacherPreviewAsStudent;
   mountQuizSection(container, topic, state.user, showToast, {
     canEditKeys,
     onTopicUpdated: (updated) => {
