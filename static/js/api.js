@@ -412,6 +412,25 @@ export const api = {
     return withBase(`/api/admin/exam-download/${encodeURIComponent(jobId)}/${encodeURIComponent(fmt)}?token=${token}`);
   },
 
+  staffReferenceStatus: () => apiRequest("/api/staff/reference-status"),
+
+  applyAnswerPdfToDraftTopic: (payload) =>
+    apiRequest("/api/topics/apply-answer-pdf", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+
+  parseWordExamForMixer: (file, onProgress = null) => {
+    const q = new URLSearchParams({ filename: file.name || "de-kiem-tra.docx" });
+    return apiBinaryUpload(`/api/staff/exam-mixer/parse-docx?${q.toString()}`, file, onProgress);
+  },
+
+  generateShuffledFromWord: (payload) =>
+    apiRequest("/api/staff/exam-mixer/generate-from-docx", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+
   adminAddTeacher: (username, password = "123456@") =>
     apiRequest("/api/admin/teachers", {
       method: "POST",

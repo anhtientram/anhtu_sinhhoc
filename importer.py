@@ -148,15 +148,21 @@ def _extract_paragraph_text_with_math(p_elem) -> str:
     return "".join(parts)
 
 
-def _extract_marked_letters_from_paragraph(p: Paragraph) -> List[str]:
+def _extract_marked_letters_from_paragraph(p: Paragraph) -> Tuple[List[str], List[str], bool]:
     """
-    Tìm các chữ cái đáp án (A/B/C/D) được đánh dấu gạch chân hoặc tô màu đỏ trong đoạn Word.
-    Rất phổ biến trong đề trắc nghiệm Việt Nam (VD: A. ... [B. gạch chân] ...).
+    Tìm các chữ cái đáp án (A/B/C/D) được đánh dấu gạch chân (ưu tiên) hoặc tô màu đỏ/highlight trong đoạn Word,
+    đồng thời kiểm tra dòng mệnh đề Phần II (a), b), c), d)) có được gạch chân (Đáp án Đúng) hay không.
+    Trả về: (underlined_letters, marked_letters, tf_underlined)
     """
-    marked = []
+    underlined_segs: List[str] = []
+    marked_segs: List[str] = []
+    full_parts: List[str] = []
     for run in p.runs:
-        rt = (run.text or "").strip()
+        rt = run.text or ""
         if not rt:
+            continue
+        full_parts.append(rt)
+        if not rt.strip():
             continue
         is_red = False
         try:
@@ -169,17 +175,72 @@ def _extract_marked_letters_from_paragraph(p: Paragraph) -> List[str]:
         except Exception:
             pass
         is_hl = bool(run.font and run.font.highlight_color)
-        if run.underline or is_red or is_hl:
-            m = re.match(r"^([A-D])\s*[\.\)]?$", rt)
-            if m:
-                marked.append(m.group(1))
-            else:
-                m2 = re.match(r"^([A-D])[\.\)]\s+", rt)
-                if m2:
-                    marked.append(m2.group(1))
-                else:
-                    marked.append("*")
-    return marked
+        is_u = bool(run.underline)
+        if is_u:
+            underlined_segs.append(rt)
+        if is_u or is_red or is_hl:
+            marked_segs.append(rt)
+
+    full_text = _clean("".join(full_parts))
+    return _resolve_marked_flags(full_text, underlined_segs, marked_segs)
+
+
+def _resolve_marked_flags(
+    full_text: str,
+    underlined_segs: List[str],
+    marked_segs: List[str],
+) -> Tuple[List[str], List[str], bool]:
+    """Phân giải danh sách chữ cái A-D được gạch chân/đánh dấu và cờ gạch chân mệnh đề a)-d)."""
+    def _extract_letters(segs: List[str]) -> List[str]:
+        if not segs:
+            return []
+        out: List[str] = []
+        joined = "".join(segs)
+        for m in re.finditer(r"(?:^|\s)([A-D])\s*[\.\)]", joined):
+            lt = m.group(1)
+            if lt not in out:
+                out.append(lt)
+        if not out:
+            for sg in segs:
+                m = re.match(r"^\s*([A-D])\s*[\.\)]?\s*$", sg)
+                if m and m.group(1) not in out:
+                    out.append(m.group(1))
+        # Trường hợp 1 dòng có 1 đáp án "B. Nội dung..." và phần chữ bên trong được gạch chân
+        if not out:
+            m_single = re.match(r"^\s*([A-D])\s*[\.\)]\s+", full_text)
+            if m_single and not re.search(r"\sB\s*[\.\)]\s+", full_text):
+                if len(_clean(joined)) >= 1:
+                    out.append(m_single.group(1))
+        # Trường hợp nhiều đáp án trên 1 dòng và phần nội dung của 1 đáp án được gạch chân
+        if not out and re.search(r"(?:^|\s)B\s*[\.\)]\s*", full_text):
+            joined_clean = _clean(joined)
+            if len(joined_clean) >= 2:
+                opts = _split_inline_options(full_text)
+                for lt, otxt in opts:
+                    if otxt and (joined_clean in otxt or otxt in joined_clean):
+                        if lt not in out:
+                            out.append(lt)
+        return out
+
+    u_letters = _extract_letters(underlined_segs)
+    m_letters = _extract_letters(marked_segs)
+    if not m_letters and marked_segs:
+        m_letters = ["*"]
+
+    # Nhận diện gạch chân đáp án Đúng cho Phần II (Đúng/Sai): a), b), c), d) hoặc ......a. ...
+    tf_underlined = False
+    if underlined_segs and full_text:
+        m_tf = re.match(r"^[\.\…\s\-–•]*([a-dA-D])\s*[\)\.]", full_text)
+        if m_tf:
+            u_joined = _clean("".join(underlined_segs))
+            tf_key = m_tf.group(1).lower()
+            if (
+                re.match(rf"^[\.\…\s\-–•]*{tf_key}\s*[\)\.]?", u_joined, re.IGNORECASE)
+                or len(u_joined) >= max(4, int(len(full_text) * 0.4))
+            ):
+                tf_underlined = True
+
+    return u_letters, m_letters, tf_underlined
 
 
 CROP_BIN = os.path.join(BASE_DIR, "tools", "crop_img_bin")
@@ -312,7 +373,9 @@ def _analyze_paragraph_stdlib(p_elem, style_map: Dict[str, str]):
     style_id = ""
     has_numpr = False
     non_empty_bold = []
-    marked = []
+    underlined_segs: List[str] = []
+    marked_segs: List[str] = []
+    full_parts: List[str] = []
 
     for child in p_elem:
         ct = _local_tag(child)
@@ -335,6 +398,8 @@ def _analyze_paragraph_stdlib(p_elem, style_map: Dict[str, str]):
                     rt = _local_tag(rch)
                     if rt == "t" and rch.text:
                         r_texts.append(rch.text)
+                    elif rt == "tab":
+                        r_texts.append(" ")
                     elif rt == "rPr":
                         for rp in rch:
                             rpt = _local_tag(rp)
@@ -356,20 +421,17 @@ def _analyze_paragraph_stdlib(p_elem, style_map: Dict[str, str]):
                             elif rpt == "highlight":
                                 val = _get_w_attr(rp, "val", "").lower()
                                 r_hl = bool(val and val != "none")
-                rt_str = "".join(r_texts).strip()
+                rt_raw = "".join(r_texts)
+                if rt_raw:
+                    full_parts.append(rt_raw)
+                rt_str = rt_raw.strip()
                 if not rt_str:
                     continue
                 non_empty_bold.append(r_bold)
+                if r_under:
+                    underlined_segs.append(rt_raw)
                 if r_under or r_red or r_hl:
-                    m = re.match(r"^([A-D])\s*[\.\)]?$", rt_str)
-                    if m:
-                        marked.append(m.group(1))
-                    else:
-                        m2 = re.match(r"^([A-D])[\.\)]\s+", rt_str)
-                        if m2:
-                            marked.append(m2.group(1))
-                        else:
-                            marked.append("*")
+                    marked_segs.append(rt_raw)
 
     style_name = style_map.get(style_id, style_id or "")
     heading_level = 0
@@ -382,7 +444,9 @@ def _analyze_paragraph_stdlib(p_elem, style_map: Dict[str, str]):
         heading_level = 1
 
     is_all_bold = bool(non_empty_bold) and all(non_empty_bold)
-    return style_name, heading_level, is_all_bold, has_numpr, marked
+    full_text = _clean("".join(full_parts))
+    u_letters, m_letters, tf_underlined = _resolve_marked_flags(full_text, underlined_segs, marked_segs)
+    return style_name, heading_level, is_all_bold, has_numpr, u_letters, m_letters, tf_underlined
 
 
 def _safe_zip_read(zf: zipfile.ZipFile, name: str) -> bytes:
@@ -628,9 +692,15 @@ def _extract_body_items_from_docx_stdlib(file_bytes: bytes, topic_id: str) -> Di
                     imgs = _extract_images_from_elem_stdlib(child, resolve_image)
                     if not text and not imgs:
                         continue
-                    style_name, heading_level, is_all_bold, has_numpr, marked_letters = _analyze_paragraph_stdlib(
-                        child, style_map
-                    )
+                    (
+                        style_name,
+                        heading_level,
+                        is_all_bold,
+                        has_numpr,
+                        underlined_letters,
+                        marked_letters,
+                        tf_underlined,
+                    ) = _analyze_paragraph_stdlib(child, style_map)
                     items.append(
                         {
                             "type": "p",
@@ -640,7 +710,9 @@ def _extract_body_items_from_docx_stdlib(file_bytes: bytes, topic_id: str) -> Di
                             "heading_level": heading_level,
                             "is_bold": is_all_bold,
                             "has_numpr": has_numpr,
+                            "underlined_letters": underlined_letters,
                             "marked_letters": marked_letters,
+                            "tf_underlined": tf_underlined,
                             "images": imgs,
                         }
                     )
@@ -787,7 +859,7 @@ def _extract_body_items_from_docx_python_docx(file_bytes: bytes, topic_id: str) 
             if non_empty_runs and all(r.bold for r in non_empty_runs):
                 is_all_bold = True
 
-            marked_letters = _extract_marked_letters_from_paragraph(p)
+            underlined_letters, marked_letters, tf_underlined = _extract_marked_letters_from_paragraph(p)
             has_numpr = bool(child.xpath(".//*[local-name()='numPr']"))
 
             items.append(
@@ -799,7 +871,9 @@ def _extract_body_items_from_docx_python_docx(file_bytes: bytes, topic_id: str) 
                     "heading_level": heading_level,
                     "is_bold": is_all_bold,
                     "has_numpr": has_numpr,
+                    "underlined_letters": underlined_letters,
                     "marked_letters": marked_letters,
+                    "tf_underlined": tf_underlined,
                     "images": imgs,
                 }
             )
@@ -988,8 +1062,12 @@ RE_UPPER_SECTION_LESSON = re.compile(r"^(?:[A-B]\.\s+[A-ZÀ-ỸĐ]|[1-9]\.\d+[\.
 RE_QUESTION_START = re.compile(r"^(?:Câu|Cân|Question)\s*([lI]?\d+)\s*[:\.\)]\s*(.*)$", re.IGNORECASE)
 RE_OPT_LINE = re.compile(r"^([A-D])\s*[\.\)]\s*(.+)$")
 RE_TF_STMT = re.compile(r"^[\.\…\s\-–•]*([a-dA-D])\s*[\.\)]\s+(.+)$")
-RE_ANSWER_LINE = re.compile(r"^(?:Đáp\s*án|ĐA|Trả\s*lời|Kết\s*quả)\s*[:\.\-]?\s*(.*)$", re.IGNORECASE)
-RE_EXPLAIN_LINE = re.compile(r"^(?:Giải\s*thích|Hướng\s*dẫn(?:\s*giải)?|Lời\s*giải|HD)\s*[:\-]\s*(.+)$", re.IGNORECASE)
+RE_ANSWER_LINE = re.compile(r"^(?:Đáp\s*án(?:\s*đúng)?|ĐA|Đáp\s*số|Trả\s*lời|Kết\s*quả|Key)\s*[:\.\-–]?\s*(.*)$", re.IGNORECASE)
+RE_SA_PREFIX_A = re.compile(r"^\s*A\s*[\.\:\)]\s*(.+)$")
+RE_EXPLAIN_LINE = re.compile(
+    r"^\s*(?:Giải\s*chi\s*tiết|Hướng\s*dẫn\s*giải(?:\s*chi\s*tiết)?|Lời\s*giải(?:\s*chi\s*tiết)?|Giải\s*thích|Gợi\s*ý(?:\s*đáp\s*án)?|HDG|HD)\s*(?:[:\.\-–]\s*(.*)|$)",
+    re.IGNORECASE,
+)
 RE_CAPTION = re.compile(r"^(?:Hình|Sơ\s*đồ|Bảng)\s*\d+", re.IGNORECASE)
 
 
@@ -1119,6 +1197,8 @@ def _parse_mcq_items(items: List[Dict], lesson_label: str, lesson_id: str, id_pr
             correct_idx = None
             if cur["answer_letter"] and cur["answer_letter"] in ordered_letters:
                 correct_idx = ordered_letters.index(cur["answer_letter"])
+            elif cur["underlined_letter"] and cur["underlined_letter"] in ordered_letters:
+                correct_idx = ordered_letters.index(cur["underlined_letter"])
             elif cur["marked_letter"] and cur["marked_letter"] in ordered_letters:
                 correct_idx = ordered_letters.index(cur["marked_letter"])
 
@@ -1137,7 +1217,7 @@ def _parse_mcq_items(items: List[Dict], lesson_label: str, lesson_id: str, id_pr
                     "options": ordered_vals,
                     "correct_index": correct_idx,
                     "answer_key_ready": correct_idx is not None,
-                    "explanation": " ".join(cur["explain"]).strip(),
+                    "explanation": "\n".join(cur["explain"]).strip(),
                 }
             )
         cur = None
@@ -1155,6 +1235,7 @@ def _parse_mcq_items(items: List[Dict], lesson_label: str, lesson_id: str, id_pr
         txt = it["text"]
         raw_txt = it.get("raw_text", txt)
         imgs = it.get("images") or []
+        underlined = it.get("underlined_letters") or []
         marked = it.get("marked_letters") or []
 
         qm = RE_QUESTION_START.match(txt)
@@ -1167,9 +1248,11 @@ def _parse_mcq_items(items: List[Dict], lesson_label: str, lesson_id: str, id_pr
                 "images": list(pending_imgs) + [im for im in imgs if im not in pending_imgs],
                 "tables": [],
                 "options": {},
+                "underlined_letter": None,
                 "marked_letter": None,
                 "answer_letter": None,
                 "explain": [],
+                "in_explain": False,
             }
             pending_imgs = []
             continue
@@ -1195,6 +1278,14 @@ def _parse_mcq_items(items: List[Dict], lesson_label: str, lesson_id: str, id_pr
         if not txt:
             continue
 
+        em = RE_EXPLAIN_LINE.match(txt)
+        if em:
+            cur["in_explain"] = True
+            ex_body = _clean(em.group(1) or "")
+            if ex_body:
+                cur["explain"].append(ex_body)
+            continue
+
         am = RE_ANSWER_LINE.match(txt)
         if am:
             ans_body = _clean(am.group(1))
@@ -1203,9 +1294,12 @@ def _parse_mcq_items(items: List[Dict], lesson_label: str, lesson_id: str, id_pr
                 cur["answer_letter"] = m_let.group(1)
             continue
 
-        em = RE_EXPLAIN_LINE.match(txt)
-        if em:
-            cur["explain"].append(_clean(em.group(1)))
+        if cur.get("in_explain"):
+            cur["explain"].append(txt)
+            if not cur["answer_letter"]:
+                m_pick = re.search(r"(?:Chọn|Đáp\s*án(?:\s*đúng)?)\s*[:\s]*([A-D])\b", txt, re.IGNORECASE)
+                if m_pick:
+                    cur["answer_letter"] = m_pick.group(1).upper()
             continue
 
         # Nếu Word dùng đánh số tự động (w:numPr) khiến mất chữ "A. " ở đầu dòng
@@ -1222,6 +1316,9 @@ def _parse_mcq_items(items: List[Dict], lesson_label: str, lesson_id: str, id_pr
                     cur["marked_letter"] = letter
                     val = _clean(val.lstrip("*"))
                 cur["options"][letter] = val
+            for u_let in underlined:
+                if u_let in ("A", "B", "C", "D"):
+                    cur["underlined_letter"] = u_let
             for m_let in marked:
                 if m_let in ("A", "B", "C", "D"):
                     cur["marked_letter"] = m_let
@@ -1235,6 +1332,8 @@ def _parse_mcq_items(items: List[Dict], lesson_label: str, lesson_id: str, id_pr
                 cur["marked_letter"] = letter
                 val = _clean(val.lstrip("*"))
             cur["options"][letter] = val
+            if underlined and (letter in underlined or "*" in underlined):
+                cur["underlined_letter"] = letter
             if marked:
                 if letter in marked or "*" in marked:
                     cur["marked_letter"] = letter
@@ -1245,6 +1344,8 @@ def _parse_mcq_items(items: List[Dict], lesson_label: str, lesson_id: str, id_pr
             next_letter = next((k for k in ("A", "B", "C", "D") if k not in cur["options"]), None)
             if next_letter:
                 cur["options"][next_letter] = txt
+                if underlined:
+                    cur["underlined_letter"] = next_letter
                 if marked:
                     cur["marked_letter"] = next_letter
                 continue
@@ -1278,23 +1379,24 @@ def _parse_tf_items(items: List[Dict], lesson_label: str, lesson_id: str, id_pre
         if not cur:
             return
         if cur["statements"]:
-            # Nếu có answer_map từ dòng "Đáp án: a-Đ, b-S..."
-            has_any_key = False
             final_stmts = []
+            has_u_in_q = any(st.get("_underlined") for st in cur["statements"][:4])
             for st in cur["statements"][:4]:
                 ans = st["answer"]
                 if ans is None and st["key"] in cur["ans_map"]:
                     ans = cur["ans_map"][st["key"]]
-                if ans is not None:
-                    has_any_key = True
+                if ans is None and has_u_in_q:
+                    ans = bool(st.get("_underlined"))
                 final_stmts.append(
                     {
                         "key": st["key"],
                         "text": st["text"],
                         "answer": ans,
                         "explanation": st.get("explanation", ""),
+                        "_underlined": bool(st.get("_underlined")),
                     }
                 )
+            has_any_key = any(s["answer"] is not None for s in final_stmts)
             orig_num_str = str(cur.get("num", "")).replace("l", "1").replace("I", "1")
             orig_num = int(orig_num_str) if orig_num_str.isdigit() else (len(questions) + 1)
             questions.append(
@@ -1307,6 +1409,7 @@ def _parse_tf_items(items: List[Dict], lesson_label: str, lesson_id: str, id_pre
                     "images": cur["images"],
                     "tables": cur["tables"],
                     "statements": final_stmts,
+                    "explanation": "\n".join(cur["explain"]).strip(),
                     "answer_key_ready": has_any_key and all(s["answer"] is not None for s in final_stmts),
                 }
             )
@@ -1334,6 +1437,8 @@ def _parse_tf_items(items: List[Dict], lesson_label: str, lesson_id: str, id_pre
                 "tables": [],
                 "statements": [],
                 "ans_map": {},
+                "explain": [],
+                "in_explain": False,
             }
             pending_imgs = []
             continue
@@ -1353,11 +1458,19 @@ def _parse_tf_items(items: List[Dict], lesson_label: str, lesson_id: str, id_pre
         if not txt:
             continue
 
+        em = RE_EXPLAIN_LINE.match(txt)
+        if em:
+            cur["in_explain"] = True
+            ex_body = _clean(em.group(1) or "")
+            if ex_body:
+                cur["explain"].append(ex_body)
+            continue
+
         am = RE_ANSWER_LINE.match(txt)
         if am:
             ans_raw = _clean(am.group(1))
             if not _is_blank_answer_placeholder(ans_raw):
-                pairs = re.findall(r"([a-d])\s*[:\-\s]\s*(Đúng|Sai|Đ|S)", ans_raw, re.IGNORECASE)
+                pairs = re.findall(r"([a-d])\s*[:\-\s\)]\s*(Đúng|Sai|Đ|S)", ans_raw, re.IGNORECASE)
                 if pairs:
                     for k, v in pairs:
                         cur["ans_map"][k.lower()] = v.lower() in ("đúng", "đ")
@@ -1365,6 +1478,13 @@ def _parse_tf_items(items: List[Dict], lesson_label: str, lesson_id: str, id_pre
                     seq = re.findall(r"\b(Đúng|Sai|Đ|S)\b", ans_raw, re.IGNORECASE)
                     for i, v in enumerate(seq[:4]):
                         cur["ans_map"][chr(ord("a") + i)] = v.lower() in ("đúng", "đ")
+            continue
+
+        if cur.get("in_explain"):
+            cur["explain"].append(txt)
+            m_st_e = re.match(r"^\s*([a-d])\s*[\)\.\-–:]?\s*(Đúng|Sai)\b", txt, re.IGNORECASE)
+            if m_st_e:
+                cur["ans_map"].setdefault(m_st_e.group(1).lower(), m_st_e.group(2).strip().lower() == "đúng")
             continue
 
         tm = RE_TF_STMT.match(txt)
@@ -1377,7 +1497,12 @@ def _parse_tf_items(items: List[Dict], lesson_label: str, lesson_id: str, id_pre
                 tok = m_tail.group(1).lower()
                 stmt_ans = tok in ("đúng", "đ", "true")
                 stmt_txt = _clean(stmt_txt[: m_tail.start()])
-            cur["statements"].append({"key": key, "text": stmt_txt, "answer": stmt_ans})
+            cur["statements"].append({
+                "key": key,
+                "text": stmt_txt,
+                "answer": stmt_ans,
+                "_underlined": bool(it.get("tf_underlined")),
+            })
             continue
 
         if not cur["statements"]:
@@ -1386,7 +1511,48 @@ def _parse_tf_items(items: List[Dict], lesson_label: str, lesson_id: str, id_pre
             cur["statements"][-1]["text"] = _clean(cur["statements"][-1]["text"] + " " + txt)
 
     flush()
+    # Nếu tài liệu dùng quy ước gạch chân cho Phần II: câu nào không có ý gạch chân nào -> tất cả ý là Sai
+    any_tf_underlined = any(
+        st.get("_underlined") for q in questions for st in q.get("statements", [])
+    )
+    for q in questions:
+        if any_tf_underlined:
+            for st in q.get("statements", []):
+                if st.get("answer") is None:
+                    st["answer"] = bool(st.get("_underlined"))
+            q["answer_key_ready"] = bool(q.get("statements")) and all(
+                s.get("answer") is not None for s in q["statements"]
+            )
+        for st in q.get("statements", []):
+            st.pop("_underlined", None)
+
     return _realign_question_images(questions)
+
+
+def _extract_sa_values_and_explain(raw_val: str) -> Tuple[List[str], str]:
+    """Tách giá trị đáp án Trả lời ngắn (sau 'A.' hoặc 'Đáp án:') và tách phần 'Giải chi tiết' nếu nằm cùng dòng."""
+    explain_part = ""
+    m_exp_inline = re.search(
+        r"\b(Giải\s*chi\s*tiết|Hướng\s*dẫn\s*giải(?:\s*chi\s*tiết)?|Lời\s*giải(?:\s*chi\s*tiết)?)\s*[:\.\-–]?\s*(.*)$",
+        raw_val,
+        re.IGNORECASE,
+    )
+    ans_part = raw_val
+    if m_exp_inline:
+        ans_part = raw_val[: m_exp_inline.start()].strip(" .;-–")
+        explain_part = _clean(m_exp_inline.group(2) or "")
+    accepted: List[str] = []
+    if ans_part and not _is_blank_answer_placeholder(ans_part):
+        for part in re.split(r"[;|]", ans_part):
+            p = _clean(part).strip(".")
+            if p and not _is_blank_answer_placeholder(p):
+                if p not in accepted:
+                    accepted.append(p)
+                if "," in p and p.replace(",", ".") not in accepted:
+                    accepted.append(p.replace(",", "."))
+                elif "." in p and p.replace(".", ",") not in accepted:
+                    accepted.append(p.replace(".", ","))
+    return accepted, explain_part
 
 
 def _parse_sa_items(items: List[Dict], lesson_label: str, lesson_id: str, id_prefix: str) -> List[Dict]:
@@ -1416,7 +1582,7 @@ def _parse_sa_items(items: List[Dict], lesson_label: str, lesson_id: str, id_pre
                     "accepted_answers": accepted,
                     "answer_key_ready": len(accepted) > 0,
                     "unit": "",
-                    "explanation": " ".join(cur["explain"]).strip(),
+                    "explanation": "\n".join(cur["explain"]).strip(),
                 }
             )
         cur = None
@@ -1444,6 +1610,7 @@ def _parse_sa_items(items: List[Dict], lesson_label: str, lesson_id: str, id_pre
                 "accepted": [],
                 "explain": [],
                 "saw_answer": False,
+                "in_explain": False,
             }
             pending_imgs = []
             continue
@@ -1463,20 +1630,46 @@ def _parse_sa_items(items: List[Dict], lesson_label: str, lesson_id: str, id_pre
         if not txt:
             continue
 
+        em = RE_EXPLAIN_LINE.match(txt)
+        if em:
+            cur["in_explain"] = True
+            ex_body = _clean(em.group(1) or "")
+            if ex_body:
+                cur["explain"].append(ex_body)
+            continue
+
+        # Quy ước chuẩn: Trắc nghiệm Trả lời ngắn có đáp án sau "A." (VD: "A. 12,5", "A. 4")
+        ma = RE_SA_PREFIX_A.match(txt)
+        if ma:
+            cur["saw_answer"] = True
+            acc, exp_inline = _extract_sa_values_and_explain(_clean(ma.group(1)))
+            for v in acc:
+                if v not in cur["accepted"]:
+                    cur["accepted"].append(v)
+            if exp_inline:
+                cur["in_explain"] = True
+                cur["explain"].append(exp_inline)
+            continue
+
         am = RE_ANSWER_LINE.match(txt)
         if am:
             cur["saw_answer"] = True
-            ans_raw = _clean(am.group(1))
-            if not _is_blank_answer_placeholder(ans_raw):
-                for part in re.split(r"[;|]", ans_raw):
-                    p = _clean(part)
-                    if p and not _is_blank_answer_placeholder(p):
-                        cur["accepted"].append(p)
+            acc, exp_inline = _extract_sa_values_and_explain(_clean(am.group(1)))
+            for v in acc:
+                if v not in cur["accepted"]:
+                    cur["accepted"].append(v)
+            if exp_inline:
+                cur["in_explain"] = True
+                cur["explain"].append(exp_inline)
             continue
 
-        em = RE_EXPLAIN_LINE.match(txt)
-        if em:
-            cur["explain"].append(_clean(em.group(1)))
+        if cur.get("in_explain"):
+            cur["explain"].append(txt)
+            if not cur["accepted"]:
+                msa = re.search(r"(?:Đáp\s*án|Đáp\s*số|Kết\s*quả)\s*[:\s]*([-+]?\d+(?:[,\.]\d+)?)", txt, re.IGNORECASE)
+                if msa:
+                    acc, _ = _extract_sa_values_and_explain(msa.group(1))
+                    cur["accepted"].extend(acc)
             continue
 
         cur["stem_lines"].append(txt)
@@ -1604,6 +1797,8 @@ def parse_document_to_topic(
     topic_id: str,
     existing_topic: Dict,
     title_override: str = "",
+    answer_pdf_bytes: Optional[bytes] = None,
+    answer_pdf_filename: str = "",
 ) -> Dict:
     ext = os.path.splitext(filename)[1].lower()
     if ext == ".docx":
@@ -1837,13 +2032,45 @@ def parse_document_to_topic(
 
     youtube_videos = existing_topic.get("youtube_videos") or []
 
+    extracted_topic = {
+        "id": topic_id,
+        "order_index": order_index,
+        "title": detected_title,
+        "subtitle": subtitle,
+        "grade": "Sinh học 12 — Chương trình GDPT 2018",
+        "status": "published",
+        "source_note": "",
+        "lessons": lessons,
+        "knowledge_system": knowledge_system,
+        "youtube_videos": youtube_videos,
+        "review": {
+            "mcq": all_mcq,
+            "true_false": all_tf,
+            "short_answer": all_sa,
+        },
+    }
+
+    # Tự động kiểm tra chính tả, chuẩn hoá công thức DNA / kiểu gene & đối chiếu SGK_SINH HỌC
+    from content_standardizer import apply_answer_pdf_to_topic, standardize_topic_content
+
+    answer_pdf_report = None
+    if answer_pdf_bytes:
+        try:
+            answer_pdf_report = apply_answer_pdf_to_topic(
+                extracted_topic, answer_pdf_bytes, answer_pdf_filename or "PDF Đáp án"
+            )
+        except Exception as e:
+            answer_pdf_report = {"source_name": answer_pdf_filename or "PDF Đáp án", "error": str(e), "total_matched": 0}
+
+    spelling_report = standardize_topic_content(extracted_topic)
+
     mcq_keyed = sum(1 for q in all_mcq if q.get("answer_key_ready"))
     tf_keyed = sum(1 for q in all_tf if q.get("answer_key_ready"))
     sa_keyed = sum(1 for q in all_sa if q.get("answer_key_ready"))
 
     result = {
         "filename": filename,
-        "detected_title": detected_title,
+        "detected_title": extracted_topic["title"],
         "stats": {
             "lessons_count": len(lessons),
             "sections_count": sum(len(l["sections"]) for l in lessons),
@@ -1856,24 +2083,12 @@ def parse_document_to_topic(
             "true_false_keyed": tf_keyed,
             "short_answer_count": len(all_sa),
             "short_answer_keyed": sa_keyed,
+            "spelling_auto_fixed": spelling_report.get("auto_fixed_count", 0),
+            "spelling_suspects": len(spelling_report.get("suspect_words") or []),
         },
-        "extracted": {
-            "id": topic_id,
-            "order_index": order_index,
-            "title": detected_title,
-            "subtitle": subtitle,
-            "grade": "Sinh học 12 — Chương trình GDPT 2018",
-            "status": "published",
-            "source_note": "",
-            "lessons": lessons,
-            "knowledge_system": knowledge_system,
-            "youtube_videos": youtube_videos,
-            "review": {
-                "mcq": all_mcq,
-                "true_false": all_tf,
-                "short_answer": all_sa,
-            },
-        },
+        "spelling_report": spelling_report,
+        "answer_pdf_report": answer_pdf_report,
+        "extracted": extracted_topic,
     }
     _flush_pending_images(topic_id, raw.get("pending_writes") or {})
     return result
@@ -1975,18 +2190,24 @@ def build_sample_docx_template() -> bytes:
     p_ans.add_run(" Nucleotide")
     doc.add_paragraph("C. Glucose")
     doc.add_paragraph("D. Acid béo")
-    doc.add_paragraph("Đáp án: B")
+    doc.add_paragraph("Giải chi tiết: DNA được cấu tạo theo nguyên tắc đa phân mà đơn phân là các nucleotide.")
 
     doc.add_paragraph("CÂU HỎI TRẮC NGHIỆM ĐÚNG SAI")
     doc.add_paragraph("Câu 1: Xét cấu trúc của một phân tử DNA mạch kép, các nhận định sau là Đúng hay Sai?")
-    doc.add_paragraph("......a. A liên kết với T bằng 2 liên kết hydrogen. (Đúng)")
-    doc.add_paragraph("......b. G liên kết với C bằng 2 liên kết hydrogen. (Sai)")
-    doc.add_paragraph("......c. Hai mạch của DNA song song ngược chiều nhau. (Đúng)")
-    doc.add_paragraph("......d. Trong DNA có chứa loại base Uracil (U). (Sai)")
+    p_tfa = doc.add_paragraph()
+    p_tfa.add_run("a)").underline = True
+    p_tfa.add_run(" A liên kết với T bằng 2 liên kết hydrogen.")
+    doc.add_paragraph("b) G liên kết với C bằng 2 liên kết hydrogen.")
+    p_tfc = doc.add_paragraph()
+    p_tfc.add_run("c)").underline = True
+    p_tfc.add_run(" Hai mạch của DNA song song ngược chiều nhau.")
+    doc.add_paragraph("d) Trong DNA có chứa loại base Uracil (U).")
+    doc.add_paragraph("Giải chi tiết: Ý a) và c) đúng; ý b) sai vì G liên kết với C bằng 3 liên kết hydrogen; ý d) sai vì DNA có T, không có U.")
 
     doc.add_paragraph("CÂU HỎI TRẮC NGHIỆM TRẢ LỜI NGẮN")
     doc.add_paragraph("Câu 1: Một đoạn DNA có A = 500 và G = 700. Tổng số liên kết hydrogen của đoạn DNA này là bao nhiêu?")
-    doc.add_paragraph("Đáp án: 3100")
+    doc.add_paragraph("A. 3100")
+    doc.add_paragraph("Giải chi tiết: H = 2A + 3G = 2 × 500 + 3 × 700 = 3100.")
 
     buf = io.BytesIO()
     doc.save(buf)

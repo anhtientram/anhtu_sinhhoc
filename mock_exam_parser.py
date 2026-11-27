@@ -56,8 +56,9 @@ RE_INLINE_ANS = re.compile(
     r"^\s*(?:Đáp\s*án(?:\s*đúng)?|Chọn|Đáp\s*số|Key)\s*[:\.\-–]?\s*(.+)$",
     re.IGNORECASE,
 )
+RE_SA_PREFIX_A = re.compile(r"^\s*A\s*[\.\:\)]\s*(.+)$")
 RE_INLINE_EXPLAIN = re.compile(
-    r"^\s*(?:Hướng\s+dẫn\s+giải(?:\s+chi\s+tiết)?|Lời\s+giải(?:\s+chi\s+tiết)?|Giải\s+chi\s+tiết|Giải\s+thích|Gợi\s+ý(?:\s+đáp\s+án)?|HDG|Giải)\s*(?:[:\.\-–]\s*(.*)|$)",
+    r"^\s*(?:Giải\s+chi\s+tiết|Hướng\s+dẫn\s+giải(?:\s+chi\s+tiết)?|Lời\s+giải(?:\s+chi\s+tiết)?|Giải\s+thích|Gợi\s+ý(?:\s+đáp\s+án)?|HDG|Giải)\s*(?:[:\.\-–]\s*(.*)|$)",
     re.IGNORECASE,
 )
 
@@ -246,20 +247,38 @@ def _extract_docx_elements(file_bytes: bytes) -> List[Dict[str, Any]]:
 
             raw_text = "".join(parts)
             text = "\n".join(_clean(ln) for ln in raw_text.splitlines() if _clean(ln))
-            marked_letters: List[str] = []
-            if marked_segments:
-                # Kiểm tra xem segment được đánh dấu có khớp nhãn A./B./C./D. hay toàn bộ 1 đáp án
-                joined_m = " ".join(marked_segments)
-                for m in re.finditer(r"(?:^|\s)([A-D])\s*[\.\)]?", joined_m):
+
+            def _extract_mcq_letters(segs: List[str]) -> List[str]:
+                out: List[str] = []
+                if not segs:
+                    return out
+                joined = "".join(segs)
+                for m in re.finditer(r"(?:^|\s)([A-D])\s*[\.\)]", joined):
                     lt = m.group(1)
-                    if lt not in marked_letters:
-                        marked_letters.append(lt)
-                # Hoặc đoạn bắt đầu bằng A./B./C./D. và phần chữ đầu được đánh dấu
-                m_start = re.match(r"^\s*([A-D])\s*[\.\)]\s+", text)
-                if m_start and marked_segments and not marked_letters:
-                    first_marked = _clean(" ".join(marked_segments))
-                    if len(first_marked) >= 1 and first_marked in text:
-                        marked_letters.append(m_start.group(1))
+                    if lt not in out:
+                        out.append(lt)
+                if not out:
+                    for sg in segs:
+                        m = re.match(r"^\s*([A-D])\s*[\.\)]?\s*$", sg)
+                        if m and m.group(1) not in out:
+                            out.append(m.group(1))
+                if not out:
+                    m_start = re.match(r"^\s*([A-D])\s*[\.\)]\s+", text)
+                    if m_start and not re.search(r"(?:^|\s)B\s*[\.\)]\s+", text):
+                        first_m = _clean(joined)
+                        if len(first_m) >= 1 and first_m in text:
+                            out.append(m_start.group(1))
+                if not out and re.search(r"(?:^|\s)B\s*[\.\)]\s+", text):
+                    jc = _clean(joined)
+                    if len(jc) >= 2:
+                        _, inline_opts = _split_inline_options(text)
+                        for lt, otxt in inline_opts:
+                            if otxt and (jc in otxt or otxt in jc) and lt not in out:
+                                out.append(lt)
+                return out
+
+            underlined_letters = _extract_mcq_letters(underlined_segments)
+            marked_letters = underlined_letters or _extract_mcq_letters(marked_segments)
 
             # Kiểm tra nhãn ý Phần II (a), b), c), d)) có được gạch chân (<w:u>) hay không
             tf_underlined = False
@@ -269,13 +288,14 @@ def _extract_docx_elements(file_bytes: bytes) -> List[Dict[str, Any]]:
                     u_joined = "".join(underlined_segments).strip()
                     tf_key = m_tf_line.group(1).lower()
                     # Gạch chân chữ a / a) / a. ở đầu dòng HOẶC gạch chân phần lớn nội dung mệnh đề
-                    if re.match(rf"^\s*{tf_key}\s*[\)\.]?", u_joined, re.IGNORECASE) or len(u_joined) >= max(4, int(len(text) * 0.45)):
+                    if re.match(rf"^\s*{tf_key}\s*[\)\.]?", u_joined, re.IGNORECASE) or len(u_joined) >= max(4, int(len(text) * 0.4)):
                         tf_underlined = True
 
             return {
                 "type": "paragraph",
                 "text": text,
                 "images": imgs,
+                "underlined_letters": underlined_letters,
                 "marked_letters": marked_letters,
                 "marked_text": _clean(" ".join(marked_segments)),
                 "tf_underlined": tf_underlined,
@@ -537,7 +557,7 @@ def _parse_answer_key_section(
                     qnum = int(m_sa.group(1))
                     rest = (m_sa.group(2) or "").strip()
                     if rest:
-                        m_num = re.match(r"^(?:(?:Đáp\s*án|Đáp\s*số|Kết\s*quả)\s*[:\.\-–]?\s*)?([-+]?\d+(?:[,\.]\d+)?)", rest, re.IGNORECASE)
+                        m_num = re.match(r"^(?:A\s*[\.\:\)]\s*|(?:Đáp\s*án|Đáp\s*số|Kết\s*quả)\s*[:\.\-–]?\s*)?([-+]?\d+(?:[,\.]\d+)?)", rest, re.IGNORECASE)
                         if m_num:
                             v_clean = m_num.group(1)
                             acc = [v_clean]
@@ -952,6 +972,31 @@ def parse_mock_exam_document(
                     cur_q["question"] = (cur_q["question"] + "\n" + txt).strip()
 
         else:  # short_answer
+            # Quy ước chuẩn: Trả lời ngắn ghi đáp án sau từ "A." (VD: "A. 12,5" hoặc "A. 4. Giải chi tiết: ...")
+            m_sa_a = RE_SA_PREFIX_A.match(txt)
+            if m_sa_a:
+                raw_a = m_sa_a.group(1).strip()
+                m_exp_in = re.search(
+                    r"\b(Giải\s+chi\s+tiết|Hướng\s+dẫn\s+giải(?:\s+chi\s+tiết)?|Lời\s+giải(?:\s+chi\s+tiết)?)\s*[:\.\-–]?\s*(.*)$",
+                    raw_a,
+                    re.IGNORECASE,
+                )
+                ans_part = raw_a
+                if m_exp_in:
+                    ans_part = raw_a[: m_exp_in.start()].strip(" .;-–")
+                    exp_in = (m_exp_in.group(2) or "").strip()
+                    in_explanation = True
+                    if exp_in:
+                        cur_q["explanation"] = (cur_q["explanation"] + "\n" + exp_in).strip()
+                v_clean = re.sub(r"\s*\([^\)]+\)", "", ans_part).strip().rstrip(".")
+                if v_clean and not re.match(r"^[…\.\-_]+$", v_clean):
+                    acc = [v_clean]
+                    if "," in v_clean:
+                        acc.append(v_clean.replace(",", "."))
+                    elif "." in v_clean:
+                        acc.append(v_clean.replace(".", ","))
+                    cur_q["accepted_answers"] = acc
+                continue
             # Bỏ dòng "Đáp số: ...." rỗng
             if re.match(r"^(?:Đáp\s*số|Đáp\s*án)\s*[:\-–]?\s*[…\.\-_]+$", txt, re.IGNORECASE):
                 continue
@@ -1025,6 +1070,17 @@ def parse_mock_exam_document(
             f"Có {total_q - (mcq_keyed + tf_keyed + sa_keyed)} câu chưa tự nhận diện được đáp án — vui lòng chọn/nhập bổ sung ngay tại khung xem trước bên dưới."
         )
 
+    content_obj = {
+        "mcq": mcq_list,
+        "true_false": tf_list,
+        "short_answer": sa_list,
+    }
+    try:
+        from content_standardizer import standardize_exam_content
+        spelling_report = standardize_exam_content(content_obj)
+    except Exception:
+        spelling_report = {"auto_fixed_count": 0, "fixes_examples": [], "suspect_words": []}
+
     return {
         "draft": {
             "order_number": next_order_number,
@@ -1033,11 +1089,7 @@ def parse_mock_exam_document(
             "subtitle": "",
             "duration_minutes": 45,
             "source_filename": filename or "",
-            "content": {
-                "mcq": mcq_list,
-                "true_false": tf_list,
-                "short_answer": sa_list,
-            },
+            "content": content_obj,
         },
         "stats": {
             "total_questions": total_q,
@@ -1049,7 +1101,9 @@ def parse_mock_exam_document(
             "sa_keyed": sa_keyed,
             "images_count": total_imgs,
             "max_score": max_score,
+            "spelling_auto_fixed": spelling_report.get("auto_fixed_count", 0),
         },
+        "spelling_report": spelling_report,
         "warnings": warnings,
     }
 

@@ -603,12 +603,12 @@ export function mountMockExamSection(container, { currentUser, effectiveStudentV
                 </div>
               </div>
               <div class="mock-upload-guide">
-                <div class="mock-upload-guide-title">📌 Quy ước nhận diện đáp án &amp; lời giải tự động khi tải file Word / PDF:</div>
+                <div class="mock-upload-guide-title">📌 Quy ước nhận diện đáp án thông minh thống nhất khi tải file Word / PDF:</div>
                 <div class="mock-upload-guide-grid">
-                  <div><strong>• Phần I (TN 4 lựa chọn):</strong> Gạch chân / tô màu đỏ nhãn <code>A.</code> <code>B.</code> <code>C.</code> <code>D.</code> hoặc bảng <code>ĐÁP ÁN</code> cuối đề.</div>
-                  <div><strong>• Phần II (Đúng/Sai):</strong> <u><strong>Gạch chân</strong></u> <code><u>a)</u></code> <code><u>b)</u></code> <code><u>c)</u></code> <code><u>d)</u></code> là đáp án <strong>Đúng</strong>; <strong>không gạch chân</strong> là đáp án <strong>Sai</strong> (VD: gạch chân <u>a)</u>, <u>c)</u> → tự nhận 2 ý đúng là a), c)).</div>
-                  <div><strong>• Phần III (Trả lời ngắn):</strong> Ghi <code>Đáp án:</code> / <code>Đáp số:</code> ngay dưới câu hoặc trong bảng đáp án cuối đề.</div>
-                  <div><strong>• Gợi ý đáp án:</strong> Tự động nhận diện mục <code>Hướng dẫn giải chi tiết</code> (ngay dưới từng câu hoặc ở cuối đề) đưa vào phần <strong>Đáp án gợi ý</strong>.</div>
+                  <div><strong>• Phần I (TN 4 đáp án):</strong> <u><strong>Gạch chân</strong></u> đáp án <strong>Đúng</strong> (<code><u>A.</u></code> <code><u>B.</u></code> <code><u>C.</u></code> <code><u>D.</u></code>) hoặc bảng <code>ĐÁP ÁN</code> cuối đề.</div>
+                  <div><strong>• Phần II (Đúng/Sai):</strong> <u><strong>Gạch chân</strong></u> <code><u>a)</u></code> <code><u>b)</u></code> <code><u>c)</u></code> <code><u>d)</u></code> là đáp án <strong>Đúng</strong>; <strong>không gạch chân</strong> là đáp án <strong>Sai</strong>.</div>
+                  <div><strong>• Phần III (Trả lời ngắn):</strong> Ghi đáp án ngay sau từ <code><strong>A.</strong></code> (VD: <code>A. 12,5</code>, <code>A. 4</code>) hoặc <code>Đáp án:</code>.</div>
+                  <div><strong>• Gợi ý đáp án:</strong> Tự động nhận diện nội dung sau cụm từ <code><strong>Giải chi tiết</strong></code> (hoặc <code>Hướng dẫn giải chi tiết</code>) đưa vào phần <strong>Đáp án gợi ý</strong>.</div>
                 </div>
               </div>
               ${

@@ -31,7 +31,8 @@ export function mountTeacherDashboard(container, activeTopic, onTopicUpdated, sh
   let studentExcelResult = null;
   let studentExcelLoading = false;
 
-  // Trạng thái Trộn đề Ma trận 3x3
+  // Trạng thái Trộn đề Kiểm tra (Chế độ 1: Từ file Word .docx | Chế độ 2: Từ Ngân hàng Ma trận 3x3)
+  let examMixerMode = "word"; // 'word' | 'matrix'
   let examPool = cachedTeacher.examPool || null; // [{id, title, lessons: [{id, number, title, counts}]}]
   let selectedLessonIds = new Set();
   let matrix = {
@@ -40,14 +41,49 @@ export function mountTeacherDashboard(container, activeTopic, onTopicUpdated, sh
     short_answer: { nhan_biet: 1, thong_hieu: 2, van_dung: 3 },
   };
   let examConfig = {
+    school_name: currentUser.school_name || "TRƯỜNG THPT",
+    exam_period: "KIỂM TRA GIỮA KÌ I",
+    school_year: "2026 - 2027",
+    subject: "Sinh học 12",
     title: "ĐỀ KIỂM TRA ĐỊNH KÌ MÔN SINH HỌC 12",
-    school_name: "TRƯỜNG THPT",
-    duration_minutes: 50,
+    duration_minutes: 45,
     exam_count: 4,
-    exam_codes: "101, 102, 103, 104",
+    exam_codes: "1001, 1002, 1003, 1004",
   };
   let examGenerating = false;
   let examResult = null; // { job_id, summary }
+
+  // Trạng thái Trộn đề trực tiếp từ file Word (.docx)
+  let wordMixer = {
+    file: null,
+    loading: false,
+    parsed: null, // { source_filename, content, stats, warnings, spelling_report }
+    showPreview: false,
+    generating: false,
+    result: null, // { job_id, summary }
+  };
+
+  let answerPdfApplying = false;
+  let answerPdfReport = null;
+
+  function buildDefault4DigitCodes(count, base = 1001) {
+    const n = Math.max(1, Math.min(30, parseInt(count || "4", 10) || 4));
+    const arr = [];
+    for (let i = 0; i < n; i++) {
+      arr.push(String(base + i).padStart(4, "0"));
+    }
+    return arr.join(", ");
+  }
+
+  function buildRandom4DigitCodes(count) {
+    const n = Math.max(1, Math.min(30, parseInt(count || "4", 10) || 4));
+    const set = new Set();
+    while (set.size < n) {
+      const code = String(1000 + Math.floor(Math.random() * 8999));
+      set.add(code);
+    }
+    return Array.from(set).sort().join(", ");
+  }
 
   // Trạng thái Chỉnh sửa / Thêm nội dung
   let contentSubMode = cachedTeacher.contentSubMode || "add_topic"; // 'add_topic' | 'add_question' | 'edit_lesson' | 'youtube' | 'import'
@@ -218,7 +254,7 @@ export function mountTeacherDashboard(container, activeTopic, onTopicUpdated, sh
         <div class="segmented" style="flex-wrap:wrap;">
           <button class="seg-btn ${subtab === "members" ? "active" : ""}" data-tsub="members">Quản lý thành viên</button>
           <button class="seg-btn ${subtab === "attendance" ? "active" : ""}" data-tsub="attendance">Nhật ký &amp; Lượt truy cập</button>
-          <button class="seg-btn ${subtab === "exam_mixer" ? "active" : ""}" data-tsub="exam_mixer">Trộn đề (Ma trận)</button>
+          <button class="seg-btn ${subtab === "exam_mixer" ? "active" : ""}" data-tsub="exam_mixer">Trộn đề kiểm tra</button>
           ${
             isAdmin
               ? `<button class="seg-btn ${subtab === "content" ? "active" : ""}" data-tsub="content">Chỉnh sửa &amp; Thêm nội dung</button>`
@@ -257,7 +293,7 @@ export function mountTeacherDashboard(container, activeTopic, onTopicUpdated, sh
       btn.addEventListener("click", () => {
         subtab = btn.dataset.tsub;
         clientCache.setTeacherData({ subtab });
-        if (subtab === "exam_mixer" && !examPool) {
+        if (subtab === "exam_mixer" && examMixerMode === "matrix" && !examPool) {
           render();
           ensureExamPoolLoaded();
         } else {
@@ -375,10 +411,263 @@ export function mountTeacherDashboard(container, activeTopic, onTopicUpdated, sh
     `;
   }
 
-  // ================== 2. TRỘN ĐỀ TRẮC NGHIỆM THEO MA TRẬN 3x3 ==================
+  // ================== 2. TRỘN ĐỀ KIỂM TRA (TỪ FILE WORD .DOCX HOẶC MA TRẬN 3x3) ==================
   function renderExamMixerView() {
+    const modeSwitcher = `
+      <div class="segmented" style="margin-bottom:16px;flex-wrap:wrap;">
+        <button type="button" class="seg-btn ${examMixerMode === "word" ? "active" : ""}" data-em-mode="word">
+          📄 Trộn đề từ file Word (.docx)
+        </button>
+        <button type="button" class="seg-btn ${examMixerMode === "matrix" ? "active" : ""}" data-em-mode="matrix">
+          🧮 Trộn đề từ Ngân hàng (Ma trận 3×3)
+        </button>
+      </div>
+    `;
+
+    if (examMixerMode === "word") {
+      const wp = wordMixer.parsed;
+      const ws = wp?.stats;
+      const wc = wp?.content || { mcq: [], true_false: [], short_answer: [] };
+      const letters = ["A", "B", "C", "D"];
+      const codePreviewList = (examConfig.exam_codes || "")
+        .split(/[,;\s]+/)
+        .map((c) => c.trim())
+        .filter(Boolean);
+
+      return `
+        <div>
+          ${modeSwitcher}
+          <div style="display:flex;flex-direction:column;gap:18px;">
+            <!-- Bước 1: Tải file Word (.docx) & Nhận diện đáp án thông minh -->
+            <div class="card">
+              <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap;margin-bottom:12px;">
+                <div>
+                  <h3 class="card-title" style="margin:0 0 3px;">Bước 1. Tải đề kiểm tra gốc từ file Word (.docx)</h3>
+                  <p style="margin:0;font-size:0.83rem;color:var(--text-secondary);">
+                    Dành cho <strong>Quản trị viên</strong> và <strong>Giáo viên</strong>: hệ thống tự đọc câu hỏi, hình ảnh, công thức, kiểm tra chính tả và nhận diện đáp án thông minh trước khi trộn.
+                  </p>
+                </div>
+              </div>
+
+              <div class="mock-upload-guide" style="margin-top:0;margin-bottom:14px;">
+                <div class="mock-upload-guide-title">📌 Quy chuẩn nhận diện đáp án thông minh cho file Word (.docx):</div>
+                <div class="mock-upload-guide-grid">
+                  <div><strong>• Trắc nghiệm 4 đáp án (Phần I):</strong> Đáp án <strong>Đúng</strong> được <u><strong>gạch chân</strong></u> (VD: <u>B.</u> ...).</div>
+                  <div><strong>• Trắc nghiệm Đúng/Sai (Phần II):</strong> Ý <strong>Đúng</strong> được <u><strong>gạch chân</strong></u> (VD: <u>a)</u>, <u>c)</u>); không gạch chân là <strong>Sai</strong>.</div>
+                  <div><strong>• Trắc nghiệm Trả lời ngắn (Phần III):</strong> Ghi đáp án ngay sau từ <code><strong>A.</strong></code> (VD: <code>A. 12,5</code>).</div>
+                  <div><strong>• Gợi ý đáp án (tuỳ chọn):</strong> Ghi sau cụm từ <code><strong>Giải chi tiết</strong></code> (tự động đưa vào sheet Giải chi tiết trong file Excel).</div>
+                </div>
+              </div>
+
+              <div style="padding:16px;border:1.5px dashed var(--primary-border);border-radius:12px;background:var(--surface-tint);display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+                <label class="btn btn-primary" style="cursor:pointer;">
+                  ${wordMixer.loading ? "Đang phân tích file Word..." : "📄 Tải lên file Word (.docx)"}
+                  <input type="file" id="word-mixer-file-input" accept=".docx" style="display:none;" ${wordMixer.loading ? "disabled" : ""} />
+                </label>
+                <span id="word-mixer-upload-text" style="font-size:0.85rem;color:var(--text-secondary);">
+                  ${
+                    wordMixer.loading
+                      ? "Đang tải lên và nhận diện câu hỏi, hình ảnh & đáp án..."
+                      : wp
+                      ? `Đã phân tích xong: <strong>${escapeHtml(wp.source_filename || wordMixer.file?.name || "đề-gốc.docx")}</strong>`
+                      : "Chọn tệp Word (.docx) đề kiểm tra gốc của Thầy/Cô"
+                  }
+                </span>
+              </div>
+
+              ${
+                wp && ws
+                  ? `
+                    <div style="margin-top:14px;padding:14px 16px;border-radius:12px;border:1px solid var(--primary-border);background:#fff;">
+                      <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:10px;">
+                        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+                          <span class="pill pill-green">Tổng ${ws.total_questions} câu · ${ws.max_score} điểm</span>
+                          <span class="pill pill-primary">Phần I (TN): ${ws.mcq_count} câu (${ws.mcq_keyed}/${ws.mcq_count} có ĐA)</span>
+                          <span class="pill pill-primary">Phần II (Đ/S): ${ws.tf_count} câu (${ws.tf_keyed}/${ws.tf_count} có ĐA)</span>
+                          <span class="pill pill-primary">Phần III (TLN): ${ws.sa_count} câu (${ws.sa_keyed}/${ws.sa_count} có ĐA)</span>
+                          ${ws.images_count ? `<span class="pill pill-muted">${ws.images_count} hình ảnh</span>` : ""}
+                          ${ws.spelling_auto_fixed ? `<span class="pill pill-amber">Đã chuẩn hoá ${ws.spelling_auto_fixed} lỗi chính tả/thuật ngữ</span>` : ""}
+                        </div>
+                        <button type="button" class="btn btn-secondary btn-sm" id="btn-toggle-word-preview">
+                          ${wordMixer.showPreview ? "Ẩn danh sách câu hỏi" : "👁 Xem trước câu hỏi & đáp án đã nhận diện"}
+                        </button>
+                      </div>
+
+                      ${
+                        (wp.warnings || []).length
+                          ? `<div class="mock-warning-box" style="margin-top:0;margin-bottom:8px;">
+                               ${wp.warnings.map((w) => `<div>⚠️ ${escapeHtml(w)}</div>`).join("")}
+                             </div>`
+                          : ""
+                      }
+
+                      ${
+                        wordMixer.showPreview
+                          ? `
+                            <div class="data-table-wrap" style="margin-top:10px;max-height:360px;overflow-y:auto;">
+                              <table class="data-table">
+                                <thead>
+                                  <tr><th style="width:90px;">Phần / Câu</th><th>Nội dung câu hỏi</th><th style="width:180px;">Đáp án đã nhận diện</th></tr>
+                                </thead>
+                                <tbody>
+                                  ${(wc.mcq || [])
+                                    .map(
+                                      (q, idx) => `
+                                      <tr>
+                                        <td><strong>Phần I · C${idx + 1}</strong></td>
+                                        <td style="font-size:0.82rem;">${formatBioHtml((q.question || "").slice(0, 180))}</td>
+                                        <td>
+                                          ${
+                                            q.correct_index !== null && q.correct_index !== undefined
+                                              ? `<span class="pill pill-green">Đáp án ${letters[q.correct_index] || "?"}</span>`
+                                              : `<span class="pill pill-red">Chưa nhận diện</span>`
+                                          }
+                                        </td>
+                                      </tr>
+                                    `
+                                    )
+                                    .join("")}
+                                  ${(wc.true_false || [])
+                                    .map((q, idx) => {
+                                      const stSummary = (q.statements || [])
+                                        .map((s) => `${s.key}-${s.answer === true ? "Đ" : s.answer === false ? "S" : "?"}`)
+                                        .join(" · ");
+                                      const allReady = (q.statements || []).every((s) => s.answer !== null && s.answer !== undefined);
+                                      return `
+                                        <tr>
+                                          <td><strong>Phần II · C${idx + 1}</strong></td>
+                                          <td style="font-size:0.82rem;">${formatBioHtml((q.question || q.stem || "").slice(0, 180))}</td>
+                                          <td><span class="pill ${allReady ? "pill-green" : "pill-amber"}">${escapeHtml(stSummary)}</span></td>
+                                        </tr>
+                                      `;
+                                    })
+                                    .join("")}
+                                  ${(wc.short_answer || [])
+                                    .map(
+                                      (q, idx) => `
+                                      <tr>
+                                        <td><strong>Phần III · C${idx + 1}</strong></td>
+                                        <td style="font-size:0.82rem;">${formatBioHtml((q.question || "").slice(0, 180))}</td>
+                                        <td>
+                                          ${
+                                            (q.accepted_answers || []).length
+                                              ? `<span class="pill pill-green">A. ${escapeHtml(q.accepted_answers[0])}</span>`
+                                              : `<span class="pill pill-red">Chưa nhận diện</span>`
+                                          }
+                                        </td>
+                                      </tr>
+                                    `
+                                    )
+                                    .join("")}
+                                </tbody>
+                              </table>
+                            </div>
+                          `
+                          : ""
+                      }
+                    </div>
+                  `
+                  : ""
+              }
+            </div>
+
+            <!-- Bước 2: Tiêu đề đề kiểm tra (5 dòng chuẩn) + Số lượng đề + Mã đề 4 số -->
+            <div class="card">
+              <h3 class="card-title">Bước 2. Tiêu đề đề kiểm tra, Số lượng đề &amp; Mã đề (mặc định 4 số)</h3>
+              <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;">
+                <div class="form-group">
+                  <label>Trường: *</label>
+                  <input class="form-control" id="wx-school" value="${escapeHtml(examConfig.school_name)}" placeholder="VD: TRƯỜNG THPT ..." />
+                </div>
+                <div class="form-group">
+                  <label>Kỳ kiểm tra: *</label>
+                  <input class="form-control" id="wx-period" value="${escapeHtml(examConfig.exam_period)}" placeholder="VD: KIỂM TRA GIỮA KÌ I" />
+                </div>
+                <div class="form-group">
+                  <label>Năm học: *</label>
+                  <input class="form-control" id="wx-year" value="${escapeHtml(examConfig.school_year)}" placeholder="VD: 2026 - 2027" />
+                </div>
+                <div class="form-group">
+                  <label>Môn: *</label>
+                  <input class="form-control" id="wx-subject" value="${escapeHtml(examConfig.subject)}" placeholder="VD: Sinh học 12" />
+                </div>
+                <div class="form-group">
+                  <label>Thời gian (phút): *</label>
+                  <input type="number" min="5" max="180" class="form-control" id="wx-duration" value="${examConfig.duration_minutes}" />
+                </div>
+                <div class="form-group">
+                  <label>Số lượng đề trộn: *</label>
+                  <input type="number" min="1" max="30" class="form-control" id="wx-count" value="${examConfig.exam_count}" />
+                </div>
+              </div>
+
+              <div class="form-group" style="margin-top:4px;">
+                <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:4px;">
+                  <label style="margin:0;">Mã đề (mặc định 4 chữ số, tự chọn/chỉnh sửa tương ứng với số lượng đề):</label>
+                  <div style="display:flex;gap:6px;flex-wrap:wrap;">
+                    <button type="button" class="btn btn-soft btn-sm" id="btn-wx-sync-codes">Đồng bộ mã 4 số (${examConfig.exam_count} mã)</button>
+                    <button type="button" class="btn btn-secondary btn-sm" id="btn-wx-rand-codes">🎲 Tạo mã 4 số ngẫu nhiên</button>
+                  </div>
+                </div>
+                <input class="form-control" id="wx-codes" value="${escapeHtml(examConfig.exam_codes)}" placeholder="VD: 1001, 1002, 1003, 1004" />
+                <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px;">
+                  ${codePreviewList
+                    .slice(0, examConfig.exam_count)
+                    .map((c) => `<span class="pill pill-primary">Mã đề ${escapeHtml(c)}</span>`)
+                    .join("")}
+                </div>
+              </div>
+
+              <div style="margin-top:12px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+                <button type="button" class="btn btn-primary btn-lg" id="btn-generate-word-exam" ${wordMixer.generating || !wp ? "disabled" : ""}>
+                  ${wordMixer.generating ? "Đang trộn đề & xuất Word / Excel..." : "🔀 Trộn đề kiểm tra & Xuất Word + Excel"}
+                </button>
+                ${!wp ? `<span style="font-size:0.82rem;color:var(--text-muted);">Hãy tải lên file Word (.docx) ở Bước 1 trước khi bấm trộn đề.</span>` : ""}
+              </div>
+
+              ${
+                wordMixer.result
+                  ? `
+                    <div style="margin-top:16px;padding:16px;border-radius:10px;border:1px solid var(--primary-border);background:var(--surface-tint);">
+                      <div style="display:flex;justify-content:space-between;align-items:center;gap:14px;flex-wrap:wrap;">
+                        <div>
+                          <span class="pill pill-green">Đã trộn xong ${wordMixer.result.summary.exam_count} mã đề</span>
+                          <div style="font-weight:700;margin-top:6px;">
+                            Mã đề: ${escapeHtml((wordMixer.result.summary.exam_codes || []).join(", "))}
+                          </div>
+                          <div style="font-size:0.83rem;color:var(--text-secondary);margin-top:3px;">
+                            ${escapeHtml(wordMixer.result.summary.school_name || "")} · ${escapeHtml(wordMixer.result.summary.exam_period || "")} · Năm học ${escapeHtml(wordMixer.result.summary.school_year || "")} · Môn ${escapeHtml(wordMixer.result.summary.subject || "")} (${wordMixer.result.summary.duration_minutes || 45} phút)
+                          </div>
+                          <div style="font-size:0.82rem;color:var(--text-secondary);margin-top:2px;">
+                            Phần I: ${wordMixer.result.summary.mcq_count} câu · Phần II: ${wordMixer.result.summary.true_false_count} câu · Phần III: ${wordMixer.result.summary.short_answer_count} câu · Tổng thang điểm: <strong>${wordMixer.result.summary.max_score} điểm</strong>
+                          </div>
+                        </div>
+                        <div style="display:flex;gap:10px;flex-wrap:wrap;">
+                          <a class="btn btn-primary" href="${api.adminExamDownloadUrl(wordMixer.result.job_id, "docx")}" target="_blank">
+                            📄 Tải Đề trộn (Word .docx)
+                          </a>
+                          <a class="btn btn-soft" href="${api.adminExamDownloadUrl(wordMixer.result.job_id, "xlsx")}" target="_blank">
+                            📊 Tải Đáp án (Excel .xlsx)
+                          </a>
+                        </div>
+                      </div>
+                    </div>
+                  `
+                  : ""
+              }
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
     if (!examPool) {
-      return `<div class="card" style="text-align:center;padding:36px;"><div class="spinner" style="margin:0 auto 10px;"></div>Đang tải ngân hàng câu hỏi các chủ đề...</div>`;
+      return `
+        <div>
+          ${modeSwitcher}
+          <div class="card" style="text-align:center;padding:36px;"><div class="spinner" style="margin:0 auto 10px;"></div>Đang tải ngân hàng câu hỏi các chủ đề...</div>
+        </div>
+      `;
     }
 
     const avail = computeAvailablePool();
@@ -400,7 +689,9 @@ export function mountTeacherDashboard(container, activeTopic, onTopicUpdated, sh
     ];
 
     return `
-      <div style="display:flex;flex-direction:column;gap:18px;">
+      <div>
+        ${modeSwitcher}
+        <div style="display:flex;flex-direction:column;gap:18px;">
         <!-- Bước 1: Chọn nhiều bài học trong từng/nhiều chủ đề -->
         <div class="card">
           <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:12px;">
@@ -526,33 +817,38 @@ export function mountTeacherDashboard(container, activeTopic, onTopicUpdated, sh
           </div>
         </div>
 
-        <!-- Bước 3: Số lượng đề, Mã đề & Xuất Word/Excel -->
+        <!-- Bước 3: Số lượng đề, Mã đề 4 số & Xuất Word/Excel -->
         <div class="card">
-          <h3 class="card-title">Bước 3. Cấu hình Đề trộn &amp; Xuất file Word (.docx) + Đáp án Excel (.xlsx)</h3>
-          <div class="form-row-2">
+          <h3 class="card-title">Bước 3. Tiêu đề, Số lượng đề &amp; Mã đề (mặc định 4 số) → Xuất Word + Excel</h3>
+          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;">
             <div class="form-group">
-              <label>Tiêu đề đề kiểm tra</label>
-              <input class="form-control" id="ex-title" value="${escapeHtml(examConfig.title)}" />
-            </div>
-            <div class="form-group">
-              <label>Tên trường hiển thị trên đề</label>
+              <label>Trường:</label>
               <input class="form-control" id="ex-school" value="${escapeHtml(examConfig.school_name)}" />
             </div>
-          </div>
-
-          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;">
             <div class="form-group">
-              <label>Thời gian làm bài (phút)</label>
+              <label>Kỳ kiểm tra:</label>
+              <input class="form-control" id="ex-title" value="${escapeHtml(examConfig.exam_period || examConfig.title)}" />
+            </div>
+            <div class="form-group">
+              <label>Năm học:</label>
+              <input class="form-control" id="ex-year" value="${escapeHtml(examConfig.school_year)}" />
+            </div>
+            <div class="form-group">
+              <label>Môn:</label>
+              <input class="form-control" id="ex-subject" value="${escapeHtml(examConfig.subject)}" />
+            </div>
+            <div class="form-group">
+              <label>Thời gian (phút):</label>
               <input type="number" min="5" max="180" class="form-control" id="ex-duration" value="${examConfig.duration_minutes}" />
             </div>
             <div class="form-group">
               <label>Số lượng đề trộn *</label>
               <input type="number" min="1" max="30" class="form-control" id="ex-count" value="${examConfig.exam_count}" />
             </div>
-            <div class="form-group" style="grid-column:span 2;">
-              <label>Mã đề (tự nhập, ngăn cách bằng dấu phẩy; nếu nhập mã đầu hệ thống tự đánh tiếp)</label>
-              <input class="form-control" id="ex-codes" value="${escapeHtml(examConfig.exam_codes)}" placeholder="VD: 101, 102, 103, 104" />
-            </div>
+          </div>
+          <div class="form-group">
+            <label>Mã đề (mặc định 4 số, ngăn cách bằng dấu phẩy; nếu nhập mã đầu hệ thống tự đánh tiếp)</label>
+            <input class="form-control" id="ex-codes" value="${escapeHtml(examConfig.exam_codes)}" placeholder="VD: 1001, 1002, 1003, 1004" />
           </div>
 
           <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-top:8px;">
@@ -589,6 +885,7 @@ export function mountTeacherDashboard(container, activeTopic, onTopicUpdated, sh
               : ""
           }
         </div>
+      </div>
       </div>
     `;
   }
@@ -801,6 +1098,16 @@ export function mountTeacherDashboard(container, activeTopic, onTopicUpdated, sh
                       <input class="form-control" id="new-topic-subtitle" value="${escapeHtml(newTopicDraft.subtitle)}" placeholder="Tự động tổng hợp từ danh sách bài học nếu để trống" />
                     </div>
 
+                    <div class="mock-upload-guide" style="margin-top:0;margin-bottom:14px;">
+                      <div class="mock-upload-guide-title">📌 Chuẩn đầu vào thông minh khi tải lên Chủ đề mới (tự đồng bộ giao diện &amp; kiểm tra chính tả theo SGK Sinh học 12):</div>
+                      <div class="mock-upload-guide-grid">
+                        <div><strong>• TN 4 đáp án &amp; Đúng/Sai:</strong> Đáp án <strong>Đúng</strong> được <u><strong>gạch chân</strong></u> (không gạch chân là Sai).</div>
+                        <div><strong>• Trả lời ngắn:</strong> Ghi đáp án ngay sau từ <code><strong>A.</strong></code> (VD: <code>A. 12,5</code>).</div>
+                        <div><strong>• Gợi ý đáp án:</strong> Tự trích nội dung sau cụm từ <code><strong>Giải chi tiết</strong></code> (nếu có).</div>
+                        <div><strong>• Đối chiếu chuẩn:</strong> Tự động rà soát chính tả theo <code>SGK_SINH HỌC</code> và hỗ trợ tải kèm PDF <code>Đáp án</code> để khớp đáp án tự động.</div>
+                      </div>
+                    </div>
+
                     <div style="padding:16px;border:1.5px dashed var(--primary-border);border-radius:12px;background:var(--surface-tint);margin-bottom:16px;">
                       <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
                         <label class="btn btn-primary" style="cursor:pointer;">
@@ -841,8 +1148,38 @@ export function mountTeacherDashboard(container, activeTopic, onTopicUpdated, sh
                                   <strong>${ds.htkt_units_count}</strong> phiếu HTKT
                                 </div>
                                 <div style="font-size:0.83rem;color:var(--text-secondary);margin-top:2px;">
-                                  Ngân hàng ôn tập: <strong>${ds.mcq_count}</strong> câu 4 đáp án · <strong>${ds.true_false_count}</strong> câu Đúng/Sai · <strong>${ds.short_answer_count}</strong> câu Trả lời ngắn
+                                  Ngân hàng ôn tập: <strong>${ds.mcq_count}</strong> câu 4 đáp án (${ds.mcq_keyed || 0} có ĐA) ·
+                                  <strong>${ds.true_false_count}</strong> câu Đúng/Sai (${ds.true_false_keyed || 0} có ĐA) ·
+                                  <strong>${ds.short_answer_count}</strong> câu Trả lời ngắn (${ds.short_answer_keyed || 0} có ĐA)
                                 </div>
+                                ${
+                                  dp.spelling_report
+                                    ? `
+                                      <div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap;align-items:center;font-size:0.8rem;">
+                                        <span class="pill ${dp.spelling_report.auto_fixed_count > 0 ? "pill-amber" : "pill-green"}">
+                                          ✓ Kiểm tra chính tả: đã tự chuẩn hoá ${dp.spelling_report.auto_fixed_count || 0} mục (thuật ngữ/dấu/kiểu gene)
+                                        </span>
+                                        ${
+                                          dp.spelling_report.sgk_reference?.available
+                                            ? `<span class="pill pill-primary">📘 Đối chiếu SGK: ${escapeHtml(dp.spelling_report.sgk_reference.source_name)}</span>`
+                                            : `<span class="pill pill-muted">📘 Chuẩn SGK Sinh học 12 GDPT 2018</span>`
+                                        }
+                                        ${
+                                          (dp.spelling_report.suspect_words || []).length
+                                            ? `<span class="pill pill-red">⚠️ Từ cần kiểm tra lại: ${escapeHtml(dp.spelling_report.suspect_words.slice(0, 6).join(", "))}</span>`
+                                            : ""
+                                        }
+                                      </div>
+                                    `
+                                    : ""
+                                }
+                                ${
+                                  answerPdfReport
+                                    ? `<div style="margin-top:6px;font-size:0.8rem;color:var(--green);font-weight:600;">
+                                         ✓ Đã đối chiếu PDF Đáp án (${escapeHtml(answerPdfReport.source_name || "")}): khớp thêm ${answerPdfReport.total_matched || 0} câu (TN: ${answerPdfReport.matched_mcq || 0}, Đ/S: ${answerPdfReport.matched_tf || 0}, TLN: ${answerPdfReport.matched_sa || 0}).
+                                       </div>`
+                                    : ""
+                                }
                               </div>
                             </div>
 
@@ -850,6 +1187,10 @@ export function mountTeacherDashboard(container, activeTopic, onTopicUpdated, sh
                               <button type="button" class="btn btn-soft" id="btn-preview-new-topic">
                                 Xem trước nội dung &amp; giao diện
                               </button>
+                              <label class="btn btn-secondary btn-sm" style="cursor:pointer;">
+                                ${answerPdfApplying ? "Đang đối chiếu PDF Đáp án..." : "📎 Đối chiếu thêm PDF Đáp án"}
+                                <input type="file" id="new-topic-answer-pdf-input" accept=".pdf" style="display:none;" ${answerPdfApplying ? "disabled" : ""} />
+                              </label>
                               <button type="button" class="btn btn-primary" id="btn-publish-new-topic" ${newTopicDraft.publishing ? "disabled" : ""}>
                                 ${newTopicDraft.publishing ? "Đang cập nhật vào hệ thống..." : "Cập nhật & Đẩy lên dữ liệu"}
                               </button>
@@ -2219,8 +2560,123 @@ export function mountTeacherDashboard(container, activeTopic, onTopicUpdated, sh
       });
     });
 
-    // ---- EXAM MIXER EVENTS ----
-    if (subtab === "exam_mixer" && examPool) {
+    // ---- EXAM MIXER EVENTS (WORD .DOCX & MATRIX 3x3) ----
+    if (subtab === "exam_mixer") {
+      container.querySelectorAll("[data-em-mode]").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          examMixerMode = btn.dataset.emMode || "word";
+          if (examMixerMode === "matrix" && !examPool) {
+            render();
+            ensureExamPoolLoaded();
+          } else {
+            render();
+          }
+        });
+      });
+
+      if (examMixerMode === "word") {
+        const syncWordConfig = () => {
+          const s = container.querySelector("#wx-school");
+          const p = container.querySelector("#wx-period");
+          const y = container.querySelector("#wx-year");
+          const sub = container.querySelector("#wx-subject");
+          const dur = container.querySelector("#wx-duration");
+          const cnt = container.querySelector("#wx-count");
+          const cds = container.querySelector("#wx-codes");
+          if (s) examConfig.school_name = s.value.trim() || examConfig.school_name;
+          if (p) examConfig.exam_period = p.value.trim() || examConfig.exam_period;
+          if (y) examConfig.school_year = y.value.trim() || examConfig.school_year;
+          if (sub) examConfig.subject = sub.value.trim() || examConfig.subject;
+          if (dur) examConfig.duration_minutes = Math.max(5, Math.min(180, parseInt(dur.value || "45", 10) || 45));
+          if (cnt) examConfig.exam_count = Math.max(1, Math.min(30, parseInt(cnt.value || "4", 10) || 4));
+          if (cds) examConfig.exam_codes = cds.value.trim();
+        };
+
+        container.querySelector("#wx-count")?.addEventListener("change", (e) => {
+          syncWordConfig();
+          const newCount = Math.max(1, Math.min(30, parseInt(e.target.value || "4", 10) || 4));
+          examConfig.exam_count = newCount;
+          examConfig.exam_codes = buildDefault4DigitCodes(newCount, 1001);
+          render();
+        });
+
+        container.querySelector("#btn-wx-sync-codes")?.addEventListener("click", () => {
+          syncWordConfig();
+          examConfig.exam_codes = buildDefault4DigitCodes(examConfig.exam_count, 1001);
+          render();
+        });
+
+        container.querySelector("#btn-wx-rand-codes")?.addEventListener("click", () => {
+          syncWordConfig();
+          examConfig.exam_codes = buildRandom4DigitCodes(examConfig.exam_count);
+          render();
+        });
+
+        container.querySelector("#btn-toggle-word-preview")?.addEventListener("click", () => {
+          syncWordConfig();
+          wordMixer.showPreview = !wordMixer.showPreview;
+          render();
+        });
+
+        container.querySelector("#word-mixer-file-input")?.addEventListener("change", async (e) => {
+          const file = e.target.files?.[0];
+          if (!file) return;
+          syncWordConfig();
+          wordMixer.file = file;
+          wordMixer.loading = true;
+          wordMixer.parsed = null;
+          wordMixer.result = null;
+          render();
+          try {
+            const res = await api.parseWordExamForMixer(file);
+            wordMixer.parsed = res;
+            showToast(
+              `Đã phân tích xong "${file.name}": ${res.stats?.total_questions || 0} câu (${res.stats?.mcq_count || 0} TN · ${res.stats?.tf_count || 0} Đ/S · ${res.stats?.sa_count || 0} TLN).`,
+              "success"
+            );
+          } catch (err) {
+            wordMixer.file = null;
+            showToast(err.message, "error");
+          } finally {
+            e.target.value = "";
+            wordMixer.loading = false;
+            render();
+          }
+        });
+
+        container.querySelector("#btn-generate-word-exam")?.addEventListener("click", async () => {
+          syncWordConfig();
+          if (!wordMixer.parsed?.content) {
+            showToast("Vui lòng tải lên file Word (.docx) đề kiểm tra gốc trước.", "error");
+            return;
+          }
+          wordMixer.generating = true;
+          wordMixer.result = null;
+          render();
+          try {
+            const res = await api.generateShuffledFromWord({
+              content: wordMixer.parsed.content,
+              exam_count: examConfig.exam_count,
+              exam_codes: examConfig.exam_codes,
+              school_name: examConfig.school_name,
+              exam_period: examConfig.exam_period,
+              school_year: examConfig.school_year,
+              subject: examConfig.subject,
+              duration_minutes: examConfig.duration_minutes,
+            });
+            wordMixer.result = { job_id: res.job_id, summary: res.summary };
+            showToast(`Đã trộn thành công ${res.summary.exam_count} mã đề 4 số!`, "success");
+          } catch (err) {
+            showToast(err.message, "error");
+          } finally {
+            wordMixer.generating = false;
+            render();
+          }
+        });
+      }
+    }
+
+    if (subtab === "exam_mixer" && examMixerMode === "matrix" && examPool) {
       container.querySelector("#ex-select-all")?.addEventListener("click", () => {
         examPool.forEach((tp) => (tp.lessons || []).forEach((ls) => selectedLessonIds.add(ls.id)));
         render();
@@ -2287,10 +2743,13 @@ export function mountTeacherDashboard(container, activeTopic, onTopicUpdated, sh
       });
 
       const syncConfig = () => {
-        examConfig.title = container.querySelector("#ex-title")?.value || examConfig.title;
+        examConfig.exam_period = container.querySelector("#ex-title")?.value || examConfig.exam_period;
+        examConfig.title = examConfig.exam_period;
         examConfig.school_name = container.querySelector("#ex-school")?.value || examConfig.school_name;
-        examConfig.duration_minutes = Math.max(5, parseInt(container.querySelector("#ex-duration")?.value || "50", 10) || 50);
-        examConfig.exam_count = Math.max(1, Math.min(30, parseInt(container.querySelector("#ex-count")?.value || "1", 10) || 1));
+        examConfig.school_year = container.querySelector("#ex-year")?.value || examConfig.school_year;
+        examConfig.subject = container.querySelector("#ex-subject")?.value || examConfig.subject;
+        examConfig.duration_minutes = Math.max(5, parseInt(container.querySelector("#ex-duration")?.value || "45", 10) || 45);
+        examConfig.exam_count = Math.max(1, Math.min(30, parseInt(container.querySelector("#ex-count")?.value || "4", 10) || 4));
         examConfig.exam_codes = container.querySelector("#ex-codes")?.value || "";
       };
 
@@ -2309,8 +2768,11 @@ export function mountTeacherDashboard(container, activeTopic, onTopicUpdated, sh
             matrix,
             exam_count: examConfig.exam_count,
             exam_codes: examConfig.exam_codes,
-            title: examConfig.title,
+            title: examConfig.exam_period,
+            exam_period: examConfig.exam_period,
             school_name: examConfig.school_name,
+            school_year: examConfig.school_year,
+            subject: examConfig.subject,
             duration_minutes: examConfig.duration_minutes,
           });
           examResult = { job_id: res.job_id, summary: res.summary };
@@ -2513,6 +2975,7 @@ export function mountTeacherDashboard(container, activeTopic, onTopicUpdated, sh
           newTopicDraft.preview = null;
           newTopicDraft.title = "";
           newTopicDraft.subtitle = "";
+          answerPdfReport = null;
           showToast(res.message || `Đã xuất bản "${res.topic.title}"!`, "success");
           await onTopicsReload(res.topic.id, { changedTopicId: res.topic.id });
         } catch (err) {
@@ -2562,6 +3025,7 @@ export function mountTeacherDashboard(container, activeTopic, onTopicUpdated, sh
             onProgress: updateProgressUi,
           });
           newTopicDraft.preview = res.preview;
+          answerPdfReport = res.preview?.answer_pdf_report || null;
           newTopicDraft.order_index = res.order_index || newTopicDraft.order_index;
           if (!newTopicDraft.title && res.preview?.extracted?.title) {
             newTopicDraft.title = res.preview.extracted.title;
@@ -2589,6 +3053,37 @@ export function mountTeacherDashboard(container, activeTopic, onTopicUpdated, sh
         });
       });
 
+      container.querySelector("#new-topic-answer-pdf-input")?.addEventListener("change", async (e) => {
+        const pdfFile = e.target.files?.[0];
+        if (!pdfFile || !newTopicDraft.preview?.extracted) return;
+        answerPdfApplying = true;
+        render();
+        try {
+          const b64 = await fileToBase64(pdfFile);
+          const res = await api.applyAnswerPdfToDraftTopic({
+            topic: newTopicDraft.preview.extracted,
+            pdf_filename: pdfFile.name,
+            pdf_base64: b64,
+          });
+          if (res.topic) {
+            newTopicDraft.preview.extracted = res.topic;
+          }
+          if (res.keyed_counts && newTopicDraft.preview.stats) {
+            newTopicDraft.preview.stats.mcq_keyed = res.keyed_counts.mcq_keyed;
+            newTopicDraft.preview.stats.true_false_keyed = res.keyed_counts.true_false_keyed;
+            newTopicDraft.preview.stats.short_answer_keyed = res.keyed_counts.short_answer_keyed;
+          }
+          answerPdfReport = res.report || null;
+          showToast(res.message || "Đã đối chiếu đáp án từ file PDF!", "success");
+        } catch (err) {
+          showToast(err.message, "error");
+        } finally {
+          e.target.value = "";
+          answerPdfApplying = false;
+          render();
+        }
+      });
+
       container.querySelector("#btn-publish-new-topic")?.addEventListener("click", async () => {
         const topicPayload = buildFinalDraftTopic();
         if (!topicPayload) return;
@@ -2604,6 +3099,7 @@ export function mountTeacherDashboard(container, activeTopic, onTopicUpdated, sh
         newTopicDraft.preview = null;
         newTopicDraft.title = "";
         newTopicDraft.subtitle = "";
+        answerPdfReport = null;
         render();
       });
 
