@@ -27,8 +27,11 @@ from database import (
     DB_LOCK,
     DEFAULT_USER_PASSWORD,
     TEACHER_INVITE_CODE,
+    build_curriculum_catalog,
+    build_student_learning_report,
     create_token,
     describe_db,
+    export_learning_analytics_csv,
     export_sessions_csv,
     get_conn,
     get_user_by_token,
@@ -37,12 +40,15 @@ from database import (
     invalidate_token_cache,
     now_iso,
     now_vn,
+    parse_quiz_attempt_enriched,
     parse_vn_datetime,
     record_login,
     record_password_change,
     sanitize_user,
     to_vn_iso,
+    upsert_exercise_record,
     upsert_lesson_progress,
+    upsert_theory_read,
     upsert_topic,
     verify_password,
 )
@@ -524,15 +530,51 @@ class Bio12Handler(BaseHTTPRequestHandler):
                     """
                 ).fetchall()
 
-                attempts = conn.execute(
+                attempts_asc = conn.execute(
                     """
                     SELECT a.*, u.full_name, u.username, u.class_name
                     FROM quiz_attempts a
                     JOIN users u ON u.id = a.user_id
-                    ORDER BY a.submitted_at DESC
-                    LIMIT 150
+                    ORDER BY a.submitted_at ASC, a.id ASC
                     """
                 ).fetchall()
+
+                catalog = build_curriculum_catalog(conn)
+                topic_title_map = catalog["topic_title_map"]
+
+                # Đánh số đợt làm bài (Đợt #1, Đợt #2...) chính xác theo từng học sinh
+                round_counter = {}
+                enriched_attempts_asc = []
+                attempts_by_user = {}
+                for ar in attempts_asc:
+                    uid = ar["user_id"]
+                    round_counter[uid] = round_counter.get(uid, 0) + 1
+                    item = parse_quiz_attempt_enriched(dict(ar), topic_title_map, round_number=round_counter[uid])
+                    enriched_attempts_asc.append(item)
+                    attempts_by_user.setdefault(uid, []).append(item)
+                enriched_attempts_desc = list(reversed(enriched_attempts_asc))
+
+                # Tải tiến độ đọc mục lý thuyết & bài tập vận dụng (không N+1)
+                lp_rows = conn.execute(
+                    "SELECT user_id, lesson_id, completed FROM lesson_progress WHERE completed = 1"
+                ).fetchall()
+                lp_done_by_user = {}
+                for r in lp_rows:
+                    lp_done_by_user.setdefault(r["user_id"], set()).add(r["lesson_id"])
+
+                tr_rows = conn.execute(
+                    "SELECT user_id, lesson_id, section_key FROM student_theory_reads WHERE completed = 1"
+                ).fetchall()
+                reads_by_user = {}
+                for r in tr_rows:
+                    reads_by_user.setdefault(r["user_id"], {}).setdefault(r["lesson_id"], set()).add(r["section_key"])
+
+                ex_rows = conn.execute(
+                    "SELECT user_id, correct_count, total_items, accuracy_pct FROM student_exercise_records"
+                ).fetchall()
+                ex_by_user = {}
+                for r in ex_rows:
+                    ex_by_user.setdefault(r["user_id"], []).append(dict(r))
 
                 login_counts_rows = conn.execute(
                     """
@@ -556,21 +598,58 @@ class Bio12Handler(BaseHTTPRequestHandler):
                     """
                 ).fetchall()
 
-                # Aggregate per-student stats
+                # Aggregate per-student stats (tiến độ lý thuyết, bài tập LT/HTKT, và từng đợt Hệ thống ôn tập)
                 student_list = []
+                total_catalog_lessons = catalog["total_lessons"]
+                total_catalog_sections = catalog["total_sections"]
+                total_catalog_ex = catalog["total_exercise_units"]
+
                 for st in students:
                     uid = st["id"]
                     st_sessions = [s for s in sessions if s["user_id"] == uid]
-                    st_attempts = [a for a in attempts if a["user_id"] == uid]
+                    st_attempts = attempts_by_user.get(uid, [])
                     total_sec = sum((s["duration_seconds"] or 0) for s in st_sessions)
                     is_online = any(s["status"] == "active" for s in st_sessions)
+
+                    # Tính chính xác % Lý thuyết đã học (đồng nhất 100% với build_student_learning_report)
+                    done_ls_set = lp_done_by_user.get(uid, set())
+                    u_reads = reads_by_user.get(uid, {})
+                    studied_lessons = 0
+                    studied_sections = 0
+                    for tp in catalog["topics"]:
+                        for ls in tp["lessons"]:
+                            lid = ls["id"]
+                            secs = ls["sections"]
+                            if lid in done_ls_set:
+                                studied_lessons += 1
+                                studied_sections += len(secs)
+                            else:
+                                rset = u_reads.get(lid, set())
+                                c_sec = sum(1 for sc in secs if sc["key"] in rset)
+                                studied_sections += c_sec
+                                if c_sec > 0:
+                                    studied_lessons += 1
+                    theory_pct = round(studied_sections * 100.0 / total_catalog_sections, 1) if total_catalog_sections > 0 else 0.0
+
+                    # Tính chính xác % Bài tập vận dụng LT & HTKT
+                    u_ex = ex_by_user.get(uid, [])
+                    ex_done = len(u_ex)
+                    ex_completion_pct = round(ex_done * 100.0 / total_catalog_ex, 1) if total_catalog_ex > 0 else 0.0
+                    ex_corr = sum(int(e["correct_count"] or 0) for e in u_ex)
+                    ex_tot = sum(int(e["total_items"] or 0) for e in u_ex)
+                    ex_accuracy_pct = round(ex_corr * 100.0 / ex_tot, 1) if ex_tot > 0 else None
+
+                    # Tính chính xác kết quả Hệ thống ôn tập qua các đợt
+                    rev_corr = sum(int(a["correct_count"] or 0) for a in st_attempts)
+                    rev_tot = sum(int(a["total_questions"] or 0) for a in st_attempts)
+                    rev_accuracy_pct = round(rev_corr * 100.0 / rev_tot, 1) if rev_tot > 0 else None
                     avg_pct = 0.0
                     if st_attempts:
                         avg_pct = round(
-                            sum((a["score"] / a["max_score"] * 100.0) for a in st_attempts if a["max_score"] > 0)
-                            / len(st_attempts),
+                            sum(a["score_pct"] for a in st_attempts) / len(st_attempts),
                             1,
                         )
+
                     lg = login_count_map.get(uid, {"count": 0, "last_login": None})
                     item = sanitize_user(st)
                     item.update(
@@ -582,6 +661,21 @@ class Bio12Handler(BaseHTTPRequestHandler):
                             "is_online": is_online,
                             "attempt_count": len(st_attempts),
                             "avg_percent": avg_pct,
+                            "studied_lessons": studied_lessons,
+                            "total_lessons": total_catalog_lessons,
+                            "studied_sections": studied_sections,
+                            "total_sections": total_catalog_sections,
+                            "theory_pct": theory_pct,
+                            "exercises_done": ex_done,
+                            "exercises_total": total_catalog_ex,
+                            "exercise_completion_pct": ex_completion_pct,
+                            "exercise_correct": ex_corr,
+                            "exercise_items_total": ex_tot,
+                            "exercise_accuracy_pct": ex_accuracy_pct,
+                            "review_rounds_count": len(st_attempts),
+                            "review_correct_total": rev_corr,
+                            "review_questions_total": rev_tot,
+                            "review_accuracy_pct": rev_accuracy_pct,
                             "last_enter": st_sessions[0]["enter_time"] if st_sessions else None,
                             "last_leave": st_sessions[0]["leave_time"] if st_sessions else None,
                         }
@@ -591,6 +685,12 @@ class Bio12Handler(BaseHTTPRequestHandler):
                 online_count = sum(1 for s in student_list if s["is_online"])
                 total_study_minutes = round(sum(s["total_seconds"] for s in student_list) / 60.0, 1)
                 total_student_logins = sum(s["login_count"] for s in student_list)
+                avg_theory_pct = round(sum(s["theory_pct"] for s in student_list) / len(student_list), 1) if student_list else 0.0
+                avg_ex_comp_pct = round(sum(s["exercise_completion_pct"] for s in student_list) / len(student_list), 1) if student_list else 0.0
+                ex_accs = [s["exercise_accuracy_pct"] for s in student_list if s["exercise_accuracy_pct"] is not None]
+                avg_ex_acc_pct = round(sum(ex_accs) / len(ex_accs), 1) if ex_accs else None
+                rev_accs = [a["accuracy_pct"] for a in enriched_attempts_asc if a.get("total_questions", 0) > 0]
+                avg_rev_acc_pct = round(sum(rev_accs) / len(rev_accs), 1) if rev_accs else None
 
                 # Báo cáo đổi mật khẩu chỉ gửi về cho Quản trị viên (admin)
                 pw_logs = []
@@ -613,15 +713,29 @@ class Bio12Handler(BaseHTTPRequestHandler):
                             "online_students": online_count,
                             "total_sessions": len([s for s in sessions if s["role"] == "student"]),
                             "total_logins": total_student_logins,
-                            "total_attempts": len(attempts),
+                            "total_attempts": len(enriched_attempts_desc),
                             "total_study_minutes": total_study_minutes,
                             "unread_password_changes": unread_pw,
+                            "avg_theory_pct": avg_theory_pct,
+                            "avg_exercise_completion_pct": avg_ex_comp_pct,
+                            "avg_exercise_accuracy_pct": avg_ex_acc_pct,
+                            "avg_review_accuracy_pct": avg_rev_acc_pct,
+                        },
+                        "curriculum_summary": {
+                            "total_topics": catalog["total_topics"],
+                            "total_lessons": catalog["total_lessons"],
+                            "total_sections": catalog["total_sections"],
+                            "total_exercise_units": catalog["total_exercise_units"],
+                            "topics": [
+                                {"id": t["id"], "title": t["title"], "order_index": t["order_index"]}
+                                for t in catalog["topics"]
+                            ],
                         },
                         "students": student_list,
                         "teachers": [sanitize_user(t) for t in teachers],
                         "sessions": [dict(s) for s in sessions],
                         "login_logs": [dict(l) for l in login_logs],
-                        "attempts": [dict(a) for a in attempts],
+                        "attempts": enriched_attempts_desc[:200],
                         "password_change_logs": pw_logs,
                     },
                 )
@@ -705,6 +819,84 @@ class Bio12Handler(BaseHTTPRequestHandler):
                     content_type="text/csv; charset=utf-8",
                     extra_headers={
                         "Content-Disposition": 'attachment; filename="nhat-ky-hoc-tap-sinh12.csv"'
+                    },
+                )
+
+            if path == "/api/my/learning-report":
+                user = self.require_user(conn, qs)
+                if not user:
+                    return
+                rep = build_student_learning_report(conn, user["id"])
+                return self.send_json(200, rep)
+
+            m_st_rep = re.match(r"^/api/staff/students/(\d+)/learning-report$", path)
+            if m_st_rep:
+                staff = self.require_teacher(conn, qs)
+                if not staff:
+                    return
+                uid = int(m_st_rep.group(1))
+                rep = build_student_learning_report(conn, uid)
+                if not rep:
+                    return self.send_json(404, {"error": "Không tìm thấy học sinh."})
+                return self.send_json(200, rep)
+
+            m_qa_one = re.match(r"^/api/staff/quiz-attempts/(\d+)$", path)
+            if m_qa_one:
+                user = self.require_user(conn, qs)
+                if not user:
+                    return
+                att_id = int(m_qa_one.group(1))
+                row = conn.execute(
+                    """
+                    SELECT a.*, u.full_name, u.username, u.class_name, u.school_name
+                    FROM quiz_attempts a
+                    JOIN users u ON u.id = a.user_id
+                    WHERE a.id = ?
+                    """,
+                    (att_id,),
+                ).fetchone()
+                if not row:
+                    return self.send_json(404, {"error": "Không tìm thấy đợt làm bài này."})
+                if row["user_id"] != user["id"] and user["role"] not in ("admin", "teacher"):
+                    return self.send_json(403, {"error": "Bạn không có quyền xem chi tiết đợt làm bài này."})
+                round_row = conn.execute(
+                    """
+                    SELECT COUNT(*) AS cnt FROM quiz_attempts
+                    WHERE user_id = ? AND (submitted_at < ? OR (submitted_at = ? AND id <= ?))
+                    """,
+                    (row["user_id"], row["submitted_at"], row["submitted_at"], row["id"]),
+                ).fetchone()
+                round_num = int(round_row["cnt"] if round_row else 1)
+                t_rows = conn.execute("SELECT id, title FROM topics").fetchall()
+                t_map = {r["id"]: r["title"] for r in t_rows}
+                enriched = parse_quiz_attempt_enriched(dict(row), t_map, round_number=round_num)
+                raw_ans = {}
+                try:
+                    raw_ans = json.loads(row["answers_json"] or "{}")
+                except Exception:
+                    raw_ans = {}
+                meta = raw_ans.get("meta") if isinstance(raw_ans, dict) and isinstance(raw_ans.get("meta"), dict) else {}
+                return self.send_json(
+                    200,
+                    {
+                        "attempt": enriched,
+                        "meta": meta,
+                        "items": meta.get("items") or [],
+                    },
+                )
+
+            if path == "/api/staff/learning-report/export":
+                staff = self.require_teacher(conn, qs)
+                if not staff:
+                    return
+                class_filter = qs.get("class_name", [""])[0]
+                csv_data = export_learning_analytics_csv(conn, class_filter)
+                return self.send_text(
+                    200,
+                    csv_data,
+                    content_type="text/csv; charset=utf-8",
+                    extra_headers={
+                        "Content-Disposition": 'attachment; filename="bao-cao-hoc-tap-sinh12.csv"'
                     },
                 )
 
@@ -1489,6 +1681,85 @@ class Bio12Handler(BaseHTTPRequestHandler):
                 upsert_lesson_progress(conn, user["id"], topic_id, lesson_id, completed, checkpoint_score, ts)
                 conn.commit()
                 return self.send_json(200, {"ok": True})
+
+            # Ghi nhận tự động các mục Lý thuyết học sinh đã đọc trong phiên học
+            if path == "/api/analytics/theory-read":
+                user = self.require_user(conn, qs, body)
+                if not user:
+                    return
+                topic_id = (body.get("topic_id") or "").strip()
+                lesson_id = (body.get("lesson_id") or "").strip()
+                lesson_number = (body.get("lesson_number") or "").strip()
+                lesson_title = (body.get("lesson_title") or "").strip()
+                sections = body.get("sections") or []
+                mark_lesson_done = bool(body.get("mark_lesson_done"))
+                if not topic_id or not lesson_id:
+                    return self.send_json(400, {"error": "Thiếu topic_id hoặc lesson_id."})
+                ts = now_iso()
+                saved = 0
+                for sec in sections:
+                    if not isinstance(sec, dict):
+                        continue
+                    skey = str(sec.get("key") or "").strip()
+                    if not skey:
+                        continue
+                    shead = str(sec.get("heading") or skey).strip()
+                    dur_d = int(sec.get("duration_delta") or 0)
+                    comp = 1 if sec.get("completed", True) else 0
+                    upsert_theory_read(
+                        conn,
+                        user["id"],
+                        topic_id,
+                        lesson_id,
+                        lesson_number,
+                        lesson_title,
+                        skey,
+                        shead,
+                        duration_delta=dur_d,
+                        completed=comp,
+                        ts=ts,
+                    )
+                    saved += 1
+                if mark_lesson_done:
+                    upsert_lesson_progress(conn, user["id"], topic_id, lesson_id, 1, 1, ts)
+                conn.commit()
+                return self.send_json(200, {"ok": True, "saved": saved})
+
+            # Ghi nhận tự động kết quả làm Bài tập vận dụng trong Lý thuyết & Hệ thống kiến thức
+            if path == "/api/analytics/exercise-check":
+                user = self.require_user(conn, qs, body)
+                if not user:
+                    return
+                topic_id = (body.get("topic_id") or "").strip()
+                source_tab = (body.get("source_tab") or "theory").strip()
+                lesson_label = (body.get("lesson_label") or "").strip()
+                records = body.get("records") or []
+                if not topic_id or not isinstance(records, list):
+                    return self.send_json(400, {"error": "Thiếu topic_id hoặc danh sách kết quả bài tập."})
+                ts = now_iso()
+                saved = 0
+                for rec in records:
+                    if not isinstance(rec, dict):
+                        continue
+                    uid_key = str(rec.get("unit_id") or "").strip()
+                    if not uid_key:
+                        continue
+                    upsert_exercise_record(
+                        conn,
+                        user["id"],
+                        topic_id,
+                        source_tab,
+                        str(rec.get("lesson_label") or lesson_label),
+                        uid_key,
+                        str(rec.get("unit_title") or uid_key),
+                        int(rec.get("correct_count") or 0),
+                        int(rec.get("answered_count") or 0),
+                        int(rec.get("total_items") or 1),
+                        ts=ts,
+                    )
+                    saved += 1
+                conn.commit()
+                return self.send_json(200, {"ok": True, "saved": saved})
 
             # Admin: Create new topic
             if path == "/api/topics":

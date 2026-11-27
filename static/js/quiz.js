@@ -227,26 +227,70 @@ export function mountQuizSection(container, topic, user, showToast, opts = {}) {
     let maxScore = 0;
     let correctCount = 0;
     let totalGradable = 0;
+    let answeredGradable = 0;
     let answeredPendingCount = 0;
 
+    const previewText = (s, maxLen = 220) => {
+      const clean = String(s || "").replace(/\s+/g, " ").trim();
+      return clean.length > maxLen ? `${clean.slice(0, maxLen - 3)}...` : clean;
+    };
+
+    const partsSummary = {
+      mcq: { correct: 0, total: 0, score: 0, max_score: 0 },
+      true_false: { correct_statements: 0, total_statements: 0, questions: 0, score: 0, max_score: 0 },
+      short_answer: { correct: 0, total: 0, score: 0, max_score: 0 },
+    };
+    const byLessonMap = new Map();
+    const recordLessonStat = (lessonName, isRight, weight = 1) => {
+      const key = String(lessonName || "Chung").trim() || "Chung";
+      if (!byLessonMap.has(key)) byLessonMap.set(key, { lesson: key, correct: 0, total: 0 });
+      const entry = byLessonMap.get(key);
+      entry.total += weight;
+      if (isRight) entry.correct += weight;
+    };
+    const gradedItems = [];
+
     // Phần 1: Trắc nghiệm 4 đáp án — 0,25 điểm / câu
-    lists.mcq.forEach((q) => {
+    lists.mcq.forEach((q, idx) => {
+      const opts = q._displayOptions || q.options || [];
       const corrIdx = q._displayCorrectIdx !== undefined ? q._displayCorrectIdx : q.correct_index;
       const hasKey = q.answer_key_ready !== false && corrIdx !== null && corrIdx !== undefined && corrIdx >= 0;
+      const picked = answers.mcq[q.id];
       if (hasKey) {
         maxScore += 0.25;
         totalGradable += 1;
-        if (answers.mcq[q.id] === corrIdx) {
+        partsSummary.mcq.total += 1;
+        partsSummary.mcq.max_score = Math.round((partsSummary.mcq.max_score + 0.25) * 100) / 100;
+        if (picked !== undefined && picked !== null) answeredGradable += 1;
+        const ok = picked === corrIdx;
+        if (ok) {
           score += 0.25;
           correctCount += 1;
+          partsSummary.mcq.correct += 1;
+          partsSummary.mcq.score = Math.round((partsSummary.mcq.score + 0.25) * 100) / 100;
         }
-      } else if (answers.mcq[q.id] !== undefined) {
+        recordLessonStat(q.lesson, ok, 1);
+        const userLetter = picked !== undefined && picked !== null ? String.fromCharCode(65 + picked) : "";
+        const corrLetter = String.fromCharCode(65 + corrIdx);
+        gradedItems.push({
+          part: "mcq",
+          num: idx + 1,
+          id: q.id,
+          lesson: q.lesson || "",
+          question: previewText(q.question),
+          user_answer: userLetter ? `${userLetter}. ${previewText(opts[picked] || "", 120)}` : "Bỏ trống",
+          correct_answer: `${corrLetter}. ${previewText(opts[corrIdx] || "", 120)}`,
+          is_correct: ok,
+          points: ok ? 0.25 : 0,
+          max_points: 0.25,
+        });
+      } else if (picked !== undefined) {
         answeredPendingCount += 1;
       }
     });
 
     // Phần 2: Trắc nghiệm Đúng/Sai — 1 ý: 0,1đ; 2 ý: 0,25đ; 3 ý: 0,5đ; 4 ý: 1,0đ
-    lists.true_false.forEach((q) => {
+    lists.true_false.forEach((q, idx) => {
       const stmts = q.statements || [];
       const hasKey =
         q.answer_key_ready !== false &&
@@ -254,15 +298,48 @@ export function mountQuizSection(container, topic, user, showToast, opts = {}) {
         stmts.every((s) => s.answer !== null && s.answer !== undefined);
       if (hasKey) {
         maxScore += 1.0;
+        partsSummary.true_false.questions += 1;
+        partsSummary.true_false.max_score = Math.round((partsSummary.true_false.max_score + 1.0) * 100) / 100;
         let rightInStem = 0;
+        const stmtDetails = [];
         stmts.forEach((st) => {
           totalGradable += 1;
-          if (answers.true_false[`${q.id}:${st.key}`] === st.answer) {
+          partsSummary.true_false.total_statements += 1;
+          const uVal = answers.true_false[`${q.id}:${st.key}`];
+          if (uVal !== undefined && uVal !== null) answeredGradable += 1;
+          const stOk = uVal === st.answer;
+          if (stOk) {
             rightInStem += 1;
             correctCount += 1;
+            partsSummary.true_false.correct_statements += 1;
           }
+          recordLessonStat(q.lesson, stOk, 1);
+          stmtDetails.push({
+            key: st.key,
+            text: previewText(st.text, 140),
+            user: uVal === true ? "Đúng" : uVal === false ? "Sai" : "Trống",
+            correct: st.answer ? "Đúng" : "Sai",
+            is_correct: stOk,
+          });
         });
-        score += gradeTrueFalseProgressive(rightInStem);
+        const tfPts = gradeTrueFalseProgressive(rightInStem);
+        score += tfPts;
+        partsSummary.true_false.score = Math.round((partsSummary.true_false.score + tfPts) * 100) / 100;
+        gradedItems.push({
+          part: "true_false",
+          num: idx + 1,
+          id: q.id,
+          lesson: q.lesson || "",
+          question: previewText(q.stem),
+          user_answer: stmtDetails.map((s) => `${s.key}) ${s.user}`).join(" · "),
+          correct_answer: stmtDetails.map((s) => `${s.key}) ${s.correct}`).join(" · "),
+          statements: stmtDetails,
+          right_statements: rightInStem,
+          total_statements: stmts.length,
+          is_correct: rightInStem === stmts.length,
+          points: tfPts,
+          max_points: 1.0,
+        });
       } else {
         const anyFilled = stmts.some((st) => answers.true_false[`${q.id}:${st.key}`] !== undefined);
         if (anyFilled) answeredPendingCount += 1;
@@ -270,17 +347,37 @@ export function mountQuizSection(container, topic, user, showToast, opts = {}) {
     });
 
     // Phần 3: Trắc nghiệm trả lời ngắn — 0,25 điểm / câu
-    lists.short_answer.forEach((q) => {
+    lists.short_answer.forEach((q, idx) => {
       const accepted = (q.accepted_answers || []).map(normalizeShortAnswer).filter(Boolean);
       const hasKey = q.answer_key_ready !== false && accepted.length > 0;
-      const userNorm = normalizeShortAnswer(answers.short_answer[q.id]);
+      const rawUserVal = String(answers.short_answer[q.id] || "").trim();
+      const userNorm = normalizeShortAnswer(rawUserVal);
       if (hasKey) {
         maxScore += 0.25;
         totalGradable += 1;
-        if (userNorm && accepted.includes(userNorm)) {
+        partsSummary.short_answer.total += 1;
+        partsSummary.short_answer.max_score = Math.round((partsSummary.short_answer.max_score + 0.25) * 100) / 100;
+        if (rawUserVal) answeredGradable += 1;
+        const ok = Boolean(userNorm && accepted.includes(userNorm));
+        if (ok) {
           score += 0.25;
           correctCount += 1;
+          partsSummary.short_answer.correct += 1;
+          partsSummary.short_answer.score = Math.round((partsSummary.short_answer.score + 0.25) * 100) / 100;
         }
+        recordLessonStat(q.lesson, ok, 1);
+        gradedItems.push({
+          part: "short_answer",
+          num: idx + 1,
+          id: q.id,
+          lesson: q.lesson || "",
+          question: previewText(q.question),
+          user_answer: rawUserVal || "Bỏ trống",
+          correct_answer: (q.accepted_answers || [])[0] || "",
+          is_correct: ok,
+          points: ok ? 0.25 : 0,
+          max_points: 0.25,
+        });
       } else if (userNorm) {
         answeredPendingCount += 1;
       }
@@ -288,8 +385,27 @@ export function mountQuizSection(container, topic, user, showToast, opts = {}) {
 
     score = Math.round(score * 100) / 100;
     maxScore = Math.round(maxScore * 100) / 100;
+    const accuracyPct = totalGradable > 0 ? Math.round((correctCount * 1000) / totalGradable) / 10 : 0;
+    const selectedLessonObj = lessonFilter === "all" ? null : lessons.find((l) => l.id === lessonFilter);
+    const lessonFilterLabel = selectedLessonObj
+      ? `${selectedLessonObj.number}: ${selectedLessonObj.title}`
+      : "Toàn chủ đề";
+    const byLessonArr = Array.from(byLessonMap.values()).map((x) => ({
+      ...x,
+      accuracy_pct: x.total > 0 ? Math.round((x.correct * 1000) / x.total) / 10 : 0,
+    }));
+
     submitted = true;
-    resultSummary = { score, maxScore, correctCount, totalGradable, answeredPendingCount, durationSeconds };
+    resultSummary = {
+      score,
+      maxScore,
+      correctCount,
+      totalGradable,
+      accuracyPct,
+      answeredPendingCount,
+      durationSeconds,
+      lessonFilterLabel,
+    };
 
     try {
       await api.submitQuiz({
@@ -300,13 +416,30 @@ export function mountQuizSection(container, topic, user, showToast, opts = {}) {
         correct_count: correctCount,
         total_questions: totalGradable || answeredPendingCount,
         duration_seconds: durationSeconds,
-        answers,
+        answers: {
+          raw_answers: answers,
+          meta: {
+            topic_title: topic.title || topic.id,
+            lesson_filter: lessonFilter,
+            lesson_filter_label: lessonFilterLabel,
+            accuracy_pct: accuracyPct,
+            answered_count: answeredGradable,
+            correct_count: correctCount,
+            total_questions: totalGradable,
+            parts: partsSummary,
+            by_lesson: byLessonArr,
+            items: gradedItems,
+          },
+        },
       });
       showToast(
-        maxScore > 0 ? `Đã nộp bài: ${score}/${maxScore} điểm` : `Đã lưu bài làm (${answeredPendingCount} câu)`,
+        maxScore > 0
+          ? `Đã nộp bài: ${score}/${maxScore} điểm (Đúng ${accuracyPct}%)`
+          : `Đã lưu bài làm (${answeredPendingCount} câu)`,
         "success"
       );
       clientCache.invalidateAttempts(topic.id);
+      clientCache.invalidateTeacherData();
       loadAttempts(true);
     } catch (err) {
       showToast(err.message, "error");
@@ -695,7 +828,11 @@ export function mountQuizSection(container, topic, user, showToast, opts = {}) {
                     }
                   </h2>
                   <p style="margin:0;color:var(--text-secondary);font-size:0.86rem;">
-                    ${resultSummary.maxScore > 0 ? `Đúng ${resultSummary.correctCount}/${resultSummary.totalGradable} câu/ý · ` : ""}
+                    ${
+                      resultSummary.maxScore > 0
+                        ? `Đúng <strong>${resultSummary.correctCount}/${resultSummary.totalGradable}</strong> câu/ý (Tỉ lệ đúng: <strong>${resultSummary.accuracyPct}%</strong>) · Phạm vi: ${escapeHtml(resultSummary.lessonFilterLabel || "Toàn chủ đề")} · `
+                        : ""
+                    }
                     Thời gian làm bài: ${formatDuration(resultSummary.durationSeconds)}
                   </p>
                 </div>
