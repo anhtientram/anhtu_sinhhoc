@@ -6,7 +6,7 @@
 
 import { api, clientCache, formatDateTimeVN, formatDuration, withBase } from "./api.js";
 import { slimDocxFile } from "./docx_slim.js";
-import { escapeHtml } from "./format.js";
+import { escapeHtml, formatBioHtml } from "./format.js";
 import { openTopicPreviewModal } from "./topic_preview.js";
 import { mountYoutubeLibrary } from "./youtube_videos.js";
 
@@ -25,6 +25,9 @@ export function mountTeacherDashboard(container, activeTopic, onTopicUpdated, sh
   let overview = cachedTeacher.overview || null;
   let classFilter = "";
   let searchFilter = "";
+  let reportTopicFilter = "";
+  let reportStudentFilter = "";
+  let reportModal = null; // null | { kind: 'student'|'attempt', loading, error, data, tab, prevStudentId }
   let studentExcelResult = null;
   let studentExcelLoading = false;
 
@@ -221,7 +224,7 @@ export function mountTeacherDashboard(container, activeTopic, onTopicUpdated, sh
               ? `<button class="seg-btn ${subtab === "content" ? "active" : ""}" data-tsub="content">Chỉnh sửa &amp; Thêm nội dung</button>`
               : ""
           }
-          <button class="seg-btn ${subtab === "scores" ? "active" : ""}" data-tsub="scores">Kết quả Ôn tập</button>
+          <button class="seg-btn ${subtab === "scores" ? "active" : ""}" data-tsub="scores">Báo cáo học tập &amp; Ôn tập</button>
           ${
             isAdmin
               ? `<button class="seg-btn ${subtab === "pw_alerts" ? "active" : ""}" data-tsub="pw_alerts">
@@ -247,6 +250,7 @@ export function mountTeacherDashboard(container, activeTopic, onTopicUpdated, sh
             : renderMembersView()
         }
       </div>
+      ${renderAnalyticsModal()}
     `;
 
     container.querySelectorAll("[data-tsub]").forEach((btn) => {
@@ -1017,49 +1021,693 @@ export function mountTeacherDashboard(container, activeTopic, onTopicUpdated, sh
     `;
   }
 
-  // ================== 4. KẾT QUẢ ÔN TẬP ==================
+  // ================== 4. BÁO CÁO HỌC TẬP & KẾT QUẢ TỪNG ĐỢT ÔN TẬP ==================
+  function accPillClass(pct) {
+    if (pct === null || pct === undefined) return "pill-muted";
+    if (pct >= 80) return "pill-green";
+    if (pct >= 50) return "pill-amber";
+    return "pill-red";
+  }
+
+  async function openStudentReportModal(studentId) {
+    reportModal = { kind: "student", loading: true, error: "", data: null, tab: "theory", studentId };
+    render();
+    try {
+      const data = await api.staffStudentLearningReport(studentId);
+      reportModal = { kind: "student", loading: false, error: "", data, tab: "theory", studentId };
+    } catch (err) {
+      reportModal = { kind: "student", loading: false, error: err.message || "Không tải được báo cáo.", data: null, tab: "theory", studentId };
+    }
+    render();
+  }
+
+  async function openAttemptDetailModal(attemptId, prevStudentId = null) {
+    reportModal = { kind: "attempt", loading: true, error: "", data: null, prevStudentId };
+    render();
+    try {
+      const data = await api.staffQuizAttemptDetail(attemptId);
+      reportModal = { kind: "attempt", loading: false, error: "", data, prevStudentId };
+    } catch (err) {
+      reportModal = { kind: "attempt", loading: false, error: err.message || "Không tải được chi tiết đợt làm bài.", data: null, prevStudentId };
+    }
+    render();
+  }
+
   function renderScoresView(classes) {
-    const attempts = (overview.attempts || []).filter((a) => !classFilter || a.class_name === classFilter);
-    const typeLabel = { mcq: "3.1 Trắc nghiệm 4 đáp án", true_false: "3.2 Đúng / Sai", short_answer: "3.3 Trả lời ngắn", combined: "Đề tổng hợp" };
+    const q = reportStudentFilter.trim().toLowerCase();
+    const curSum = overview.curriculum_summary || {
+      total_topics: 0,
+      total_lessons: 0,
+      total_sections: 0,
+      total_exercise_units: 0,
+      topics: [],
+    };
+    const filteredStudents = (overview.students || []).filter((s) => {
+      if (classFilter && s.class_name !== classFilter) return false;
+      if (q && !`${s.full_name} ${s.username} ${s.class_name || ""}`.toLowerCase().includes(q)) return false;
+      return true;
+    });
+    const filteredAttempts = (overview.attempts || []).filter((a) => {
+      if (classFilter && a.class_name !== classFilter) return false;
+      if (reportTopicFilter && a.topic_id !== reportTopicFilter) return false;
+      if (q && !`${a.full_name} ${a.username} ${a.topic_title || ""} ${a.lesson_filter_label || ""}`.toLowerCase().includes(q)) return false;
+      return true;
+    });
+
+    const avgTheory = filteredStudents.length
+      ? Math.round((filteredStudents.reduce((acc, s) => acc + (s.theory_pct || 0), 0) / filteredStudents.length) * 10) / 10
+      : 0;
+    const avgExComp = filteredStudents.length
+      ? Math.round((filteredStudents.reduce((acc, s) => acc + (s.exercise_completion_pct || 0), 0) / filteredStudents.length) * 10) / 10
+      : 0;
+    const exAccList = filteredStudents.map((s) => s.exercise_accuracy_pct).filter((v) => v !== null && v !== undefined);
+    const avgExAcc = exAccList.length
+      ? Math.round((exAccList.reduce((a, b) => a + b, 0) / exAccList.length) * 10) / 10
+      : null;
+    const revAccList = filteredAttempts.filter((a) => (a.total_questions || 0) > 0).map((a) => a.accuracy_pct || 0);
+    const avgRevAcc = revAccList.length
+      ? Math.round((revAccList.reduce((a, b) => a + b, 0) / revAccList.length) * 10) / 10
+      : null;
+    const activeLearners = filteredStudents.filter(
+      (s) => (s.studied_sections || 0) > 0 || (s.exercises_done || 0) > 0 || (s.review_rounds_count || 0) > 0
+    ).length;
+
+    const typeLabel = {
+      mcq: "3.1 Trắc nghiệm 4 đáp án",
+      true_false: "3.2 Đúng / Sai",
+      short_answer: "3.3 Trả lời ngắn",
+      combined: "Đề tổng hợp 3 phần",
+    };
 
     return `
-      <div class="card">
-        <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:14px;">
-          <h3 class="card-title" style="margin:0;">Bảng điểm Hệ thống Ôn tập</h3>
-          <select id="att-class-filter" class="form-control form-control-sm" style="width:auto;">
-            <option value="">Tất cả các lớp</option>
-            ${classes.map((c) => `<option value="${c}" ${classFilter === c ? "selected" : ""}>Lớp ${escapeHtml(c)}</option>`).join("")}
-          </select>
+      <div style="display:flex;flex-direction:column;gap:18px;">
+        <!-- Thanh lọc & Xuất báo cáo CSV -->
+        <div class="card" style="padding:14px 16px;">
+          <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;">
+            <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+              <select id="att-class-filter" class="form-control form-control-sm" style="width:auto;">
+                <option value="">Tất cả các lớp</option>
+                ${classes.map((c) => `<option value="${escapeHtml(c)}" ${classFilter === c ? "selected" : ""}>Lớp ${escapeHtml(c)}</option>`).join("")}
+              </select>
+              <select id="rep-topic-filter" class="form-control form-control-sm" style="width:auto;max-width:250px;">
+                <option value="">Tất cả Chủ đề (${curSum.total_topics || 0})</option>
+                ${(curSum.topics || [])
+                  .map(
+                    (tp) =>
+                      `<option value="${escapeHtml(tp.id)}" ${reportTopicFilter === tp.id ? "selected" : ""}>${escapeHtml(tp.title)}</option>`
+                  )
+                  .join("")}
+              </select>
+              <input id="rep-student-search" class="form-control form-control-sm" style="width:210px;" placeholder="Tìm học sinh, @tài khoản..." value="${escapeHtml(reportStudentFilter)}" />
+            </div>
+            <a class="btn btn-primary btn-sm" href="${api.exportLearningReportUrl(classFilter)}" target="_blank">
+              📥 Xuất báo cáo học tập (CSV)
+            </a>
+          </div>
         </div>
-        <div class="data-table-wrap">
-          <table class="data-table">
-            <thead>
-              <tr><th>Học sinh</th><th>Lớp</th><th>Phần ôn tập</th><th>Điểm</th><th>Đúng / Tổng</th><th>Thời gian</th><th>Nộp lúc</th></tr>
-            </thead>
-            <tbody>
-              ${
-                attempts.length
-                  ? attempts
-                      .map((a) => {
-                        const pct = a.max_score > 0 ? Math.round((a.score / a.max_score) * 100) : 0;
-                        const pcls = pct >= 80 ? "pill-green" : pct >= 50 ? "pill-amber" : "pill-red";
-                        return `
+
+        <!-- 4 Thẻ KPI tổng hợp -->
+        <div class="stats-grid" style="margin-bottom:0;">
+          <div class="stat-card">
+            <div class="stat-label">TB % Lý thuyết đã học</div>
+            <div class="stat-value" style="color:var(--primary);">${avgTheory}%</div>
+            <div class="progress-bar-track"><div class="progress-bar-fill" style="width:${Math.min(100, avgTheory)}%;"></div></div>
+            <small style="color:var(--text-muted);">Chương trình: ${curSum.total_lessons} bài · ${curSum.total_sections} mục LT</small>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">TB Bài tập LT &amp; HTKT</div>
+            <div class="stat-value" style="color:#0369a1;">${avgExComp}%</div>
+            <div class="progress-bar-track"><div class="progress-bar-fill fill-blue" style="width:${Math.min(100, avgExComp)}%;"></div></div>
+            <small style="color:var(--text-muted);">Tỉ lệ đúng TB: <strong>${avgExAcc !== null ? `${avgExAcc}%` : "—"}</strong> (${curSum.total_exercise_units} bài tập)</small>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">Tỉ lệ đúng Hệ thống ôn tập</div>
+            <div class="stat-value" style="color:#15803d;">${avgRevAcc !== null ? `${avgRevAcc}%` : "—"}</div>
+            <div class="progress-bar-track"><div class="progress-bar-fill fill-green" style="width:${Math.min(100, avgRevAcc || 0)}%;"></div></div>
+            <small style="color:var(--text-muted);">${filteredAttempts.length} đợt làm bài đã nộp</small>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">Học sinh đã tham gia học</div>
+            <div class="stat-value">${activeLearners} / ${filteredStudents.length}</div>
+            <small style="color:var(--text-muted);">Có ghi nhận học LT, bài tập hoặc ôn tập</small>
+          </div>
+        </div>
+
+        <!-- Bảng 1: Tiến độ & Tỉ lệ % học được / làm được theo từng Học sinh -->
+        <div class="card">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap;margin-bottom:14px;">
+            <div>
+              <h3 class="card-title" style="margin:0 0 2px;">1. Thống kê tỉ lệ % học được &amp; làm được theo từng Học sinh (${filteredStudents.length})</h3>
+              <p style="margin:0;font-size:0.83rem;color:var(--text-muted);">
+                Nhấn <strong>📊 Chi tiết HS</strong> để xem chính xác từng mục Lý thuyết đã học, bài tập vận dụng đã làm và lịch sử các đợt ôn tập của học sinh đó.
+              </p>
+            </div>
+          </div>
+
+          <div class="data-table-wrap">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Học sinh</th>
+                  <th>Lớp</th>
+                  <th>Phiên học</th>
+                  <th style="min-width:170px;">% Lý thuyết đã học</th>
+                  <th style="min-width:170px;">Bài tập LT &amp; HTKT</th>
+                  <th style="min-width:165px;">Hệ thống ôn tập</th>
+                  <th>Chi tiết</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${
+                  filteredStudents.length
+                    ? filteredStudents
+                        .map(
+                          (s) => `
                           <tr>
-                            <td><strong>${escapeHtml(a.full_name)}</strong></td>
-                            <td>${escapeHtml(a.class_name || "—")}</td>
-                            <td>${typeLabel[a.quiz_type] || a.quiz_type}</td>
-                            <td><span class="pill ${pcls}">${a.score} / ${a.max_score} (${pct}%)</span></td>
-                            <td>${a.correct_count} / ${a.total_questions}</td>
-                            <td>${formatDuration(a.duration_seconds)}</td>
-                            <td>${formatDateTimeVN(a.submitted_at)}</td>
+                            <td>
+                              <strong>${escapeHtml(s.full_name)}</strong><br/>
+                              <small style="color:var(--text-muted);">@${escapeHtml(s.username)}</small>
+                            </td>
+                            <td style="white-space:nowrap;">${escapeHtml(s.class_name || "—")}</td>
+                            <td style="white-space:nowrap;">
+                              <strong>${s.session_count || 0} phiên</strong><br/>
+                              <small style="color:var(--text-muted);">${formatDuration(s.total_seconds || 0)}</small>
+                            </td>
+                            <td>
+                              <div style="display:flex;justify-content:space-between;font-size:0.8rem;margin-bottom:3px;gap:6px;">
+                                <strong>${s.theory_pct || 0}%</strong>
+                                <span style="color:var(--text-muted);white-space:nowrap;">${s.studied_lessons || 0}/${s.total_lessons || curSum.total_lessons} bài</span>
+                              </div>
+                              <div class="progress-bar-track"><div class="progress-bar-fill" style="width:${Math.min(100, s.theory_pct || 0)}%;"></div></div>
+                              <small style="color:var(--text-muted);">${s.studied_sections || 0}/${s.total_sections || curSum.total_sections} mục lý thuyết</small>
+                            </td>
+                            <td>
+                              <div style="display:flex;justify-content:space-between;align-items:center;gap:6px;margin-bottom:3px;flex-wrap:wrap;">
+                                <span style="font-size:0.8rem;white-space:nowrap;"><strong>${s.exercises_done || 0}</strong>/${s.exercises_total || curSum.total_exercise_units} bài (${s.exercise_completion_pct || 0}%)</span>
+                                <span class="pill ${accPillClass(s.exercise_accuracy_pct)}" style="font-size:0.72rem;padding:2px 7px;white-space:nowrap;">
+                                  ${s.exercise_accuracy_pct !== null && s.exercise_accuracy_pct !== undefined ? `Đúng ${s.exercise_accuracy_pct}%` : "Chưa làm"}
+                                </span>
+                              </div>
+                              <div class="progress-bar-track"><div class="progress-bar-fill fill-blue" style="width:${Math.min(100, s.exercise_completion_pct || 0)}%;"></div></div>
+                            </td>
+                            <td>
+                              <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:3px;">
+                                <strong style="font-size:0.82rem;white-space:nowrap;">${s.review_rounds_count || 0} đợt</strong>
+                                <span class="pill ${accPillClass(s.review_accuracy_pct)}" style="font-size:0.72rem;padding:2px 7px;white-space:nowrap;">
+                                  ${s.review_accuracy_pct !== null && s.review_accuracy_pct !== undefined ? `Đúng ${s.review_accuracy_pct}%` : "Chưa nộp"}
+                                </span>
+                              </div>
+                              <small style="color:var(--text-muted);">
+                                ${s.review_questions_total ? `Đúng ${s.review_correct_total}/${s.review_questions_total} câu/ý` : "Chưa có lượt ôn tập"}
+                              </small>
+                            </td>
+                            <td style="white-space:nowrap;">
+                              <button type="button" class="btn btn-soft btn-sm" data-open-student-report="${s.id}">📊 Chi tiết HS</button>
+                            </td>
                           </tr>
-                        `;
-                      })
-                      .join("")
-                  : `<tr><td colspan="7" style="text-align:center;color:var(--text-muted);padding:22px;">Chưa có bài nộp.</td></tr>`
+                        `
+                        )
+                        .join("")
+                    : `<tr><td colspan="7" style="text-align:center;color:var(--text-muted);padding:22px;">Không có học sinh phù hợp bộ lọc.</td></tr>`
+                }
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Bảng 2: Báo cáo chi tiết từng Đợt làm bài tại Hệ thống ôn tập -->
+        <div class="card">
+          <div style="margin-bottom:14px;">
+            <h3 class="card-title" style="margin:0 0 2px;">2. Báo cáo chi tiết từng Đợt làm bài tại Hệ thống ôn tập (${filteredAttempts.length} đợt)</h3>
+            <p style="margin:0;font-size:0.83rem;color:var(--text-muted);">
+              Ghi nhận chính xác từng đợt tham gia (Đợt #1, Đợt #2...) kèm phạm vi Chủ đề/Bài, số câu đúng, tỉ lệ đúng %, điểm số và cho phép xem đối chiếu từng câu trả lời.
+            </p>
+          </div>
+          <div class="data-table-wrap">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Đợt</th>
+                  <th>Học sinh</th>
+                  <th>Chủ đề &amp; Phạm vi</th>
+                  <th>Dạng ôn tập</th>
+                  <th>Đúng / Tổng</th>
+                  <th>Tỉ lệ đúng</th>
+                  <th>Điểm</th>
+                  <th>Thời gian &amp; Nộp lúc</th>
+                  <th>Chi tiết</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${
+                  filteredAttempts.length
+                    ? filteredAttempts
+                        .map((a) => {
+                          const acc = a.accuracy_pct ?? (a.total_questions > 0 ? Math.round((a.correct_count * 1000) / a.total_questions) / 10 : 0);
+                          return `
+                            <tr>
+                              <td><span class="pill pill-primary">Đợt #${a.round_number || 1}</span></td>
+                              <td>
+                                <strong>${escapeHtml(a.full_name)}</strong><br/>
+                                <small style="color:var(--text-muted);">${escapeHtml(a.class_name || "—")} · @${escapeHtml(a.username)}</small>
+                              </td>
+                              <td>
+                                <div style="font-weight:600;font-size:0.83rem;">${escapeHtml(a.topic_title || a.topic_id)}</div>
+                                <small style="color:var(--primary);font-weight:600;">${escapeHtml(a.lesson_filter_label || "Toàn chủ đề")}</small>
+                              </td>
+                              <td style="font-size:0.82rem;">${typeLabel[a.quiz_type] || escapeHtml(a.quiz_type)}</td>
+                              <td><strong>${a.correct_count} / ${a.total_questions}</strong></td>
+                              <td><span class="pill ${accPillClass(acc)}">${acc}%</span></td>
+                              <td><strong>${a.score} / ${a.max_score}</strong></td>
+                              <td style="font-size:0.8rem;">
+                                <div>${formatDuration(a.duration_seconds)}</div>
+                                <small style="color:var(--text-muted);">${formatDateTimeVN(a.submitted_at)}</small>
+                              </td>
+                              <td style="white-space:nowrap;">
+                                <button type="button" class="btn btn-secondary btn-sm" data-open-attempt-detail="${a.id}">🔍 Xem từng câu</button>
+                              </td>
+                            </tr>
+                          `;
+                        })
+                        .join("")
+                    : `<tr><td colspan="9" style="text-align:center;color:var(--text-muted);padding:22px;">Chưa có đợt làm bài ôn tập nào phù hợp.</td></tr>`
+                }
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
+  function renderAnalyticsModal() {
+    if (!reportModal) return "";
+
+    if (reportModal.kind === "student") {
+      const rep = reportModal.data;
+      const st = rep?.student;
+      const sm = rep?.summary;
+      const activeTab = reportModal.tab || "theory";
+      const typeLabel = {
+        mcq: "3.1 Trắc nghiệm 4 đáp án",
+        true_false: "3.2 Đúng / Sai",
+        short_answer: "3.3 Trả lời ngắn",
+        combined: "Đề tổng hợp 3 phần",
+      };
+
+      return `
+        <div class="analytics-modal-backdrop" id="analytics-modal-backdrop">
+          <div class="analytics-modal-box" role="dialog" aria-modal="true">
+            <div class="analytics-modal-head">
+              <div>
+                <h3 style="margin:0 0 3px;font-size:1.1rem;">
+                  📊 Hồ sơ học tập chi tiết${st ? ` — ${escapeHtml(st.full_name)}` : ""}
+                </h3>
+                ${
+                  st
+                    ? `<div style="font-size:0.82rem;color:var(--text-muted);">@${escapeHtml(st.username)} · Lớp ${escapeHtml(st.class_name || "—")} · ${escapeHtml(st.school_name || "Chưa cập nhật trường")}</div>`
+                    : ""
+                }
+              </div>
+              <button type="button" class="btn btn-secondary btn-sm" id="btn-close-analytics-modal">✕ Đóng</button>
+            </div>
+
+            <div class="analytics-modal-body">
+              ${
+                reportModal.loading
+                  ? `<div style="text-align:center;padding:40px;"><div class="spinner" style="margin:0 auto 10px;"></div>Đang tổng hợp dữ liệu học tập chi tiết...</div>`
+                  : reportModal.error
+                  ? `<div class="card" style="border-color:#fecaca;color:var(--red);">${escapeHtml(reportModal.error)}</div>`
+                  : `
+                    <div class="stats-grid" style="margin-bottom:16px;">
+                      <div class="stat-card">
+                        <div class="stat-label">Lý thuyết đã học</div>
+                        <div class="stat-value" style="color:var(--primary);">${sm.theory_pct}%</div>
+                        <div class="progress-bar-track"><div class="progress-bar-fill" style="width:${Math.min(100, sm.theory_pct)}%;"></div></div>
+                        <small style="color:var(--text-muted);">${sm.studied_lessons}/${sm.total_lessons} bài · ${sm.studied_sections}/${sm.total_sections} mục</small>
+                      </div>
+                      <div class="stat-card">
+                        <div class="stat-label">Bài tập LT &amp; HTKT</div>
+                        <div class="stat-value" style="color:#0369a1;">${sm.exercise_completion_pct}%</div>
+                        <div class="progress-bar-track"><div class="progress-bar-fill fill-blue" style="width:${Math.min(100, sm.exercise_completion_pct)}%;"></div></div>
+                        <small style="color:var(--text-muted);">${sm.exercises_done}/${sm.exercises_total} bài · Đúng: <strong>${sm.exercise_accuracy_pct !== null ? `${sm.exercise_accuracy_pct}%` : "—"}</strong></small>
+                      </div>
+                      <div class="stat-card">
+                        <div class="stat-label">Hệ thống ôn tập</div>
+                        <div class="stat-value" style="color:#15803d;">${sm.review_accuracy_pct !== null ? `${sm.review_accuracy_pct}%` : "—"}</div>
+                        <div class="progress-bar-track"><div class="progress-bar-fill fill-green" style="width:${Math.min(100, sm.review_accuracy_pct || 0)}%;"></div></div>
+                        <small style="color:var(--text-muted);">${sm.review_rounds_count} đợt · Đúng ${sm.review_correct_total}/${sm.review_questions_total}</small>
+                      </div>
+                      <div class="stat-card">
+                        <div class="stat-label">Phiên học &amp; Thi thử</div>
+                        <div class="stat-value">${sm.session_count} phiên</div>
+                        <small style="color:var(--text-muted);">${formatDuration(sm.total_study_seconds)} · ${sm.mock_attempts_count} lượt thi thử</small>
+                      </div>
+                    </div>
+
+                    <div class="segmented" style="margin-bottom:14px;flex-wrap:wrap;">
+                      <button type="button" class="seg-btn ${activeTab === "theory" ? "active" : ""}" data-modal-tab="theory">
+                        Mục Lý thuyết đã học (${sm.studied_sections}/${sm.total_sections})
+                      </button>
+                      <button type="button" class="seg-btn ${activeTab === "exercises" ? "active" : ""}" data-modal-tab="exercises">
+                        Bài tập LT &amp; HTKT (${sm.exercises_done})
+                      </button>
+                      <button type="button" class="seg-btn ${activeTab === "reviews" ? "active" : ""}" data-modal-tab="reviews">
+                        Các đợt Hệ thống ôn tập (${sm.review_rounds_count})
+                      </button>
+                      <button type="button" class="seg-btn ${activeTab === "mock" ? "active" : ""}" data-modal-tab="mock">
+                        Thi thử THPT (${sm.mock_attempts_count})
+                      </button>
+                    </div>
+
+                    ${
+                      activeTab === "theory"
+                        ? `
+                          <div style="display:flex;flex-direction:column;gap:12px;">
+                            ${(rep.topics || [])
+                              .map(
+                                (tp) => `
+                                <div class="analytics-topic-box">
+                                  <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:8px;">
+                                    <div style="font-weight:700;font-size:0.92rem;">${escapeHtml(tp.title)}</div>
+                                    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;font-size:0.78rem;">
+                                      <span class="pill ${tp.theory_pct >= 80 ? "pill-green" : tp.theory_pct > 0 ? "pill-primary" : "pill-muted"}">
+                                        Lý thuyết: ${tp.theory_pct}% (${tp.studied_sections}/${tp.total_sections} mục)
+                                      </span>
+                                      <span class="pill ${accPillClass(tp.exercise_accuracy_pct)}">
+                                        Bài tập: ${tp.exercise_done}/${tp.exercise_total}${tp.exercise_accuracy_pct !== null ? ` (${tp.exercise_accuracy_pct}%)` : ""}
+                                      </span>
+                                      <span class="pill ${accPillClass(tp.review_accuracy_pct)}">
+                                        Ôn tập: ${tp.review_rounds_count} đợt${tp.review_accuracy_pct !== null ? ` (${tp.review_accuracy_pct}%)` : ""}
+                                      </span>
+                                    </div>
+                                  </div>
+                                  <div class="progress-bar-track" style="margin-bottom:10px;"><div class="progress-bar-fill" style="width:${Math.min(100, tp.theory_pct)}%;"></div></div>
+                                  <div style="display:flex;flex-direction:column;gap:8px;">
+                                    ${(tp.lessons || [])
+                                      .map(
+                                        (ls) => `
+                                        <div class="analytics-lesson-row">
+                                          <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:6px;">
+                                            <div style="font-size:0.84rem;">
+                                              <strong>${escapeHtml(ls.number)}:</strong> ${escapeHtml(ls.title)}
+                                            </div>
+                                            <span class="pill ${ls.progress_pct === 100 ? "pill-green" : ls.progress_pct > 0 ? "pill-amber" : "pill-muted"}" style="font-size:0.72rem;">
+                                              ${ls.studied_sections}/${ls.total_sections} mục (${ls.progress_pct}%)
+                                            </span>
+                                          </div>
+                                          <div class="analytics-sec-chips">
+                                            ${(ls.sections || [])
+                                              .map(
+                                                (sc) => `
+                                                <span class="sec-status-chip ${sc.studied ? "is-studied" : ""}" title="${sc.last_viewed_at ? `Học lúc: ${formatDateTimeVN(sc.last_viewed_at)}` : "Chưa học mục này"}">
+                                                  <span>${sc.studied ? "✓" : "○"}</span>
+                                                  <span>${escapeHtml(sc.heading)}</span>
+                                                </span>
+                                              `
+                                              )
+                                              .join("")}
+                                          </div>
+                                        </div>
+                                      `
+                                      )
+                                      .join("")}
+                                  </div>
+                                </div>
+                              `
+                              )
+                              .join("")}
+                          </div>
+                        `
+                        : activeTab === "exercises"
+                        ? `
+                          <div class="data-table-wrap">
+                            <table class="data-table">
+                              <thead>
+                                <tr>
+                                  <th>Nguồn</th>
+                                  <th>Bài học / Phiếu</th>
+                                  <th>Nội dung bài tập</th>
+                                  <th>Đúng / Tổng</th>
+                                  <th>Tỉ lệ đúng</th>
+                                  <th>Cao nhất</th>
+                                  <th>Số lần</th>
+                                  <th>Cập nhật</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                ${
+                                  (rep.exercises || []).length
+                                    ? rep.exercises
+                                        .map(
+                                          (ex) => `
+                                          <tr>
+                                            <td><span class="pill ${ex.source_tab === "theory" ? "pill-primary" : "pill-amber"}">${ex.source_tab === "theory" ? "Lý thuyết" : "HTKT"}</span></td>
+                                            <td style="font-size:0.82rem;"><strong>${escapeHtml(ex.lesson_label || ex.topic_id)}</strong></td>
+                                            <td style="font-size:0.82rem;">${escapeHtml(ex.unit_title)}</td>
+                                            <td><strong>${ex.correct_count} / ${ex.total_items}</strong></td>
+                                            <td><span class="pill ${accPillClass(ex.accuracy_pct)}">${ex.accuracy_pct}%</span></td>
+                                            <td>${ex.best_accuracy_pct}%</td>
+                                            <td>${ex.attempt_count}</td>
+                                            <td style="font-size:0.78rem;">${formatDateTimeVN(ex.updated_at)}</td>
+                                          </tr>
+                                        `
+                                        )
+                                        .join("")
+                                    : `<tr><td colspan="8" style="text-align:center;color:var(--text-muted);padding:20px;">Học sinh chưa kiểm tra bài tập vận dụng nào trong mục Lý thuyết / Hệ thống kiến thức.</td></tr>`
+                                }
+                              </tbody>
+                            </table>
+                          </div>
+                        `
+                        : activeTab === "reviews"
+                        ? `
+                          <div class="data-table-wrap">
+                            <table class="data-table">
+                              <thead>
+                                <tr>
+                                  <th>Đợt</th>
+                                  <th>Chủ đề &amp; Phạm vi</th>
+                                  <th>Dạng ôn tập</th>
+                                  <th>Đúng / Tổng</th>
+                                  <th>Tỉ lệ đúng</th>
+                                  <th>Điểm</th>
+                                  <th>Theo từng bài</th>
+                                  <th>Nộp lúc</th>
+                                  <th></th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                ${
+                                  (rep.review_rounds || []).length
+                                    ? rep.review_rounds
+                                        .map(
+                                          (rd) => `
+                                          <tr>
+                                            <td><span class="pill pill-primary">Đợt #${rd.round_number}</span></td>
+                                            <td>
+                                              <div style="font-weight:600;font-size:0.82rem;">${escapeHtml(rd.topic_title)}</div>
+                                              <small style="color:var(--primary);">${escapeHtml(rd.lesson_filter_label)}</small>
+                                            </td>
+                                            <td style="font-size:0.8rem;">${typeLabel[rd.quiz_type] || escapeHtml(rd.quiz_type)}</td>
+                                            <td><strong>${rd.correct_count} / ${rd.total_questions}</strong></td>
+                                            <td><span class="pill ${accPillClass(rd.accuracy_pct)}">${rd.accuracy_pct}%</span></td>
+                                            <td><strong>${rd.score} / ${rd.max_score}</strong></td>
+                                            <td style="font-size:0.76rem;">
+                                              ${
+                                                (rd.by_lesson || []).length
+                                                  ? rd.by_lesson
+                                                      .map(
+                                                        (bl) =>
+                                                          `<span class="pill pill-muted" style="margin:2px;font-size:0.72rem;">${escapeHtml(bl.lesson)}: ${bl.correct}/${bl.total} (${bl.accuracy_pct}%)</span>`
+                                                      )
+                                                      .join("")
+                                                  : "—"
+                                              }
+                                            </td>
+                                            <td style="font-size:0.78rem;">${formatDateTimeVN(rd.submitted_at)}</td>
+                                            <td>
+                                              <button type="button" class="btn btn-secondary btn-sm" data-open-attempt-detail="${rd.id}" data-from-student="${st.id}">🔍 Xem câu</button>
+                                            </td>
+                                          </tr>
+                                        `
+                                        )
+                                        .join("")
+                                    : `<tr><td colspan="9" style="text-align:center;color:var(--text-muted);padding:20px;">Học sinh chưa có đợt làm bài nào tại Hệ thống ôn tập.</td></tr>`
+                                }
+                              </tbody>
+                            </table>
+                          </div>
+                        `
+                        : `
+                          <div class="data-table-wrap">
+                            <table class="data-table">
+                              <thead>
+                                <tr><th>Đề thi</th><th>Điểm tổng</th><th>Phần I / II / III</th><th>Đúng / Tổng</th><th>Thời gian</th><th>Nộp lúc</th></tr>
+                              </thead>
+                              <tbody>
+                                ${
+                                  (rep.mock_attempts || []).length
+                                    ? rep.mock_attempts
+                                        .map(
+                                          (ma) => `
+                                          <tr>
+                                            <td><strong>Đề ${ma.order_number}: ${escapeHtml(ma.exam_title)}</strong></td>
+                                            <td><span class="pill pill-primary">${ma.score} / ${ma.max_score}</span></td>
+                                            <td>${ma.part1_score} · ${ma.part2_score} · ${ma.part3_score}</td>
+                                            <td>${ma.correct_count} / ${ma.total_questions}</td>
+                                            <td>${formatDuration(ma.duration_seconds)}</td>
+                                            <td>${formatDateTimeVN(ma.submitted_at)}</td>
+                                          </tr>
+                                        `
+                                        )
+                                        .join("")
+                                    : `<tr><td colspan="6" style="text-align:center;color:var(--text-muted);padding:20px;">Học sinh chưa có lượt thi thử THPT nào.</td></tr>`
+                                }
+                              </tbody>
+                            </table>
+                          </div>
+                        `
+                    }
+                  `
               }
-            </tbody>
-          </table>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    // Modal 2: Chi tiết từng câu của 1 Đợt làm bài Hệ thống ôn tập
+    const payload = reportModal.data;
+    const att = payload?.attempt;
+    const items = payload?.items || [];
+    const partNames = {
+      mcq: "3.1 Trắc nghiệm 4 đáp án",
+      true_false: "3.2 Đúng / Sai",
+      short_answer: "3.3 Trả lời ngắn",
+      combined: "Đề tổng hợp 3 phần",
+    };
+
+    return `
+      <div class="analytics-modal-backdrop" id="analytics-modal-backdrop">
+        <div class="analytics-modal-box" role="dialog" aria-modal="true">
+          <div class="analytics-modal-head">
+            <div>
+              <h3 style="margin:0 0 3px;font-size:1.08rem;">
+                🔍 Chi tiết bài làm${att ? ` — Đợt #${att.round_number} · ${escapeHtml(att.full_name)}` : ""}
+              </h3>
+              ${
+                att
+                  ? `<div style="font-size:0.82rem;color:var(--text-muted);">
+                       ${escapeHtml(att.topic_title)} · ${escapeHtml(att.lesson_filter_label)} · ${partNames[att.quiz_type] || escapeHtml(att.quiz_type)} · Nộp lúc ${formatDateTimeVN(att.submitted_at)}
+                     </div>`
+                  : ""
+              }
+            </div>
+            <div style="display:flex;gap:8px;">
+              ${
+                reportModal.prevStudentId
+                  ? `<button type="button" class="btn btn-soft btn-sm" id="btn-back-to-student-modal" data-student-id="${reportModal.prevStudentId}">← Về hồ sơ HS</button>`
+                  : ""
+              }
+              <button type="button" class="btn btn-secondary btn-sm" id="btn-close-analytics-modal">✕ Đóng</button>
+            </div>
+          </div>
+
+          <div class="analytics-modal-body">
+            ${
+              reportModal.loading
+                ? `<div style="text-align:center;padding:40px;"><div class="spinner" style="margin:0 auto 10px;"></div>Đang tải chi tiết từng câu hỏi...</div>`
+                : reportModal.error
+                ? `<div class="card" style="border-color:#fecaca;color:var(--red);">${escapeHtml(reportModal.error)}</div>`
+                : `
+                  <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;padding:12px 14px;border-radius:10px;background:var(--surface-tint);border:1px solid var(--primary-border);margin-bottom:14px;">
+                    <span class="pill pill-primary">Điểm: ${att.score} / ${att.max_score}</span>
+                    <span class="pill ${accPillClass(att.accuracy_pct)}">Tỉ lệ đúng: ${att.accuracy_pct}% (${att.correct_count}/${att.total_questions} câu/ý)</span>
+                    <span class="pill pill-muted">Thời gian: ${formatDuration(att.duration_seconds)}</span>
+                    <span class="pill pill-muted">Lớp: ${escapeHtml(att.class_name || "—")}</span>
+                  </div>
+
+                  ${
+                    (att.by_lesson || []).length
+                      ? `
+                        <div style="margin-bottom:14px;">
+                          <div style="font-size:0.82rem;font-weight:700;margin-bottom:6px;color:var(--text-secondary);">Kết quả chính xác theo từng bài trong đợt này:</div>
+                          <div style="display:flex;gap:6px;flex-wrap:wrap;">
+                            ${att.by_lesson
+                              .map(
+                                (bl) =>
+                                  `<span class="pill ${accPillClass(bl.accuracy_pct)}">${escapeHtml(bl.lesson)}: đúng ${bl.correct}/${bl.total} (${bl.accuracy_pct}%)</span>`
+                              )
+                              .join("")}
+                          </div>
+                        </div>
+                      `
+                      : ""
+                  }
+
+                  ${
+                    items.length
+                      ? `
+                        <div class="data-table-wrap">
+                          <table class="data-table">
+                            <thead>
+                              <tr>
+                                <th style="width:76px;">Câu</th>
+                                <th>Nội dung câu hỏi</th>
+                                <th>Học sinh trả lời</th>
+                                <th>Đáp án chuẩn</th>
+                                <th style="width:105px;">Kết quả</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              ${items
+                                .map((it) => {
+                                  const partTag = it.part === "mcq" ? "TN" : it.part === "true_false" ? "Đ/S" : "TLN";
+                                  return `
+                                    <tr style="background:${it.is_correct ? "rgba(22,163,74,0.04)" : "rgba(220,38,38,0.04)"};">
+                                      <td>
+                                        <strong>${partTag} ${it.num}</strong><br/>
+                                        <small style="color:var(--text-muted);">${escapeHtml(it.lesson || "")}</small>
+                                      </td>
+                                      <td style="font-size:0.82rem;line-height:1.45;">
+                                        ${formatBioHtml(it.question || "")}
+                                        ${
+                                          Array.isArray(it.statements) && it.statements.length
+                                            ? `<div style="margin-top:6px;display:flex;flex-direction:column;gap:3px;">
+                                                ${it.statements
+                                                  .map(
+                                                    (st) =>
+                                                      `<div style="font-size:0.78rem;color:${st.is_correct ? "#15803d" : "#b91c1c"};">
+                                                         <strong>${escapeHtml(st.key)})</strong> ${formatBioHtml(st.text)} — HS: <strong>${escapeHtml(st.user)}</strong> · ĐA: <strong>${escapeHtml(st.correct)}</strong>
+                                                       </div>`
+                                                  )
+                                                  .join("")}
+                                               </div>`
+                                            : ""
+                                        }
+                                      </td>
+                                      <td style="font-size:0.82rem;font-weight:600;color:${it.is_correct ? "#15803d" : "#b91c1c"};">${formatBioHtml(it.user_answer || "Bỏ trống")}</td>
+                                      <td style="font-size:0.82rem;color:#0f766e;font-weight:600;">${formatBioHtml(it.correct_answer || "")}</td>
+                                      <td>
+                                        <span class="pill ${it.is_correct ? "pill-green" : "pill-red"}">
+                                          ${it.is_correct ? "✓ Đúng" : it.part === "true_false" ? `${it.right_statements}/${it.total_statements} ý` : "✕ Sai"}
+                                        </span>
+                                        <div style="font-size:0.75rem;color:var(--text-muted);margin-top:3px;">+${it.points} / ${it.max_points}đ</div>
+                                      </td>
+                                    </tr>
+                                  `;
+                                })
+                                .join("")}
+                            </tbody>
+                          </table>
+                        </div>
+                      `
+                      : `<div class="card" style="background:var(--surface-tint);font-size:0.85rem;color:var(--text-secondary);">Đợt làm bài này được nộp trước đợt nâng cấp ghi chi tiết từng câu, nên chỉ có thống kê tổng hợp điểm và tỉ lệ đúng (${att.correct_count}/${att.total_questions} — ${att.accuracy_pct}%). Các đợt mới nộp từ bây giờ sẽ hiển thị đầy đủ đối chiếu từng câu.</div>`
+                  }
+                `
+            }
+          </div>
         </div>
       </div>
     `;
@@ -1256,7 +1904,7 @@ export function mountTeacherDashboard(container, activeTopic, onTopicUpdated, sh
                   <th>Đăng nhập gần nhất</th>
                   <th>Thời lượng học</th>
                   <th>Trạng thái</th>
-                  ${isAdmin ? `<th>Thao tác</th>` : ""}
+                  <th>Thao tác</th>
                 </tr>
               </thead>
               <tbody>
@@ -1271,7 +1919,10 @@ export function mountTeacherDashboard(container, activeTopic, onTopicUpdated, sh
                             <td>${escapeHtml(s.phone || "—")}</td>
                             <td><span class="pill pill-primary">${s.login_count || 0} lần</span></td>
                             <td>${formatDateTimeVN(s.last_login)}</td>
-                            <td><strong>${formatDuration(s.total_seconds)}</strong><br/><small style="color:var(--text-muted)">${s.session_count} phiên</small></td>
+                            <td>
+                              <strong>${formatDuration(s.total_seconds)}</strong><br/>
+                              <small style="color:var(--text-muted);">${s.session_count} phiên · LT ${s.theory_pct || 0}%</small>
+                            </td>
                             <td>
                               ${
                                 s.must_change_password
@@ -1281,16 +1932,17 @@ export function mountTeacherDashboard(container, activeTopic, onTopicUpdated, sh
                                   : `<span class="pill pill-muted">Ngoại tuyến</span>`
                               }
                             </td>
-                            ${
-                              isAdmin
-                                ? `<td style="white-space:nowrap;">
-                                     <div style="display:flex;gap:6px;flex-wrap:wrap;">
-                                       <button type="button" class="btn btn-soft btn-sm" data-reset-user="${s.id}" data-reset-name="${escapeHtml(s.full_name || s.username)}" data-reset-uname="${escapeHtml(s.username)}" title="Đặt lại mật khẩu về mặc định 123456@">🔑 Reset MK</button>
-                                       <button type="button" class="btn btn-ghost btn-sm" style="color:var(--red);" data-delete-user="${s.id}" data-delete-name="${escapeHtml(s.username)}">Xoá</button>
-                                     </div>
-                                   </td>`
-                                : ""
-                            }
+                            <td style="white-space:nowrap;">
+                              <div style="display:flex;gap:6px;flex-wrap:wrap;">
+                                <button type="button" class="btn btn-secondary btn-sm" data-open-student-report="${s.id}" title="Xem báo cáo % học tập & kết quả ôn tập">📊 Báo cáo</button>
+                                ${
+                                  isAdmin
+                                    ? `<button type="button" class="btn btn-soft btn-sm" data-reset-user="${s.id}" data-reset-name="${escapeHtml(s.full_name || s.username)}" data-reset-uname="${escapeHtml(s.username)}" title="Đặt lại mật khẩu về mặc định 123456@">🔑 Reset MK</button>
+                                       <button type="button" class="btn btn-ghost btn-sm" style="color:var(--red);" data-delete-user="${s.id}" data-delete-name="${escapeHtml(s.username)}">Xoá</button>`
+                                    : ""
+                                }
+                              </div>
+                            </td>
                           </tr>
                         `
                         )
@@ -1510,6 +2162,19 @@ export function mountTeacherDashboard(container, activeTopic, onTopicUpdated, sh
       classFilter = e.target.value;
       render();
     });
+    container.querySelector("#rep-topic-filter")?.addEventListener("change", (e) => {
+      reportTopicFilter = e.target.value;
+      render();
+    });
+    container.querySelector("#rep-student-search")?.addEventListener("input", (e) => {
+      reportStudentFilter = e.target.value;
+      render();
+      const el = container.querySelector("#rep-student-search");
+      if (el) {
+        el.focus();
+        el.setSelectionRange(el.value.length, el.value.length);
+      }
+    });
     container.querySelector("#att-search")?.addEventListener("input", (e) => {
       searchFilter = e.target.value;
       render();
@@ -1518,6 +2183,40 @@ export function mountTeacherDashboard(container, activeTopic, onTopicUpdated, sh
         el.focus();
         el.setSelectionRange(el.value.length, el.value.length);
       }
+    });
+
+    // ---- ANALYTICS REPORT MODAL EVENTS ----
+    container.querySelectorAll("[data-open-student-report]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        openStudentReportModal(btn.dataset.openStudentReport);
+      });
+    });
+    container.querySelectorAll("[data-open-attempt-detail]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        openAttemptDetailModal(btn.dataset.openAttemptDetail, btn.dataset.fromStudent || null);
+      });
+    });
+    container.querySelector("#btn-close-analytics-modal")?.addEventListener("click", () => {
+      reportModal = null;
+      render();
+    });
+    container.querySelector("#analytics-modal-backdrop")?.addEventListener("click", (e) => {
+      if (e.target.id === "analytics-modal-backdrop") {
+        reportModal = null;
+        render();
+      }
+    });
+    container.querySelector("#btn-back-to-student-modal")?.addEventListener("click", (e) => {
+      const sid = e.currentTarget.dataset.studentId;
+      if (sid) openStudentReportModal(sid);
+    });
+    container.querySelectorAll("[data-modal-tab]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        if (reportModal) {
+          reportModal.tab = btn.dataset.modalTab;
+          render();
+        }
+      });
     });
 
     // ---- EXAM MIXER EVENTS ----

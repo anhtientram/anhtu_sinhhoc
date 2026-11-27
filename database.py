@@ -512,6 +512,46 @@ CREATE TABLE IF NOT EXISTS mock_exam_attempts (
 );
 
 CREATE INDEX IF NOT EXISTS idx_mock_attempts_exam_user ON mock_exam_attempts(exam_id, user_id, submitted_at DESC);
+
+CREATE TABLE IF NOT EXISTS student_theory_reads (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL,
+    topic_id TEXT NOT NULL,
+    lesson_id TEXT NOT NULL,
+    lesson_number TEXT NOT NULL DEFAULT '',
+    lesson_title TEXT NOT NULL DEFAULT '',
+    section_key TEXT NOT NULL,
+    section_heading TEXT NOT NULL DEFAULT '',
+    time_spent_seconds INTEGER NOT NULL DEFAULT 0,
+    completed INTEGER NOT NULL DEFAULT 1,
+    first_viewed_at TEXT NOT NULL,
+    last_viewed_at TEXT NOT NULL,
+    UNIQUE(user_id, topic_id, lesson_id, section_key),
+    FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS idx_theory_reads_user ON student_theory_reads(user_id, topic_id, lesson_id);
+
+CREATE TABLE IF NOT EXISTS student_exercise_records (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL,
+    topic_id TEXT NOT NULL,
+    source_tab TEXT NOT NULL DEFAULT 'knowledge',
+    lesson_label TEXT NOT NULL DEFAULT '',
+    unit_id TEXT NOT NULL,
+    unit_title TEXT NOT NULL DEFAULT '',
+    correct_count INTEGER NOT NULL DEFAULT 0,
+    answered_count INTEGER NOT NULL DEFAULT 0,
+    total_items INTEGER NOT NULL DEFAULT 0,
+    accuracy_pct REAL NOT NULL DEFAULT 0.0,
+    best_accuracy_pct REAL NOT NULL DEFAULT 0.0,
+    attempt_count INTEGER NOT NULL DEFAULT 1,
+    updated_at TEXT NOT NULL,
+    UNIQUE(user_id, topic_id, unit_id),
+    FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS idx_exercise_rec_user ON student_exercise_records(user_id, topic_id, updated_at DESC);
 """
 
 MYSQL_SCHEMA_STATEMENTS = [
@@ -669,6 +709,46 @@ MYSQL_SCHEMA_STATEMENTS = [
         INDEX idx_mock_attempts_exam_user (exam_id, user_id, submitted_at),
         CONSTRAINT fk_mock_attempts_exam FOREIGN KEY (exam_id) REFERENCES mock_exams(id) ON DELETE CASCADE,
         CONSTRAINT fk_mock_attempts_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+    """,
+    """
+    CREATE TABLE IF NOT EXISTS student_theory_reads (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        user_id INT NOT NULL,
+        topic_id VARCHAR(120) NOT NULL,
+        lesson_id VARCHAR(120) NOT NULL,
+        lesson_number VARCHAR(40) NOT NULL DEFAULT '',
+        lesson_title VARCHAR(300) NOT NULL DEFAULT '',
+        section_key VARCHAR(160) NOT NULL,
+        section_heading VARCHAR(300) NOT NULL DEFAULT '',
+        time_spent_seconds INT NOT NULL DEFAULT 0,
+        completed TINYINT(1) NOT NULL DEFAULT 1,
+        first_viewed_at VARCHAR(40) NOT NULL,
+        last_viewed_at VARCHAR(40) NOT NULL,
+        UNIQUE KEY uq_theory_read (user_id, topic_id, lesson_id, section_key),
+        INDEX idx_theory_reads_user (user_id, topic_id, lesson_id),
+        CONSTRAINT fk_theory_reads_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+    """,
+    """
+    CREATE TABLE IF NOT EXISTS student_exercise_records (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        user_id INT NOT NULL,
+        topic_id VARCHAR(120) NOT NULL,
+        source_tab VARCHAR(32) NOT NULL DEFAULT 'knowledge',
+        lesson_label VARCHAR(120) NOT NULL DEFAULT '',
+        unit_id VARCHAR(160) NOT NULL,
+        unit_title VARCHAR(300) NOT NULL DEFAULT '',
+        correct_count INT NOT NULL DEFAULT 0,
+        answered_count INT NOT NULL DEFAULT 0,
+        total_items INT NOT NULL DEFAULT 0,
+        accuracy_pct DOUBLE NOT NULL DEFAULT 0.0,
+        best_accuracy_pct DOUBLE NOT NULL DEFAULT 0.0,
+        attempt_count INT NOT NULL DEFAULT 1,
+        updated_at VARCHAR(40) NOT NULL,
+        UNIQUE KEY uq_exercise_rec (user_id, topic_id, unit_id),
+        INDEX idx_exercise_rec_user (user_id, topic_id, updated_at),
+        CONSTRAINT fk_exercise_rec_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
     """,
 ]
@@ -1053,3 +1133,550 @@ def export_sessions_csv(conn, class_filter: str = "") -> str:
             ]
         )
     return output.getvalue()
+
+
+def upsert_theory_read(
+    conn,
+    user_id: int,
+    topic_id: str,
+    lesson_id: str,
+    lesson_number: str,
+    lesson_title: str,
+    section_key: str,
+    section_heading: str,
+    duration_delta: int = 0,
+    completed: int = 1,
+    ts: str = None,
+):
+    ts = ts or now_iso()
+    delta = max(0, int(duration_delta or 0))
+    comp = 1 if completed else 0
+    if IS_MYSQL:
+        conn.execute(
+            """
+            INSERT INTO student_theory_reads
+            (user_id, topic_id, lesson_id, lesson_number, lesson_title, section_key, section_heading,
+             time_spent_seconds, completed, first_viewed_at, last_viewed_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ON DUPLICATE KEY UPDATE
+              lesson_number = VALUES(lesson_number),
+              lesson_title = VALUES(lesson_title),
+              section_heading = VALUES(section_heading),
+              time_spent_seconds = time_spent_seconds + VALUES(time_spent_seconds),
+              completed = GREATEST(completed, VALUES(completed)),
+              last_viewed_at = VALUES(last_viewed_at)
+            """,
+            (
+                user_id,
+                topic_id,
+                lesson_id,
+                lesson_number[:40],
+                lesson_title[:300],
+                section_key[:160],
+                section_heading[:300],
+                delta,
+                comp,
+                ts,
+                ts,
+            ),
+        )
+    else:
+        conn.execute(
+            """
+            INSERT INTO student_theory_reads
+            (user_id, topic_id, lesson_id, lesson_number, lesson_title, section_key, section_heading,
+             time_spent_seconds, completed, first_viewed_at, last_viewed_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ON CONFLICT(user_id, topic_id, lesson_id, section_key) DO UPDATE SET
+              lesson_number = excluded.lesson_number,
+              lesson_title = excluded.lesson_title,
+              section_heading = excluded.section_heading,
+              time_spent_seconds = student_theory_reads.time_spent_seconds + excluded.time_spent_seconds,
+              completed = MAX(student_theory_reads.completed, excluded.completed),
+              last_viewed_at = excluded.last_viewed_at
+            """,
+            (
+                user_id,
+                topic_id,
+                lesson_id,
+                lesson_number[:40],
+                lesson_title[:300],
+                section_key[:160],
+                section_heading[:300],
+                delta,
+                comp,
+                ts,
+                ts,
+            ),
+        )
+
+
+def upsert_exercise_record(
+    conn,
+    user_id: int,
+    topic_id: str,
+    source_tab: str,
+    lesson_label: str,
+    unit_id: str,
+    unit_title: str,
+    correct_count: int,
+    answered_count: int,
+    total_items: int,
+    ts: str = None,
+):
+    ts = ts or now_iso()
+    tot = max(1, int(total_items or 0))
+    corr = max(0, min(tot, int(correct_count or 0)))
+    ans = max(0, min(tot, int(answered_count or 0)))
+    pct = round(corr * 100.0 / tot, 1)
+    if IS_MYSQL:
+        conn.execute(
+            """
+            INSERT INTO student_exercise_records
+            (user_id, topic_id, source_tab, lesson_label, unit_id, unit_title,
+             correct_count, answered_count, total_items, accuracy_pct, best_accuracy_pct, attempt_count, updated_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?)
+            ON DUPLICATE KEY UPDATE
+              source_tab = VALUES(source_tab),
+              lesson_label = VALUES(lesson_label),
+              unit_title = VALUES(unit_title),
+              correct_count = VALUES(correct_count),
+              answered_count = VALUES(answered_count),
+              total_items = VALUES(total_items),
+              accuracy_pct = VALUES(accuracy_pct),
+              best_accuracy_pct = GREATEST(best_accuracy_pct, VALUES(accuracy_pct)),
+              attempt_count = attempt_count + 1,
+              updated_at = VALUES(updated_at)
+            """,
+            (
+                user_id,
+                topic_id,
+                source_tab[:32],
+                lesson_label[:120],
+                unit_id[:160],
+                unit_title[:300],
+                corr,
+                ans,
+                tot,
+                pct,
+                pct,
+                ts,
+            ),
+        )
+    else:
+        conn.execute(
+            """
+            INSERT INTO student_exercise_records
+            (user_id, topic_id, source_tab, lesson_label, unit_id, unit_title,
+             correct_count, answered_count, total_items, accuracy_pct, best_accuracy_pct, attempt_count, updated_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?)
+            ON CONFLICT(user_id, topic_id, unit_id) DO UPDATE SET
+              source_tab = excluded.source_tab,
+              lesson_label = excluded.lesson_label,
+              unit_title = excluded.unit_title,
+              correct_count = excluded.correct_count,
+              answered_count = excluded.answered_count,
+              total_items = excluded.total_items,
+              accuracy_pct = excluded.accuracy_pct,
+              best_accuracy_pct = MAX(student_exercise_records.best_accuracy_pct, excluded.accuracy_pct),
+              attempt_count = student_exercise_records.attempt_count + 1,
+              updated_at = excluded.updated_at
+            """,
+            (
+                user_id,
+                topic_id,
+                source_tab[:32],
+                lesson_label[:120],
+                unit_id[:160],
+                unit_title[:300],
+                corr,
+                ans,
+                tot,
+                pct,
+                pct,
+                ts,
+            ),
+        )
+
+
+def _collect_unit_ids_from_blocks(blocks):
+    ids = set()
+    for b in blocks or []:
+        if not isinstance(b, dict):
+            continue
+        inter = b.get("interactive")
+        if isinstance(inter, dict) and inter.get("id"):
+            ids.add(inter["id"])
+        ex = b.get("exercise")
+        if isinstance(ex, dict) and ex.get("group"):
+            ids.add(ex["group"])
+        eg = b.get("exercise_group")
+        if isinstance(eg, dict) and eg.get("id"):
+            ids.add(eg["id"])
+    return ids
+
+
+def build_curriculum_catalog(conn) -> dict:
+    """Tổng hợp danh mục thật của toàn bộ Chủ đề -> Bài -> Mục lý thuyết & Bài tập tương tác để tính % chính xác."""
+    rows = conn.execute(
+        "SELECT id, order_index, title, content_json FROM topics ORDER BY order_index ASC"
+    ).fetchall()
+    topics = []
+    total_lessons = 0
+    total_sections = 0
+    total_exercise_units = 0
+
+    for r in rows:
+        try:
+            content = json.loads(r["content_json"])
+        except Exception:
+            content = {}
+        lessons_meta = []
+        topic_ex_units = set()
+        for ls in content.get("lessons") or []:
+            sec_list = []
+            for s_idx, sec in enumerate(ls.get("sections") or []):
+                heading = (sec.get("heading") or f"Mục {s_idx + 1}").strip()
+                sec_key = f"sec-{s_idx}"
+                sec_list.append({"key": sec_key, "heading": heading})
+                topic_ex_units.update(_collect_unit_ids_from_blocks(sec.get("blocks")))
+            total_lessons += 1
+            total_sections += len(sec_list)
+            lessons_meta.append(
+                {
+                    "id": ls.get("id", ""),
+                    "number": ls.get("number", ""),
+                    "title": ls.get("title", ""),
+                    "sections": sec_list,
+                }
+            )
+        ks = content.get("knowledge_system") or {}
+        for u in ks.get("units") or []:
+            topic_ex_units.update(_collect_unit_ids_from_blocks(u.get("blocks")))
+        total_exercise_units += len(topic_ex_units)
+        topics.append(
+            {
+                "id": r["id"],
+                "order_index": r["order_index"],
+                "title": r["title"],
+                "lessons": lessons_meta,
+                "section_count": sum(len(l["sections"]) for l in lessons_meta),
+                "exercise_unit_count": len(topic_ex_units),
+            }
+        )
+
+    return {
+        "topics": topics,
+        "topic_title_map": {t["id"]: t["title"] for t in topics},
+        "total_topics": len(topics),
+        "total_lessons": total_lessons,
+        "total_sections": total_sections,
+        "total_exercise_units": total_exercise_units,
+    }
+
+
+def parse_quiz_attempt_enriched(row_dict: dict, topic_title_map: dict, round_number: int = 1) -> dict:
+    """Gắn thông tin chi tiết cho từng đợt làm bài tại mục Hệ thống ôn tập."""
+    raw_ans = {}
+    try:
+        raw_ans = json.loads(row_dict.get("answers_json") or "{}")
+    except Exception:
+        raw_ans = {}
+    meta = raw_ans.get("meta") if isinstance(raw_ans, dict) and isinstance(raw_ans.get("meta"), dict) else {}
+    total_q = int(row_dict.get("total_questions") or 0)
+    corr = int(row_dict.get("correct_count") or 0)
+    score = float(row_dict.get("score") or 0)
+    max_score = float(row_dict.get("max_score") or 0)
+    accuracy_pct = (
+        float(meta.get("accuracy_pct"))
+        if meta.get("accuracy_pct") is not None
+        else (round(corr * 100.0 / total_q, 1) if total_q > 0 else (round(score * 100.0 / max_score, 1) if max_score > 0 else 0.0))
+    )
+    score_pct = round(score * 100.0 / max_score, 1) if max_score > 0 else 0.0
+    tid = row_dict.get("topic_id") or ""
+    return {
+        "id": row_dict.get("id"),
+        "round_number": round_number,
+        "user_id": row_dict.get("user_id"),
+        "full_name": row_dict.get("full_name", ""),
+        "username": row_dict.get("username", ""),
+        "class_name": row_dict.get("class_name", ""),
+        "topic_id": tid,
+        "topic_title": meta.get("topic_title") or topic_title_map.get(tid, tid),
+        "quiz_type": row_dict.get("quiz_type") or "mcq",
+        "lesson_filter_label": meta.get("lesson_filter_label") or "Toàn chủ đề",
+        "score": score,
+        "max_score": max_score,
+        "score_pct": score_pct,
+        "correct_count": corr,
+        "total_questions": total_q,
+        "accuracy_pct": accuracy_pct,
+        "duration_seconds": int(row_dict.get("duration_seconds") or 0),
+        "submitted_at": row_dict.get("submitted_at") or "",
+        "parts": meta.get("parts") or None,
+        "by_lesson": meta.get("by_lesson") or [],
+        "has_item_details": bool(meta.get("items")),
+        "items_count": len(meta.get("items") or []),
+    }
+
+
+def build_student_learning_report(conn, user_id: int, catalog: dict = None) -> dict:
+    """
+    Báo cáo học tập toàn diện cho 1 học sinh:
+      - Chính xác đã học những Chủ đề / Bài / Mục lý thuyết nào (% đã học)
+      - Đã làm những bài tập vận dụng (Lý thuyết + HTKT) nào với tỉ lệ đúng bao nhiêu %
+      - Kết quả chính xác từng đợt làm bài Hệ thống ôn tập (Đợt 1, 2, 3...) + tỉ lệ đúng theo từng bài
+      - Kết quả Thi thử Tốt nghiệp THPT
+    """
+    if catalog is None:
+        catalog = build_curriculum_catalog(conn)
+
+    user_row = conn.execute("SELECT * FROM users WHERE id = ?", (user_id,)).fetchone()
+    if not user_row:
+        return {}
+
+    lp_rows = conn.execute(
+        "SELECT topic_id, lesson_id, completed, updated_at FROM lesson_progress WHERE user_id = ?",
+        (user_id,),
+    ).fetchall()
+    completed_lesson_map = {r["lesson_id"]: r["updated_at"] for r in lp_rows if r["completed"]}
+
+    tr_rows = conn.execute(
+        """
+        SELECT topic_id, lesson_id, lesson_number, lesson_title, section_key, section_heading,
+               time_spent_seconds, completed, first_viewed_at, last_viewed_at
+        FROM student_theory_reads
+        WHERE user_id = ?
+        ORDER BY last_viewed_at DESC
+        """,
+        (user_id,),
+    ).fetchall()
+    reads_by_lesson = {}
+    for r in tr_rows:
+        reads_by_lesson.setdefault(r["lesson_id"], {})[r["section_key"]] = dict(r)
+
+    ex_rows = conn.execute(
+        """
+        SELECT topic_id, source_tab, lesson_label, unit_id, unit_title,
+               correct_count, answered_count, total_items, accuracy_pct, best_accuracy_pct,
+               attempt_count, updated_at
+        FROM student_exercise_records
+        WHERE user_id = ?
+        ORDER BY updated_at DESC
+        """,
+        (user_id,),
+    ).fetchall()
+    exercises = [dict(r) for r in ex_rows]
+
+    qa_rows = conn.execute(
+        """
+        SELECT a.*, u.full_name, u.username, u.class_name
+        FROM quiz_attempts a
+        JOIN users u ON u.id = a.user_id
+        WHERE a.user_id = ?
+        ORDER BY a.submitted_at ASC
+        """,
+        (user_id,),
+    ).fetchall()
+    # Đánh số đợt theo thứ tự thời gian (Đợt 1, Đợt 2...) rồi đảo ngược để đợt mới nhất lên đầu
+    review_rounds = []
+    for idx, r in enumerate(qa_rows, start=1):
+        review_rounds.append(parse_quiz_attempt_enriched(dict(r), catalog["topic_title_map"], round_number=idx))
+    review_rounds.reverse()
+
+    mock_rows = conn.execute(
+        """
+        SELECT a.id, a.exam_id, a.started_at, a.submitted_at, a.duration_seconds,
+               a.score, a.max_score, a.part1_score, a.part2_score, a.part3_score,
+               a.correct_count, a.total_questions, m.order_number, m.title AS exam_title
+        FROM mock_exam_attempts a
+        JOIN mock_exams m ON m.id = a.exam_id
+        WHERE a.user_id = ?
+        ORDER BY a.submitted_at DESC
+        """,
+        (user_id,),
+    ).fetchall()
+    mock_attempts = [dict(r) for r in mock_rows]
+
+    sess_rows = conn.execute(
+        "SELECT id, topic_id, enter_time, leave_time, duration_seconds, last_tab, status FROM study_sessions WHERE user_id = ? ORDER BY enter_time DESC LIMIT 30",
+        (user_id,),
+    ).fetchall()
+    sessions = [dict(r) for r in sess_rows]
+    total_study_seconds = sum(int(s.get("duration_seconds") or 0) for s in sessions)
+
+    # Xây dựng cây tiến độ Chủ đề -> Bài -> Mục lý thuyết
+    topics_breakdown = []
+    total_studied_sections = 0
+    total_studied_lessons = 0
+    for tp in catalog["topics"]:
+        tp_studied_sec = 0
+        tp_studied_ls = 0
+        lessons_out = []
+        for ls in tp["lessons"]:
+            lid = ls["id"]
+            is_marked_done = lid in completed_lesson_map
+            sec_map = reads_by_lesson.get(lid, {})
+            sections_out = []
+            ls_sec_done = 0
+            for sc in ls["sections"]:
+                rec = sec_map.get(sc["key"])
+                done = bool(is_marked_done or (rec and rec.get("completed")))
+                if done:
+                    ls_sec_done += 1
+                sections_out.append(
+                    {
+                        "key": sc["key"],
+                        "heading": sc["heading"],
+                        "studied": done,
+                        "time_spent_seconds": int(rec["time_spent_seconds"]) if rec else 0,
+                        "last_viewed_at": rec["last_viewed_at"] if rec else (completed_lesson_map.get(lid) if is_marked_done else None),
+                    }
+                )
+            sec_tot = len(ls["sections"])
+            ls_pct = round(ls_sec_done * 100.0 / sec_tot, 1) if sec_tot > 0 else (100.0 if is_marked_done else 0.0)
+            ls_studied = is_marked_done or (sec_tot > 0 and ls_sec_done > 0)
+            if ls_studied:
+                tp_studied_ls += 1
+            tp_studied_sec += ls_sec_done
+            lessons_out.append(
+                {
+                    "id": lid,
+                    "number": ls["number"],
+                    "title": ls["title"],
+                    "completed": is_marked_done or (sec_tot > 0 and ls_sec_done == sec_tot),
+                    "studied_sections": ls_sec_done,
+                    "total_sections": sec_tot,
+                    "progress_pct": ls_pct,
+                    "sections": sections_out,
+                }
+            )
+        total_studied_sections += tp_studied_sec
+        total_studied_lessons += tp_studied_ls
+        tp_ex = [e for e in exercises if e["topic_id"] == tp["id"]]
+        tp_rev = [a for a in review_rounds if a["topic_id"] == tp["id"]]
+        tp_sec_pct = round(tp_studied_sec * 100.0 / tp["section_count"], 1) if tp["section_count"] > 0 else 0.0
+        tp_ex_pct = round(len(tp_ex) * 100.0 / tp["exercise_unit_count"], 1) if tp["exercise_unit_count"] > 0 else 0.0
+        tp_ex_acc = round(sum(e["accuracy_pct"] for e in tp_ex) / len(tp_ex), 1) if tp_ex else None
+        tp_rev_acc = round(sum(a["accuracy_pct"] for a in tp_rev) / len(tp_rev), 1) if tp_rev else None
+        topics_breakdown.append(
+            {
+                "id": tp["id"],
+                "order_index": tp["order_index"],
+                "title": tp["title"],
+                "studied_lessons": tp_studied_ls,
+                "total_lessons": len(tp["lessons"]),
+                "studied_sections": tp_studied_sec,
+                "total_sections": tp["section_count"],
+                "theory_pct": tp_sec_pct,
+                "exercise_done": len(tp_ex),
+                "exercise_total": tp["exercise_unit_count"],
+                "exercise_completion_pct": tp_ex_pct,
+                "exercise_accuracy_pct": tp_ex_acc,
+                "review_rounds_count": len(tp_rev),
+                "review_accuracy_pct": tp_rev_acc,
+                "lessons": lessons_out,
+            }
+        )
+
+    theory_pct = round(total_studied_sections * 100.0 / catalog["total_sections"], 1) if catalog["total_sections"] > 0 else 0.0
+    ex_completion_pct = round(len(exercises) * 100.0 / catalog["total_exercise_units"], 1) if catalog["total_exercise_units"] > 0 else 0.0
+    ex_total_corr = sum(int(e["correct_count"] or 0) for e in exercises)
+    ex_total_items = sum(int(e["total_items"] or 0) for e in exercises)
+    ex_accuracy_pct = round(ex_total_corr * 100.0 / ex_total_items, 1) if ex_total_items > 0 else None
+
+    rev_total_corr = sum(int(a["correct_count"] or 0) for a in review_rounds)
+    rev_total_q = sum(int(a["total_questions"] or 0) for a in review_rounds)
+    rev_accuracy_pct = round(rev_total_corr * 100.0 / rev_total_q, 1) if rev_total_q > 0 else None
+    rev_avg_score_pct = round(sum(a["score_pct"] for a in review_rounds) / len(review_rounds), 1) if review_rounds else None
+
+    return {
+        "student": sanitize_user(user_row),
+        "summary": {
+            "session_count": len(sessions),
+            "total_study_seconds": total_study_seconds,
+            "studied_lessons": total_studied_lessons,
+            "total_lessons": catalog["total_lessons"],
+            "studied_sections": total_studied_sections,
+            "total_sections": catalog["total_sections"],
+            "theory_pct": theory_pct,
+            "exercises_done": len(exercises),
+            "exercises_total": catalog["total_exercise_units"],
+            "exercise_completion_pct": ex_completion_pct,
+            "exercise_correct": ex_total_corr,
+            "exercise_items_total": ex_total_items,
+            "exercise_accuracy_pct": ex_accuracy_pct,
+            "review_rounds_count": len(review_rounds),
+            "review_correct_total": rev_total_corr,
+            "review_questions_total": rev_total_q,
+            "review_accuracy_pct": rev_accuracy_pct,
+            "review_avg_score_pct": rev_avg_score_pct,
+            "mock_attempts_count": len(mock_attempts),
+        },
+        "topics": topics_breakdown,
+        "exercises": exercises,
+        "review_rounds": review_rounds,
+        "mock_attempts": mock_attempts,
+        "sessions": sessions,
+    }
+
+
+def export_learning_analytics_csv(conn, class_filter: str = "") -> str:
+    """Xuất báo cáo tổng hợp % học tập & kết quả từng đợt Hệ thống ôn tập ra file CSV chuẩn Excel."""
+    catalog = build_curriculum_catalog(conn)
+    query = "SELECT * FROM users WHERE role = 'student'"
+    params = []
+    if class_filter:
+        query += " AND class_name = ?"
+        params.append(class_filter)
+    query += " ORDER BY class_name, full_name"
+    students = conn.execute(query, params).fetchall()
+
+    out = io.StringIO()
+    out.write("\ufeff")
+    w = csv.writer(out)
+    w.writerow(
+        [
+            "Họ và tên",
+            "Tên đăng nhập",
+            "Lớp",
+            "Số phiên học",
+            "Tổng thời gian (phút)",
+            "Bài lý thuyết đã học",
+            "Mục lý thuyết đã đọc",
+            "% Lý thuyết đã học",
+            "Bài tập LT/HTKT đã làm",
+            "Tỉ lệ đúng bài tập (%)",
+            "Số đợt Hệ thống ôn tập",
+            "Đúng / Tổng câu Ôn tập",
+            "Tỉ lệ đúng Ôn tập (%)",
+            "Các mục lý thuyết đã học (tóm tắt)",
+        ]
+    )
+    for st in students:
+        rep = build_student_learning_report(conn, st["id"], catalog)
+        sm = rep["summary"]
+        learned_labels = []
+        for tp in rep["topics"]:
+            for ls in tp["lessons"]:
+                if ls["studied_sections"] > 0 or ls["completed"]:
+                    learned_labels.append(f"{ls['number']} ({ls['studied_sections']}/{ls['total_sections']} mục)")
+        w.writerow(
+            [
+                st["full_name"],
+                st["username"],
+                st["class_name"],
+                sm["session_count"],
+                round(sm["total_study_seconds"] / 60.0, 1),
+                f"{sm['studied_lessons']}/{sm['total_lessons']}",
+                f"{sm['studied_sections']}/{sm['total_sections']}",
+                f"{sm['theory_pct']}%",
+                f"{sm['exercises_done']}/{sm['exercises_total']}",
+                f"{sm['exercise_accuracy_pct']}%" if sm["exercise_accuracy_pct"] is not None else "—",
+                sm["review_rounds_count"],
+                f"{sm['review_correct_total']}/{sm['review_questions_total']}",
+                f"{sm['review_accuracy_pct']}%" if sm["review_accuracy_pct"] is not None else "—",
+                "; ".join(learned_labels) if learned_labels else "Chưa học mục nào",
+            ]
+        )
+    return out.getvalue()

@@ -465,6 +465,33 @@ export const api = {
     return withBase(`/api/teacher/sessions/export?token=${token}${cls}`);
   },
 
+  // ------------------ THỐNG KÊ HỌC TẬP & BÁO CÁO CHI TIẾT ------------------
+  recordTheoryReads: (payload) =>
+    apiRequest("/api/analytics/theory-read", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+
+  recordExerciseChecks: (payload) =>
+    apiRequest("/api/analytics/exercise-check", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+
+  myLearningReport: () => apiRequest("/api/my/learning-report"),
+
+  staffStudentLearningReport: (studentId) =>
+    apiRequest(`/api/staff/students/${encodeURIComponent(studentId)}/learning-report`),
+
+  staffQuizAttemptDetail: (attemptId) =>
+    apiRequest(`/api/staff/quiz-attempts/${encodeURIComponent(attemptId)}`),
+
+  exportLearningReportUrl: (className = "") => {
+    const token = encodeURIComponent(getToken());
+    const cls = className ? `&class_name=${encodeURIComponent(className)}` : "";
+    return withBase(`/api/staff/learning-report/export?token=${token}${cls}`);
+  },
+
   // ------------------ THI THỬ TỐT NGHIỆP THPT ------------------
   getMockExams: () => apiRequest("/api/mock-exams"),
 

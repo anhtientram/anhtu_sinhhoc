@@ -802,6 +802,9 @@ function renderMainShell() {
       if (state.activeTab === "mock_exam" && nextTab !== "mock_exam") {
         stopMockExamTimers();
       }
+      if (state.activeTab === "theory" && nextTab !== "theory") {
+        cleanupTheoryObserver();
+      }
       state.mobileMenuOpen = false;
       state.activeTab = nextTab;
       sendThrottledHeartbeat(state.activeTopicId, state.activeTab);
@@ -987,10 +990,12 @@ function renderTheoryTab(container) {
       ${renderInteractiveToolbar(lessonInteractiveIds, `bài ${activeLesson.number}`)}
 
       ${(activeLesson.sections || [])
-        .map((sec) => {
+        .map((sec, sIdx) => {
           const isYccd = /yêu cầu cần đạt/i.test(sec.heading || "");
+          const secKey = `sec-${sIdx}`;
+          const secHeading = (sec.heading || `Mục ${sIdx + 1}`).trim();
           return `
-          <section class="theory-section ${isYccd ? "yccd-box" : ""}">
+          <section class="theory-section ${isYccd ? "yccd-box" : ""}" data-section-key="${secKey}" data-section-heading="${escapeHtml(secHeading)}">
             <h3>${formatBioHtml(sec.heading)}</h3>
             ${
               (sec.blocks || []).length
@@ -1011,7 +1016,14 @@ function renderTheoryTab(container) {
     </article>
   `;
 
-  bindInteractiveExerciseEvents(bodyEl, lessonInteractiveIds, () => renderTheoryTab(container));
+  bindInteractiveExerciseEvents(bodyEl, lessonInteractiveIds, () => renderTheoryTab(container), {
+    topicId: topic.id,
+    sourceTab: "theory",
+    lessonLabel: `${activeLesson.number}: ${activeLesson.title}`,
+  });
+
+  // Tự động theo dõi các mục Lý thuyết học sinh đã đọc trong phiên học
+  setupTheorySectionObserver(bodyEl, topic, activeLesson);
 
   if (activeLesson.interactive_diagram) {
     mountInteractiveDiagram(bodyEl.querySelector("#lesson-interactive-sim"), activeLesson.interactive_diagram);
@@ -1027,14 +1039,32 @@ function renderTheoryTab(container) {
 
   bodyEl.querySelector("#btn-mark-lesson")?.addEventListener("click", async () => {
     try {
-      await api.saveProgress({
-        topic_id: topic.id,
-        lesson_id: activeLesson.id,
-        completed: true,
-        checkpoint_score: 1,
-      });
+      const allSectionsPayload = (activeLesson.sections || []).map((sec, sIdx) => ({
+        key: `sec-${sIdx}`,
+        heading: (sec.heading || `Mục ${sIdx + 1}`).trim(),
+        duration_delta: 10,
+        completed: 1,
+      }));
+      await Promise.all([
+        api.saveProgress({
+          topic_id: topic.id,
+          lesson_id: activeLesson.id,
+          completed: true,
+          checkpoint_score: 1,
+        }),
+        api.recordTheoryReads({
+          topic_id: topic.id,
+          lesson_id: activeLesson.id,
+          lesson_number: activeLesson.number || "",
+          lesson_title: activeLesson.title || "",
+          mark_lesson_done: true,
+          sections: allSectionsPayload,
+        }),
+      ]);
       state.completedLessonIds.add(activeLesson.id);
-      showToast(`Đã lưu tiến độ ${activeLesson.number}`, "success");
+      allSectionsPayload.forEach((s) => recordedTheorySectionKeys.add(`${activeLesson.id}::${s.key}`));
+      clientCache.invalidateTeacherData();
+      showToast(`Đã lưu tiến độ ${activeLesson.number} (${allSectionsPayload.length} mục lý thuyết)`, "success");
       renderTheoryTab(container);
     } catch (err) {
       showToast(err.message, "error");
@@ -1119,7 +1149,11 @@ function renderKnowledgeTab(container) {
         </article>
       `;
 
-      bindInteractiveExerciseEvents(bodyEl, unitInteractiveIds, draw);
+      bindInteractiveExerciseEvents(bodyEl, unitInteractiveIds, draw, {
+        topicId: topic.id,
+        sourceTab: "knowledge",
+        lessonLabel: `${unit.lesson_number || ""}: ${unit.lesson_title || ""}`.replace(/^:\s*/, ""),
+      });
 
       bodyEl.querySelectorAll("[data-ks-unit]").forEach((btn) => {
         btn.addEventListener("click", () => {
@@ -1244,20 +1278,173 @@ function renderReviewTab(container) {
   });
 }
 
+// ================== THEO DÕI TỰ ĐỘNG CÁC MỤC LÝ THUYẾT ĐÃ HỌC ==================
+let _activeTheoryObserver = null;
+const _theorySectionTimers = new Map();
+const recordedTheorySectionKeys = new Set();
+
+function cleanupTheoryObserver() {
+  if (_activeTheoryObserver) {
+    try {
+      _activeTheoryObserver.disconnect();
+    } catch {}
+    _activeTheoryObserver = null;
+  }
+  _theorySectionTimers.forEach((t) => clearTimeout(t));
+  _theorySectionTimers.clear();
+}
+
+function setupTheorySectionObserver(bodyEl, topic, activeLesson) {
+  cleanupTheoryObserver();
+  if (!state.user || !bodyEl || !topic?.id || !activeLesson?.id) return;
+
+  const pendingBatch = new Map();
+  let flushTimer = null;
+
+  const flushBatch = () => {
+    if (!pendingBatch.size) return;
+    const sections = Array.from(pendingBatch.values());
+    pendingBatch.clear();
+    api
+      .recordTheoryReads({
+        topic_id: topic.id,
+        lesson_id: activeLesson.id,
+        lesson_number: activeLesson.number || "",
+        lesson_title: activeLesson.title || "",
+        sections,
+      })
+      .then(() => clientCache.invalidateTeacherData())
+      .catch(() => {});
+  };
+
+  const queueSection = (secKey, secHeading, durSec = 5) => {
+    const uniq = `${activeLesson.id}::${secKey}`;
+    if (recordedTheorySectionKeys.has(uniq)) return;
+    recordedTheorySectionKeys.add(uniq);
+    pendingBatch.set(secKey, {
+      key: secKey,
+      heading: secHeading,
+      duration_delta: durSec,
+      completed: 1,
+    });
+    if (flushTimer) clearTimeout(flushTimer);
+    flushTimer = setTimeout(flushBatch, 600);
+  };
+
+  const secEls = Array.from(bodyEl.querySelectorAll("section.theory-section[data-section-key]"));
+  if (!secEls.length) return;
+
+  if (typeof IntersectionObserver === "undefined") {
+    const first = secEls[0];
+    queueSection(first.dataset.sectionKey, first.dataset.sectionHeading || "", 5);
+    return;
+  }
+
+  _activeTheoryObserver = new IntersectionObserver(
+    (entries) => {
+      entries.forEach((entry) => {
+        const el = entry.target;
+        const secKey = el.dataset.sectionKey;
+        const secHeading = el.dataset.sectionHeading || secKey;
+        const uniq = `${activeLesson.id}::${secKey}`;
+        if (recordedTheorySectionKeys.has(uniq)) return;
+
+        if (entry.isIntersecting) {
+          if (!_theorySectionTimers.has(uniq)) {
+            const tm = setTimeout(() => {
+              _theorySectionTimers.delete(uniq);
+              queueSection(secKey, secHeading, 5);
+            }, 1200);
+            _theorySectionTimers.set(uniq, tm);
+          }
+        } else if (_theorySectionTimers.has(uniq)) {
+          clearTimeout(_theorySectionTimers.get(uniq));
+          _theorySectionTimers.delete(uniq);
+        }
+      });
+    },
+    { threshold: 0.1 }
+  );
+
+  secEls.forEach((el) => _activeTheoryObserver.observe(el));
+}
+
 // ================== TAB 5: HỒ SƠ CÁ NHÂN ==================
 async function renderProfileTab(container) {
   const user = state.user;
-  await loadMyProgressAndSessions();
+  const [, myReport] = await Promise.all([
+    loadMyProgressAndSessions(),
+    api.myLearningReport().catch(() => null),
+  ]);
   const totalSec = state.mySessions.reduce((acc, s) => acc + (s.duration_seconds || 0), 0);
   const colors = ["#0f766e", "#0369a1", "#4f46e5", "#b45309", "#be123c", "#15803d"];
+  const sm = myReport?.summary || null;
+
+  const progressSummaryHtml = sm
+    ? `
+      <div class="card" style="margin-bottom:20px;border-color:var(--primary-border);background:linear-gradient(135deg,#f0fdfa 0%,#ffffff 100%);">
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:14px;">
+          <div>
+            <h3 class="card-title" style="margin:0 0 2px;">Tiến độ học tập &amp; Tỉ lệ làm bài của bạn</h3>
+            <p style="margin:0;font-size:0.83rem;color:var(--text-secondary);">Thống kê tự động các mục Lý thuyết đã học, Bài tập vận dụng đã làm và Kết quả từng đợt Hệ thống ôn tập.</p>
+          </div>
+          <span class="pill pill-primary">${sm.session_count || 0} phiên học · ${formatDuration(sm.total_study_seconds || totalSec)}</span>
+        </div>
+        <div class="stats-grid" style="margin-bottom:14px;">
+          <div class="stat-card" style="background:#fff;">
+            <div class="stat-label">Lý thuyết đã học</div>
+            <div class="stat-value" style="color:var(--primary);">${sm.theory_pct}%</div>
+            <div class="progress-bar-track"><div class="progress-bar-fill" style="width:${Math.min(100, sm.theory_pct)}%;"></div></div>
+            <small style="color:var(--text-muted);">${sm.studied_lessons}/${sm.total_lessons} bài · ${sm.studied_sections}/${sm.total_sections} mục</small>
+          </div>
+          <div class="stat-card" style="background:#fff;">
+            <div class="stat-label">Bài tập LT &amp; HTKT</div>
+            <div class="stat-value" style="color:#0369a1;">${sm.exercise_completion_pct}%</div>
+            <div class="progress-bar-track"><div class="progress-bar-fill fill-blue" style="width:${Math.min(100, sm.exercise_completion_pct)}%;"></div></div>
+            <small style="color:var(--text-muted);">${sm.exercises_done}/${sm.exercises_total} bài · Đúng: <strong>${sm.exercise_accuracy_pct !== null ? `${sm.exercise_accuracy_pct}%` : "—"}</strong></small>
+          </div>
+          <div class="stat-card" style="background:#fff;">
+            <div class="stat-label">Hệ thống ôn tập</div>
+            <div class="stat-value" style="color:#15803d;">${sm.review_accuracy_pct !== null ? `${sm.review_accuracy_pct}%` : "—"}</div>
+            <div class="progress-bar-track"><div class="progress-bar-fill fill-green" style="width:${Math.min(100, sm.review_accuracy_pct || 0)}%;"></div></div>
+            <small style="color:var(--text-muted);">${sm.review_rounds_count} đợt · Đúng ${sm.review_correct_total}/${sm.review_questions_total} câu/ý</small>
+          </div>
+        </div>
+        ${
+          (myReport.topics || []).length
+            ? `
+              <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:10px;">
+                ${myReport.topics
+                  .map(
+                    (tp) => `
+                    <div style="padding:10px 12px;border-radius:10px;background:#fff;border:1px solid var(--border);font-size:0.82rem;">
+                      <div style="font-weight:700;margin-bottom:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="${escapeHtml(tp.title)}">${escapeHtml(tp.title)}</div>
+                      <div class="progress-bar-track" style="margin-bottom:6px;"><div class="progress-bar-fill" style="width:${Math.min(100, tp.theory_pct)}%;"></div></div>
+                      <div style="display:flex;justify-content:space-between;color:var(--text-secondary);gap:6px;">
+                        <span>LT: <strong>${tp.theory_pct}%</strong> (${tp.studied_sections}/${tp.total_sections} mục)</span>
+                        <span>Ôn tập: <strong>${tp.review_accuracy_pct !== null ? `${tp.review_accuracy_pct}%` : "—"}</strong></span>
+                      </div>
+                    </div>
+                  `
+                  )
+                  .join("")}
+              </div>
+            `
+            : ""
+        }
+      </div>
+    `
+    : "";
 
   container.innerHTML = `
     <div class="page-header">
       <div>
         <h1>Hồ sơ cá nhân</h1>
-        <p>Quản lý thông tin tài khoản và nhật ký tham gia lớp học</p>
+        <p>Quản lý thông tin tài khoản, tiến độ học tập và nhật ký tham gia lớp học</p>
       </div>
     </div>
+
+    ${progressSummaryHtml}
 
     <div style="display:grid;grid-template-columns:1.1fr 1fr;gap:20px;align-items:start;">
       <div class="card">

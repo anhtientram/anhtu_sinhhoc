@@ -5,11 +5,20 @@
 // - Hiển thị kết quả đúng KẾ BÊN ô bài làm của học sinh với định dạng chuẩn Sinh học 12
 
 import { escapeHtml, formatBioHtml } from "./format.js";
-import { withBase } from "./api.js";
+import { api, clientCache, withBase } from "./api.js";
 
 // Lưu trữ tạm bài làm và trạng thái đã kiểm tra trong phiên học (không mất khi chuyển tab/bài)
 const answerStore = new Map(); // fieldKey -> string | boolean | number
 const checkedUnits = new Set(); // groupId or tableId
+const unitStatsRegistry = new Map(); // unitId -> { unit_id, unit_title, correct_count, answered_count, total_items }
+
+function cleanUnitTitle(raw, fallback) {
+  const txt = String(raw || "")
+    .replace(/\s+/g, " ")
+    .trim();
+  if (!txt) return fallback;
+  return txt.length > 110 ? `${txt.slice(0, 107)}...` : txt;
+}
 
 function stripDiacritics(str) {
   return String(str || "")
@@ -151,8 +160,7 @@ function renderActionBar(unitId, isChecked, summaryText = "") {
   `;
 }
 
-function computeGroupSummary(unitId, itemsMeta) {
-  if (!checkedUnits.has(unitId)) return "";
+function computeGroupMetrics(itemsMeta) {
   let exactTotal = 0;
   let exactRight = 0;
   let answered = 0;
@@ -164,14 +172,36 @@ function computeGroupSummary(unitId, itemsMeta) {
       if (evaluateAnswer(val, meta).status === "correct") exactRight++;
     }
   }
-  if (exactTotal > 0) {
-    return `Đúng ${exactRight}/${exactTotal} câu chấm tự động · Đã điền ${answered}/${itemsMeta.length}`;
+  const totalItems = exactTotal > 0 ? exactTotal : Math.max(1, itemsMeta.length);
+  const correctCount = exactTotal > 0 ? exactRight : answered;
+  return {
+    exactTotal,
+    exactRight,
+    answered,
+    totalItems,
+    correctCount,
+    rawTotal: itemsMeta.length,
+  };
+}
+
+function computeGroupSummary(unitId, itemsMeta, unitTitle = "") {
+  const m = computeGroupMetrics(itemsMeta);
+  unitStatsRegistry.set(unitId, {
+    unit_id: unitId,
+    unit_title: cleanUnitTitle(unitTitle, unitId),
+    correct_count: m.correctCount,
+    answered_count: m.answered,
+    total_items: m.totalItems,
+  });
+  if (!checkedUnits.has(unitId)) return "";
+  if (m.exactTotal > 0) {
+    return `Đúng ${m.exactRight}/${m.exactTotal} câu chấm tự động · Đã điền ${m.answered}/${m.rawTotal}`;
   }
-  return `Đã mở đáp án đối chiếu · Đã điền ${answered}/${itemsMeta.length} mục`;
+  return `Đã mở đáp án đối chiếu · Đã điền ${m.answered}/${m.rawTotal} mục`;
 }
 
 // ================== INTERACTIVE TABLE RENDERER ==================
-function renderInteractiveTable(block) {
+function renderInteractiveTable(block, fallbackTitle = "") {
   const rows = block.rows || [];
   const inter = block.interactive;
   if (!rows.length || !inter) return "";
@@ -179,19 +209,22 @@ function renderInteractiveTable(block) {
   const tid = inter.id;
   const isChecked = checkedUnits.has(tid);
   const mode = inter.mode;
+  const tableTitle = cleanUnitTitle(inter.title || fallbackTitle, `Bảng bài tập (${tid})`);
 
   // --- Mode 1: tf_rows (VD: 1.1 Ví dụ 2 — 4 nhận định Đúng/Sai) ---
   if (mode === "tf_rows") {
     const tfAnswers = inter.tf_answers || {};
     let rightCount = 0;
+    let answeredCount = 0;
     const totalCount = Object.keys(tfAnswers).length;
     const bodyHtml = rows
       .map((r, ri) => {
         const key = `${tid}::tf::${ri}`;
         const ans = tfAnswers[String(ri)] || "";
         const val = answerStore.has(key) ? String(answerStore.get(key)) : "";
-        const evalRes = isChecked ? evaluateAnswer(val, { mode: "true_false", answer: ans }) : null;
-        if (isChecked && evalRes.status === "correct") rightCount++;
+        if (val) answeredCount++;
+        const evalRes = evaluateAnswer(val, { mode: "true_false", answer: ans });
+        if (evalRes.status === "correct") rightCount++;
         return `
           <tr>
             <td style="width:46px;"><strong>${formatBioHtml(r[0] || "")}</strong></td>
@@ -210,6 +243,13 @@ function renderInteractiveTable(block) {
       })
       .join("");
 
+    unitStatsRegistry.set(tid, {
+      unit_id: tid,
+      unit_title: tableTitle,
+      correct_count: rightCount,
+      answered_count: answeredCount,
+      total_items: Math.max(1, totalCount),
+    });
     const summary = isChecked ? `Đúng ${rightCount}/${totalCount} nhận định` : "";
     return `
       <div class="ex-block-card" data-ex-unit="${escapeHtml(tid)}">
@@ -236,6 +276,7 @@ function renderInteractiveTable(block) {
     const checkCol = inter.check_col ?? 2;
     const checkSet = new Set((inter.check_rows || []).map(Number));
     let rightCount = 0;
+    let markedCount = 0;
     const totalCount = body.length;
 
     const bodyHtml = body
@@ -243,9 +284,10 @@ function renderInteractiveTable(block) {
         const rowIndex = bi + 1; // 1-based row index in block.rows
         const key = `${tid}::chk::${rowIndex}`;
         const studentChecked = Boolean(answerStore.get(key));
+        if (studentChecked) markedCount++;
         const shouldCheck = checkSet.has(rowIndex);
         const isCorrect = studentChecked === shouldCheck;
-        if (isChecked && isCorrect) rightCount++;
+        if (isCorrect) rightCount++;
 
         const rowCells = r
           .map((c, ci) => {
@@ -284,6 +326,13 @@ function renderInteractiveTable(block) {
       })
       .join("");
 
+    unitStatsRegistry.set(tid, {
+      unit_id: tid,
+      unit_title: tableTitle,
+      correct_count: rightCount,
+      answered_count: markedCount > 0 ? totalCount : 0,
+      total_items: Math.max(1, totalCount),
+    });
     const summary = isChecked ? `Đúng ${rightCount}/${totalCount} ví dụ` : "";
     return `
       <div class="ex-block-card" data-ex-unit="${escapeHtml(tid)}">
@@ -307,6 +356,7 @@ function renderInteractiveTable(block) {
     const radioAnswers = inter.radio_answers || {};
     const colLabels = inter.col_labels || {};
     let rightCount = 0;
+    let answeredCount = 0;
     const totalCount = Object.keys(radioAnswers).length;
 
     const bodyHtml = body
@@ -323,9 +373,10 @@ function renderInteractiveTable(block) {
         }
         const key = `${tid}::rad::${rowIndex}`;
         const chosenCol = answerStore.has(key) ? Number(answerStore.get(key)) : -1;
+        if (chosenCol >= 0) answeredCount++;
         const correctCol = Number(radioAnswers[String(rowIndex)]);
         const isCorrect = chosenCol === correctCol;
-        if (isChecked && isCorrect) rightCount++;
+        if (isCorrect) rightCount++;
 
         const cellsHtml = r
           .map((c, ci) => {
@@ -368,6 +419,13 @@ function renderInteractiveTable(block) {
       })
       .join("");
 
+    unitStatsRegistry.set(tid, {
+      unit_id: tid,
+      unit_title: tableTitle,
+      correct_count: rightCount,
+      answered_count: answeredCount,
+      total_items: Math.max(1, totalCount),
+    });
     const summary = isChecked ? `Đúng ${rightCount}/${totalCount} ví dụ` : "";
     return `
       <div class="ex-block-card" data-ex-unit="${escapeHtml(tid)}">
@@ -397,6 +455,7 @@ function renderInteractiveTable(block) {
     const colLabels = inter.col_labels || {};
     const rowAnswers = inter.row_answers || {};
     let rightRows = 0;
+    let answeredRows = 0;
     const totalRows = Object.keys(rowAnswers).length;
 
     const bodyHtml = body
@@ -408,21 +467,22 @@ function renderInteractiveTable(block) {
         const studentText = answerStore.has(textKey) ? String(answerStore.get(textKey)) : "";
 
         let checksAllMatch = true;
+        let anyChecked = false;
         for (const ci of checkCols) {
           const cKey = `${tid}::mchk::${rowIndex}:${ci}`;
           const isMarked = Boolean(answerStore.get(cKey));
+          if (isMarked) anyChecked = true;
           if (isMarked !== expectedSet.has(ci)) checksAllMatch = false;
         }
-        const textEval = isChecked
-          ? evaluateAnswer(studentText, {
-              mode: "input",
-              answer: rowMeta.text || "",
-              exact: rowMeta.exact,
-              grade_type: rowMeta.exact?.length ? "exact" : "compare",
-            })
-          : null;
+        if (anyChecked || studentText.trim()) answeredRows++;
+        const textEval = evaluateAnswer(studentText, {
+          mode: "input",
+          answer: rowMeta.text || "",
+          exact: rowMeta.exact,
+          grade_type: rowMeta.exact?.length ? "exact" : "compare",
+        });
         const rowAllRight = checksAllMatch && textEval?.status === "correct";
-        if (isChecked && rowAllRight) rightRows++;
+        if (rowAllRight) rightRows++;
 
         const cellsHtml = r
           .map((c, ci) => {
@@ -485,6 +545,13 @@ function renderInteractiveTable(block) {
       })
       .join("");
 
+    unitStatsRegistry.set(tid, {
+      unit_id: tid,
+      unit_title: tableTitle,
+      correct_count: rightRows,
+      answered_count: answeredRows,
+      total_items: Math.max(1, totalRows),
+    });
     const summary = isChecked ? `Đúng trọn vẹn ${rightRows}/${totalRows} bệnh` : "";
     return `
       <div class="ex-block-card" data-ex-unit="${escapeHtml(tid)}">
@@ -508,6 +575,7 @@ function renderInteractiveTable(block) {
     const colLabels = inter.col_labels || {};
     const rowAnswers = inter.row_answers || {};
     let rightRows = 0;
+    let answeredRows = 0;
     const totalRows = Object.keys(rowAnswers).length;
 
     const bodyHtml = body
@@ -529,7 +597,8 @@ function renderInteractiveTable(block) {
           if (marked) anyPicked = true;
           if (marked !== expectedSet.has(ci)) allMatch = false;
         }
-        if (isChecked && allMatch) rightRows++;
+        if (anyPicked) answeredRows++;
+        if (allMatch) rightRows++;
 
         const cellsHtml = r
           .map((c, ci) => {
@@ -576,6 +645,13 @@ function renderInteractiveTable(block) {
       })
       .join("");
 
+    unitStatsRegistry.set(tid, {
+      unit_id: tid,
+      unit_title: tableTitle,
+      correct_count: rightRows,
+      answered_count: answeredRows,
+      total_items: Math.max(1, totalRows),
+    });
     const summary = isChecked ? `Đúng ${rightRows}/${totalRows} dòng` : "";
     return `
       <div class="ex-block-card" data-ex-unit="${escapeHtml(tid)}">
@@ -662,7 +738,7 @@ function renderInteractiveTable(block) {
     })
     .join("");
 
-  const summary = computeGroupSummary(tid, trackedItems);
+  const summary = computeGroupSummary(tid, trackedItems, tableTitle);
   return `
     <div class="ex-block-card" data-ex-unit="${escapeHtml(tid)}">
       <div class="data-table-wrap" style="margin:0;">
@@ -753,18 +829,36 @@ export function renderDocumentBlocksInteractive(blocks, editableEmptyCells = fal
   // Xác định block cuối cùng của mỗi group exercise để đặt thanh nút "Kiểm tra đáp án" ngay sau nhóm đó
   const lastIndexByGroup = new Map();
   const itemsByGroup = new Map();
+  const titleByGroup = new Map();
+  let lastPromptTitle = "";
+
   blocks.forEach((b, idx) => {
+    if (b.type === "paragraph" && (b.text || "").trim()) {
+      const txt = b.text.trim();
+      if (b.is_bold || /^(Câu|Ví dụ|Bài|Hoạt động|Phiếu|Bảng)\s*\d*/i.test(txt)) {
+        lastPromptTitle = txt;
+      }
+    }
     if (b.exercise?.group) {
       const g = b.exercise.group;
       lastIndexByGroup.set(g, idx);
       if (!itemsByGroup.has(g)) itemsByGroup.set(g, []);
+      if (!titleByGroup.has(g)) titleByGroup.set(g, b.exercise.title || lastPromptTitle || b.text || g);
       itemsByGroup.get(g).push({ key: b.exercise.id, meta: b.exercise });
     }
   });
 
+  let rollingHeading = "";
   return blocks
     .map((b, idx) => {
       if (b.hidden_by_group) return "";
+
+      if (b.type === "paragraph" && (b.text || "").trim()) {
+        const txt = b.text.trim();
+        if (b.is_bold || /^(Câu|Ví dụ|Bài|Hoạt động|Phiếu|Bảng)\s*\d*/i.test(txt)) {
+          rollingHeading = txt;
+        }
+      }
 
       let html = "";
       if (b.type === "image") {
@@ -784,7 +878,9 @@ export function renderDocumentBlocksInteractive(blocks, editableEmptyCells = fal
           `
           )
           .join("");
-        html = (b.interactive ? renderInteractiveTable(b) : renderPlainTable(b.rows, editableEmptyCells)) + extraImgs;
+        html =
+          (b.interactive ? renderInteractiveTable(b, rollingHeading) : renderPlainTable(b.rows, editableEmptyCells)) +
+          extraImgs;
       } else {
         const textHtml = formatBioHtml(b.text || "");
         const isBullet = /^[-–+•]\s*/.test(b.text || "");
@@ -798,7 +894,9 @@ export function renderDocumentBlocksInteractive(blocks, editableEmptyCells = fal
         const ex = b.exercise;
         const isChecked = checkedUnits.has(ex.group);
         const isLastInGroup = lastIndexByGroup.get(ex.group) === idx;
-        const summary = isLastInGroup ? computeGroupSummary(ex.group, itemsByGroup.get(ex.group) || []) : "";
+        const summary = isLastInGroup
+          ? computeGroupSummary(ex.group, itemsByGroup.get(ex.group) || [], titleByGroup.get(ex.group) || "")
+          : "";
         html = `
           <div class="ex-prompt-item ${isChecked ? "is-checked" : ""}" data-ex-unit="${escapeHtml(ex.group)}">
             ${html}
@@ -814,7 +912,7 @@ export function renderDocumentBlocksInteractive(blocks, editableEmptyCells = fal
         const isChecked = checkedUnits.has(eg.id);
         const cols = eg.columns || 1;
         const tracked = (eg.items || []).map((it) => ({ key: it.id, meta: it }));
-        const summary = computeGroupSummary(eg.id, tracked);
+        const summary = computeGroupSummary(eg.id, tracked, eg.title || rollingHeading || eg.id);
         const gridCls = !isChecked && cols === 3 ? "ex-grid-3" : !isChecked && cols === 2 ? "ex-grid-2" : "ex-grid-1";
         html += `
           <div class="ex-block-card ex-group-card" data-ex-unit="${escapeHtml(eg.id)}">
@@ -842,8 +940,25 @@ export function renderDocumentBlocksInteractive(blocks, editableEmptyCells = fal
 }
 
 // ================== EVENT BINDING (delegated on container) ==================
-export function bindInteractiveExerciseEvents(container, allUnitIds, rerender) {
+export function bindInteractiveExerciseEvents(container, allUnitIds, rerender, trackCtx = null) {
   if (!container) return;
+
+  const persistExerciseUnits = (unitIds) => {
+    if (!trackCtx || !trackCtx.topicId || !unitIds.length) return;
+    const records = unitIds
+      .map((uid) => unitStatsRegistry.get(uid))
+      .filter(Boolean);
+    if (!records.length) return;
+    api
+      .recordExerciseChecks({
+        topic_id: trackCtx.topicId,
+        source_tab: trackCtx.sourceTab || "theory",
+        lesson_label: trackCtx.lessonLabel || "",
+        records,
+      })
+      .then(() => clientCache.invalidateTeacherData())
+      .catch(() => {});
+  };
 
   // Lưu giá trị input/textarea ngay khi học sinh gõ (không rerender để không mất focus)
   container.querySelectorAll("[data-ex-key]").forEach((el) => {
@@ -902,8 +1017,10 @@ export function bindInteractiveExerciseEvents(container, allUnitIds, rerender) {
   // Kiểm tra đáp án từng nhóm / bảng
   container.querySelectorAll("[data-ex-check]").forEach((btn) => {
     btn.addEventListener("click", () => {
-      checkedUnits.add(btn.dataset.exCheck);
+      const uid = btn.dataset.exCheck;
+      checkedUnits.add(uid);
       keepScrollRerender();
+      persistExerciseUnits([uid]);
     });
   });
 
@@ -933,6 +1050,7 @@ export function bindInteractiveExerciseEvents(container, allUnitIds, rerender) {
   container.querySelector("[data-ex-check-all]")?.addEventListener("click", () => {
     allUnitIds.forEach((id) => checkedUnits.add(id));
     keepScrollRerender();
+    persistExerciseUnits(allUnitIds);
   });
 
   container.querySelector("[data-ex-hide-all]")?.addEventListener("click", () => {
