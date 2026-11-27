@@ -15,6 +15,7 @@ import secrets
 import sys
 import threading
 import traceback
+import unicodedata
 from collections import OrderedDict
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
@@ -91,6 +92,72 @@ class _IncompleteUploadError(Exception):
 
 # Bộ nhớ tạm lưu các gói đề trộn (.docx + .xlsx) vừa tạo để tải xuống nhanh
 EXAM_EXPORTS = {}
+
+
+def _find_sample_exams_dir() -> str:
+    """Tìm thư mục 'FILE ĐỀ MẪU' (hỗ trợ cả Unicode NFC/NFD, chữ đ/Đ, dấu cách thừa, hoặc nằm trong data/)."""
+    candidates = [BASE_DIR, os.path.join(BASE_DIR, "data")]
+    for root in candidates:
+        if not os.path.isdir(root):
+            continue
+        try:
+            for entry in os.listdir(root):
+                full = os.path.join(root, entry)
+                if os.path.isdir(full):
+                    norm = unicodedata.normalize("NFC", entry).strip().lower()
+                    no_d = norm.replace("đ", "d")
+                    ascii_norm = re.sub(
+                        r"\s+",
+                        " ",
+                        unicodedata.normalize("NFKD", no_d).encode("ascii", "ignore").decode("ascii"),
+                    ).strip()
+                    if "đề mẫu" in norm or "de mau" in ascii_norm or "de_mau" in ascii_norm or "mau" in ascii_norm and "de" in ascii_norm:
+                        return full
+        except Exception:
+            continue
+    return ""
+
+
+def _list_sample_exam_files() -> list:
+    sdir = _find_sample_exams_dir()
+    if not sdir:
+        return []
+    out = []
+    abs_sdir = os.path.abspath(sdir)
+    try:
+        for dirpath, dirnames, filenames in os.walk(abs_sdir):
+            dirnames[:] = sorted(d for d in dirnames if not d.startswith(".") and d != "__MACOSX")
+            for fn in sorted(filenames):
+                if fn.startswith(".") or fn.startswith("~$"):
+                    continue
+                if not fn.lower().endswith(".docx"):
+                    continue
+                fpath = os.path.join(dirpath, fn)
+                if not os.path.isfile(fpath):
+                    continue
+                rel = os.path.relpath(fpath, abs_sdir).replace("\\", "/")
+                rel_nfc = unicodedata.normalize("NFC", rel)
+                sz_kb = round(os.path.getsize(fpath) / 1024.0, 1)
+                out.append({"filename": rel_nfc, "raw_name": rel, "size_kb": sz_kb})
+    except Exception:
+        return []
+    return out
+
+
+def _resolve_sample_exam_path(requested_name: str) -> str:
+    sdir = _find_sample_exams_dir()
+    if not sdir or not requested_name:
+        return ""
+    abs_sdir = os.path.abspath(sdir)
+    req_norm = unicodedata.normalize("NFC", requested_name.replace("\\", "/")).strip().lstrip("/")
+    if ".." in req_norm.split("/"):
+        return ""
+    for item in _list_sample_exam_files():
+        if item["filename"] == req_norm or os.path.basename(item["filename"]) == os.path.basename(req_norm):
+            fpath = os.path.abspath(os.path.join(abs_sdir, item["raw_name"]))
+            if os.path.commonpath([fpath, abs_sdir]) == abs_sdir and os.path.isfile(fpath):
+                return fpath
+    return ""
 
 # Bộ nhớ đệm tĩnh trong RAM cho CSS/JS/HTML/ảnh nhỏ (tránh đọc ổ đĩa liên tục khi lớp đông học sinh)
 _STATIC_CACHE_LOCK = threading.Lock()
@@ -802,6 +869,42 @@ class Bio12Handler(BaseHTTPRequestHandler):
                     },
                 )
 
+            if path == "/api/staff/exam-mixer/sample-files":
+                staff = self.require_teacher(conn, qs)
+                if not staff:
+                    return
+                sdir = _find_sample_exams_dir()
+                files = [{"filename": f["filename"], "size_kb": f["size_kb"]} for f in _list_sample_exam_files()]
+                return self.send_json(
+                    200,
+                    {
+                        "ok": True,
+                        "dir_found": bool(sdir),
+                        "dir_name": unicodedata.normalize("NFC", os.path.basename(sdir)) if sdir else "",
+                        "files": files,
+                    },
+                )
+
+            if path == "/api/staff/exam-mixer/sample-files/download":
+                staff = self.require_teacher(conn, qs)
+                if not staff:
+                    return
+                fname = (qs.get("filename", [""])[0] or "").strip()
+                fpath = _resolve_sample_exam_path(fname)
+                if not fpath:
+                    return self.send_json(404, {"error": "Không tìm thấy tệp đề mẫu trong thư mục FILE ĐỀ MẪU."})
+                with open(fpath, "rb") as f:
+                    raw_bytes = f.read()
+                safe_dl = re.sub(r"[^a-zA-Z0-9._-]+", "_", unicodedata.normalize("NFKD", os.path.basename(fpath)).encode("ascii", "ignore").decode("ascii")) or "de-mau.docx"
+                self.send_response(200)
+                self.send_header("Content-Type", "application/vnd.openxmlformats-officedocument.wordprocessingml.document")
+                self.send_header("Content-Length", str(len(raw_bytes)))
+                self.send_header("Access-Control-Allow-Origin", "*")
+                self.send_header("Content-Disposition", f'attachment; filename="{safe_dl}"')
+                self.end_headers()
+                self._safe_write(raw_bytes)
+                return
+
             m_ex_dl = re.match(r"^/api/admin/exam-download/([a-zA-Z0-9_-]+)/(docx|xlsx)$", path)
             if m_ex_dl:
                 teacher = self.require_teacher(conn, qs)
@@ -1239,6 +1342,10 @@ class Bio12Handler(BaseHTTPRequestHandler):
             meta, file_bytes = self._parse_upload_request(qs)
             return self._handle_parse_word_exam_for_mixer(meta, file_bytes, qs)
 
+        if path == "/api/staff/exam-mixer/load-sample":
+            body = self.read_json_body()
+            return self._handle_load_sample_exam_for_mixer(body, qs)
+
         m_imp = re.match(r"^/api/topics/([a-zA-Z0-9_-]+)/import-file$", path)
         if m_imp:
             meta, file_bytes = self._parse_upload_request(qs)
@@ -1302,6 +1409,40 @@ class Bio12Handler(BaseHTTPRequestHandler):
             {
                 "ok": True,
                 "source_filename": filename,
+                "content": parsed["draft"]["content"],
+                "stats": parsed["stats"],
+                "warnings": parsed.get("warnings") or [],
+                "spelling_report": parsed.get("spelling_report") or {},
+            },
+        )
+
+    def _handle_load_sample_exam_for_mixer(self, body, qs):
+        """Nạp trực tiếp 1 tệp đề mẫu từ thư mục FILE ĐỀ MẪU để Quản trị viên / Giáo viên kiểm tra & trộn thử."""
+        conn = get_conn()
+        try:
+            staff = self.require_teacher(conn, qs, body)
+            if not staff:
+                return
+        finally:
+            conn.close()
+
+        fname = (body.get("filename") or "").strip()
+        fpath = _resolve_sample_exam_path(fname)
+        if not fpath:
+            return self.send_json(404, {"error": "Không tìm thấy tệp đề mẫu trong thư mục FILE ĐỀ MẪU."})
+
+        try:
+            with open(fpath, "rb") as f:
+                file_bytes = f.read()
+            parsed = parse_mock_exam_document(file_bytes, os.path.basename(fpath), next_order_number=1)
+        except Exception as e:
+            return self.send_json(400, {"error": f"Lỗi khi phân tích file đề mẫu: {e}"})
+
+        return self.send_json(
+            200,
+            {
+                "ok": True,
+                "source_filename": unicodedata.normalize("NFC", os.path.basename(fpath)),
                 "content": parsed["draft"]["content"],
                 "stats": parsed["stats"],
                 "warnings": parsed.get("warnings") or [],

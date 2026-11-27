@@ -431,6 +431,19 @@ export const api = {
       body: JSON.stringify(payload),
     }),
 
+  getExamMixerSamples: () => apiRequest("/api/staff/exam-mixer/sample-files"),
+
+  loadExamMixerSample: (filename) =>
+    apiRequest("/api/staff/exam-mixer/load-sample", {
+      method: "POST",
+      body: JSON.stringify({ filename }),
+    }),
+
+  downloadExamMixerSampleUrl: (filename) => {
+    const token = encodeURIComponent(getToken());
+    return withBase(`/api/staff/exam-mixer/sample-files/download?filename=${encodeURIComponent(filename)}&token=${token}`);
+  },
+
   adminAddTeacher: (username, password = "123456@") =>
     apiRequest("/api/admin/teachers", {
       method: "POST",

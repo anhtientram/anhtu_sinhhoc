@@ -61,7 +61,22 @@ export function mountTeacherDashboard(container, activeTopic, onTopicUpdated, sh
     showPreview: false,
     generating: false,
     result: null, // { job_id, summary }
+    sampleFiles: null, // null | [{filename, size_kb}]
+    loadingSampleName: "",
   };
+
+  async function ensureSampleExamsLoaded() {
+    if (wordMixer.sampleFiles !== null) return;
+    try {
+      const res = await api.getExamMixerSamples();
+      wordMixer.sampleFiles = res.files || [];
+    } catch {
+      wordMixer.sampleFiles = [];
+    }
+    if (subtab === "exam_mixer" && examMixerMode === "word") {
+      render();
+    }
+  }
 
   let answerPdfApplying = false;
   let answerPdfReport = null;
@@ -296,6 +311,9 @@ export function mountTeacherDashboard(container, activeTopic, onTopicUpdated, sh
         if (subtab === "exam_mixer" && examMixerMode === "matrix" && !examPool) {
           render();
           ensureExamPoolLoaded();
+        } else if (subtab === "exam_mixer" && examMixerMode === "word" && wordMixer.sampleFiles === null) {
+          render();
+          ensureSampleExamsLoaded();
         } else {
           render();
         }
@@ -449,15 +467,71 @@ export function mountTeacherDashboard(container, activeTopic, onTopicUpdated, sh
                 </div>
               </div>
 
-              <div class="mock-upload-guide" style="margin-top:0;margin-bottom:14px;">
-                <div class="mock-upload-guide-title">📌 Quy chuẩn nhận diện đáp án thông minh cho file Word (.docx):</div>
-                <div class="mock-upload-guide-grid">
-                  <div><strong>• Trắc nghiệm 4 đáp án (Phần I):</strong> Đáp án <strong>Đúng</strong> được <u><strong>gạch chân</strong></u> (VD: <u>B.</u> ...).</div>
-                  <div><strong>• Trắc nghiệm Đúng/Sai (Phần II):</strong> Ý <strong>Đúng</strong> được <u><strong>gạch chân</strong></u> (VD: <u>a)</u>, <u>c)</u>); không gạch chân là <strong>Sai</strong>.</div>
-                  <div><strong>• Trắc nghiệm Trả lời ngắn (Phần III):</strong> Ghi đáp án ngay sau từ <code><strong>A.</strong></code> (VD: <code>A. 12,5</code>).</div>
-                  <div><strong>• Gợi ý đáp án (tuỳ chọn):</strong> Ghi sau cụm từ <code><strong>Giải chi tiết</strong></code> (tự động đưa vào sheet Giải chi tiết trong file Excel).</div>
+              <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:12px;margin-bottom:14px;">
+                <!-- Hướng dẫn 1: Quy ước câu hỏi & đáp án (chuẩn Young Mix / Bộ GD&ĐT) -->
+                <div style="padding:14px 16px;border-radius:12px;border:1.5px dashed #94a3b8;background:#f8fafc;font-size:0.82rem;line-height:1.58;color:var(--text);">
+                  <div style="font-weight:700;color:var(--primary);margin-bottom:8px;">📋 Hướng dẫn định dạng Câu hỏi &amp; Đáp án trong file Word (.docx)</div>
+                  <ul style="margin:0;padding-left:18px;display:flex;flex-direction:column;gap:5px;">
+                    <li>Câu hỏi bắt đầu bằng chữ <strong>"Câu"</strong> (VD: <code>Câu 1</code>, <code>Câu 2</code>,...) hoặc chữ <strong>"Question"</strong> (VD: <code>Question 1</code>, <code>Question 2</code>,...).</li>
+                    <li>Phải <strong>xuống dòng (gõ Enter)</strong> trước khi gõ các đáp án.</li>
+                    <li>Các đáp án bắt đầu bằng <strong>"A."</strong>, <strong>"B."</strong>, <strong>"C."</strong>, <strong>"D."</strong>. Nếu cần <strong>cố định đáp án</strong> nào thì đặt thêm dấu <code><strong>#</strong></code> liền trước, ví dụ: <code><strong>#A.</strong></code>, <code><strong>#D.</strong></code>.</li>
+                    <li>Mỗi đáp án nên nằm trên một dòng để hệ thống nhận dạng chính xác nhất.</li>
+                    <li><strong>Đáp án đúng:</strong> tô <strong style="color:#dc2626;">Đỏ</strong> (<strong style="color:#dc2626;">A.</strong> hoặc <strong style="color:#dc2626;">#A.</strong>) hoặc <u><strong>gạch chân</strong></u> (<u>A.</u> hoặc <u>#A.</u>). Với <strong>Phần II (Đúng/Sai)</strong>: gạch chân hoặc tô đỏ <u>a)</u> là <strong>Đúng</strong>, không đánh dấu là <strong>Sai</strong>. Với <strong>Phần III (Trả lời ngắn)</strong>: đáp án ghi sau <code><strong>A.</strong></code>. Gợi ý ghi sau <code><strong>Giải chi tiết</strong></code>.</li>
+                    <li>Các câu hỏi và đáp án có <strong>Hình ảnh</strong> cần để ở chế độ <strong>Inline With Text</strong> để khi hoán vị hình ảnh không bị nhảy lung tung.</li>
+                  </ul>
+                </div>
+
+                <!-- Hướng dẫn 2: Quy ước thẻ nhóm trộn <g0>..<#g3> & 2 dạng đề hỗ trợ -->
+                <div style="display:flex;flex-direction:column;gap:10px;">
+                  <div style="padding:14px 16px;border-radius:12px;border:1.5px dashed #94a3b8;background:#f8fafc;font-size:0.82rem;line-height:1.55;color:var(--text);">
+                    <div style="font-weight:700;color:var(--primary);margin-bottom:8px;">🧩 Quy ước thẻ nhóm câu hỏi khi trộn (tuỳ chọn)</div>
+                    <div style="display:flex;flex-direction:column;gap:5px;">
+                      <div><code><strong>&lt;g0&gt;</strong></code> — Nhóm câu hỏi <strong>không cần trộn</strong> (giữ nguyên thứ tự câu hỏi và đáp án).</div>
+                      <div><code><strong>&lt;g1&gt;</strong></code> — Nhóm câu hỏi <strong>chỉ cần hoán vị các câu hỏi</strong> (giữ nguyên đáp án).</div>
+                      <div><code><strong>&lt;g2&gt;</strong></code> — Nhóm câu hỏi <strong>chỉ cần hoán vị các đáp án</strong> (giữ nguyên câu hỏi).</div>
+                      <div><code><strong>&lt;g3&gt;</strong></code> — Nhóm câu hỏi <strong>cần hoán vị cả các câu hỏi và các đáp án</strong> (mặc định).</div>
+                      <div style="margin-top:3px;padding-top:6px;border-top:1px dashed var(--border);">
+                        • Khi cần <strong>cố định vị trí nhóm</strong>, thêm dấu <code><strong>#</strong></code> liền trước: <code><strong>&lt;#g0&gt;</strong></code>, <code><strong>&lt;#g1&gt;</strong></code>, <code><strong>&lt;#g2&gt;</strong></code> hoặc <code><strong>&lt;#g3&gt;</strong></code>.
+                      </div>
+                    </div>
+                  </div>
+
+                  <div style="padding:11px 14px;border-radius:10px;border:1px solid var(--primary-border);background:#f0fdfa;font-size:0.81rem;line-height:1.5;">
+                    <div style="font-weight:700;color:var(--primary);margin-bottom:4px;">✅ Tự động nhận diện 2 dạng đề chuẩn:</div>
+                    <div><strong>• Dạng 1:</strong> Đề TN gồm <strong>3 phần chuẩn 2025</strong> (Phần I: 4 đáp án · Phần II: Đúng/Sai · Phần III: Trả lời ngắn).</div>
+                    <div><strong>• Dạng 2:</strong> Đề TN gồm <strong>1 phần chỉ có 40 câu trắc nghiệm 4 đáp án</strong> (thang 10 điểm).</div>
+                  </div>
                 </div>
               </div>
+
+              ${
+                Array.isArray(wordMixer.sampleFiles) && wordMixer.sampleFiles.length
+                  ? `
+                    <div style="margin-bottom:14px;padding:12px 14px;border-radius:10px;border:1px solid var(--border);background:#fff;">
+                      <div style="font-size:0.82rem;font-weight:700;color:var(--text);margin-bottom:8px;">
+                        📁 Kho tệp trong thư mục <code>FILE ĐỀ MẪU</code> (${wordMixer.sampleFiles.length} tệp — bấm Nạp thử để trộn ngay hoặc Tải về tham khảo):
+                      </div>
+                      <div style="display:flex;flex-wrap:wrap;gap:8px;">
+                        ${wordMixer.sampleFiles
+                          .map((sf) => {
+                            const isLoadingThis = wordMixer.loadingSampleName === sf.filename;
+                            return `
+                              <div style="display:inline-flex;align-items:center;gap:6px;padding:6px 10px;border-radius:8px;border:1px solid var(--border);background:var(--surface-subtle);font-size:0.8rem;">
+                                <span style="font-weight:600;">📄 ${escapeHtml(sf.filename)}</span>
+                                <small style="color:var(--text-muted);">(${sf.size_kb} KB)</small>
+                                <button type="button" class="btn btn-primary btn-sm" style="padding:3px 8px;font-size:0.75rem;" data-load-sample-exam="${escapeHtml(sf.filename)}" ${wordMixer.loading ? "disabled" : ""}>
+                                  ${isLoadingThis ? "Đang nạp..." : "⚡ Nạp thử"}
+                                </button>
+                                <a class="btn btn-secondary btn-sm" style="padding:3px 8px;font-size:0.75rem;" href="${api.downloadExamMixerSampleUrl(sf.filename)}" target="_blank">⬇ Tải mẫu</a>
+                              </div>
+                            `;
+                          })
+                          .join("")}
+                      </div>
+                    </div>
+                  `
+                  : ""
+              }
 
               <div style="padding:16px;border:1.5px dashed var(--primary-border);border-radius:12px;background:var(--surface-tint);display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
                 <label class="btn btn-primary" style="cursor:pointer;">
@@ -481,17 +555,34 @@ export function mountTeacherDashboard(container, activeTopic, onTopicUpdated, sh
                     <div style="margin-top:14px;padding:14px 16px;border-radius:12px;border:1px solid var(--primary-border);background:#fff;">
                       <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:10px;">
                         <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+                          ${ws.exam_format_label ? `<span class="pill pill-primary">${escapeHtml(ws.exam_format_label)}</span>` : ""}
                           <span class="pill pill-green">Tổng ${ws.total_questions} câu · ${ws.max_score} điểm</span>
-                          <span class="pill pill-primary">Phần I (TN): ${ws.mcq_count} câu (${ws.mcq_keyed}/${ws.mcq_count} có ĐA)</span>
-                          <span class="pill pill-primary">Phần II (Đ/S): ${ws.tf_count} câu (${ws.tf_keyed}/${ws.tf_count} có ĐA)</span>
-                          <span class="pill pill-primary">Phần III (TLN): ${ws.sa_count} câu (${ws.sa_keyed}/${ws.sa_count} có ĐA)</span>
+                          ${ws.mcq_count ? `<span class="pill pill-muted">Phần I (TN): ${ws.mcq_count} câu (${ws.mcq_keyed}/${ws.mcq_count} có ĐA)</span>` : ""}
+                          ${ws.tf_count ? `<span class="pill pill-muted">Phần II (Đ/S): ${ws.tf_count} câu (${ws.tf_keyed}/${ws.tf_count} có ĐA)</span>` : ""}
+                          ${ws.sa_count ? `<span class="pill pill-muted">Phần III (TLN): ${ws.sa_count} câu (${ws.sa_keyed}/${ws.sa_count} có ĐA)</span>` : ""}
                           ${ws.images_count ? `<span class="pill pill-muted">${ws.images_count} hình ảnh</span>` : ""}
+                          ${ws.fixed_options_count ? `<span class="pill pill-amber">${ws.fixed_options_count} đáp án cố định (#)</span>` : ""}
                           ${ws.spelling_auto_fixed ? `<span class="pill pill-amber">Đã chuẩn hoá ${ws.spelling_auto_fixed} lỗi chính tả/thuật ngữ</span>` : ""}
                         </div>
                         <button type="button" class="btn btn-secondary btn-sm" id="btn-toggle-word-preview">
                           ${wordMixer.showPreview ? "Ẩn danh sách câu hỏi" : "👁 Xem trước câu hỏi & đáp án đã nhận diện"}
                         </button>
                       </div>
+                      ${
+                        Array.isArray(ws.groups_summary) && ws.groups_summary.length > 0
+                          ? `
+                            <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-bottom:8px;font-size:0.78rem;">
+                              <strong style="color:var(--text-secondary);">Nhóm trộn đã nhận diện:</strong>
+                              ${ws.groups_summary
+                                .map(
+                                  (g) =>
+                                    `<span class="pill pill-muted">${escapeHtml(g.part)} · <code>${escapeHtml(g.tag)}</code> (${g.count} câu)</span>`
+                                )
+                                .join("")}
+                            </div>
+                          `
+                          : ""
+                      }
 
                       ${
                         (wp.warnings || []).length
@@ -511,31 +602,40 @@ export function mountTeacherDashboard(container, activeTopic, onTopicUpdated, sh
                                 </thead>
                                 <tbody>
                                   ${(wc.mcq || [])
-                                    .map(
-                                      (q, idx) => `
+                                    .map((q, idx) => {
+                                      const fixedBadge = (q.fixed_options || []).length
+                                        ? `<span class="pill pill-amber" style="margin-left:4px;font-size:0.7rem;">Cố định ${(q.fixed_options || []).map((i) => `#${letters[i]}`).join(",")}</span>`
+                                        : "";
+                                      return `
                                       <tr>
-                                        <td><strong>Phần I · C${idx + 1}</strong></td>
+                                        <td>
+                                          <strong>${ws.exam_format === "format_1part_mcq" ? `Câu ${idx + 1}` : `Phần I · C${idx + 1}`}</strong>
+                                          ${q.group_tag ? `<br/><small style="color:var(--text-muted);"><code>${escapeHtml(q.group_tag)}</code></small>` : ""}
+                                        </td>
                                         <td style="font-size:0.82rem;">${formatBioHtml((q.question || "").slice(0, 180))}</td>
                                         <td>
                                           ${
                                             q.correct_index !== null && q.correct_index !== undefined
                                               ? `<span class="pill pill-green">Đáp án ${letters[q.correct_index] || "?"}</span>`
                                               : `<span class="pill pill-red">Chưa nhận diện</span>`
-                                          }
+                                          }${fixedBadge}
                                         </td>
                                       </tr>
-                                    `
-                                    )
+                                    `;
+                                    })
                                     .join("")}
                                   ${(wc.true_false || [])
                                     .map((q, idx) => {
                                       const stSummary = (q.statements || [])
-                                        .map((s) => `${s.key}-${s.answer === true ? "Đ" : s.answer === false ? "S" : "?"}`)
+                                        .map((s) => `${s.fixed ? "#" : ""}${s.key}-${s.answer === true ? "Đ" : s.answer === false ? "S" : "?"}`)
                                         .join(" · ");
                                       const allReady = (q.statements || []).every((s) => s.answer !== null && s.answer !== undefined);
                                       return `
                                         <tr>
-                                          <td><strong>Phần II · C${idx + 1}</strong></td>
+                                          <td>
+                                            <strong>Phần II · C${idx + 1}</strong>
+                                            ${q.group_tag ? `<br/><small style="color:var(--text-muted);"><code>${escapeHtml(q.group_tag)}</code></small>` : ""}
+                                          </td>
                                           <td style="font-size:0.82rem;">${formatBioHtml((q.question || q.stem || "").slice(0, 180))}</td>
                                           <td><span class="pill ${allReady ? "pill-green" : "pill-amber"}">${escapeHtml(stSummary)}</span></td>
                                         </tr>
@@ -546,7 +646,10 @@ export function mountTeacherDashboard(container, activeTopic, onTopicUpdated, sh
                                     .map(
                                       (q, idx) => `
                                       <tr>
-                                        <td><strong>Phần III · C${idx + 1}</strong></td>
+                                        <td>
+                                          <strong>Phần III · C${idx + 1}</strong>
+                                          ${q.group_tag ? `<br/><small style="color:var(--text-muted);"><code>${escapeHtml(q.group_tag)}</code></small>` : ""}
+                                        </td>
                                         <td style="font-size:0.82rem;">${formatBioHtml((q.question || "").slice(0, 180))}</td>
                                         <td>
                                           ${
@@ -2624,6 +2727,7 @@ export function mountTeacherDashboard(container, activeTopic, onTopicUpdated, sh
           syncWordConfig();
           wordMixer.file = file;
           wordMixer.loading = true;
+          wordMixer.loadingSampleName = "";
           wordMixer.parsed = null;
           wordMixer.result = null;
           render();
@@ -2631,7 +2735,7 @@ export function mountTeacherDashboard(container, activeTopic, onTopicUpdated, sh
             const res = await api.parseWordExamForMixer(file);
             wordMixer.parsed = res;
             showToast(
-              `Đã phân tích xong "${file.name}": ${res.stats?.total_questions || 0} câu (${res.stats?.mcq_count || 0} TN · ${res.stats?.tf_count || 0} Đ/S · ${res.stats?.sa_count || 0} TLN).`,
+              `Đã phân tích xong "${file.name}": ${res.stats?.total_questions || 0} câu (${res.stats?.exam_format_label || ""}).`,
               "success"
             );
           } catch (err) {
@@ -2642,6 +2746,33 @@ export function mountTeacherDashboard(container, activeTopic, onTopicUpdated, sh
             wordMixer.loading = false;
             render();
           }
+        });
+
+        container.querySelectorAll("[data-load-sample-exam]").forEach((btn) => {
+          btn.addEventListener("click", async () => {
+            const fname = btn.dataset.loadSampleExam;
+            if (!fname) return;
+            syncWordConfig();
+            wordMixer.loading = true;
+            wordMixer.loadingSampleName = fname;
+            wordMixer.parsed = null;
+            wordMixer.result = null;
+            render();
+            try {
+              const res = await api.loadExamMixerSample(fname);
+              wordMixer.parsed = res;
+              showToast(
+                `Đã nạp đề mẫu "${fname}": ${res.stats?.total_questions || 0} câu (${res.stats?.exam_format_label || ""}).`,
+                "success"
+              );
+            } catch (err) {
+              showToast(err.message, "error");
+            } finally {
+              wordMixer.loading = false;
+              wordMixer.loadingSampleName = "";
+              render();
+            }
+          });
         });
 
         container.querySelector("#btn-generate-word-exam")?.addEventListener("click", async () => {
@@ -3313,4 +3444,7 @@ export function mountTeacherDashboard(container, activeTopic, onTopicUpdated, sh
 
   render();
   loadOverview();
+  if (subtab === "exam_mixer" && examMixerMode === "word") {
+    ensureSampleExamsLoaded();
+  }
 }

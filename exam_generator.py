@@ -162,6 +162,62 @@ def _select_questions_by_matrix(
     return selected["mcq"], selected["true_false"], selected["short_answer"], actual_counts
 
 
+def _group_and_order_questions(items: List[Dict], rng: random.Random) -> List[Dict]:
+    """
+    Nhóm câu hỏi theo thẻ Young Mix (<g0>, <g1>, <g2>, <g3>, <#g0>, <#g1>, <#g2>, <#g3>):
+      - Nhóm có dấu '#' (<#g0>..<#g3>): cố định vị trí nhóm trong phần thi
+      - Nhóm không có '#': hoán vị thứ tự các nhóm với nhau
+      - Bên trong mỗi nhóm:
+          + g0: không trộn câu hỏi, không trộn đáp án
+          + g1: chỉ trộn thứ tự câu hỏi (giữ nguyên đáp án)
+          + g2: chỉ trộn thứ tự đáp án (giữ nguyên câu hỏi)
+          + g3: trộn cả câu hỏi lẫn đáp án (mặc định nếu không gắn thẻ)
+    """
+    if not items:
+        return []
+    groups: List[Dict] = []
+    for q in items:
+        gid = q.get("group_id") or "__default__"
+        mode = (q.get("shuffle_mode") or "g3").lower()
+        fixed = bool(q.get("group_fixed"))
+        if not groups or groups[-1]["id"] != gid:
+            groups.append({"id": gid, "mode": mode, "fixed": fixed, "items": []})
+        groups[-1]["items"].append(q)
+
+    # Hoán vị vị trí các nhóm không cố định (#)
+    unfixed_indices = [i for i, g in enumerate(groups) if not g["fixed"]]
+    if len(unfixed_indices) >= 2:
+        unfixed_objs = [groups[i] for i in unfixed_indices]
+        rng.shuffle(unfixed_objs)
+        for slot_idx, grp_obj in zip(unfixed_indices, unfixed_objs):
+            groups[slot_idx] = grp_obj
+
+    ordered: List[Dict] = []
+    for g in groups:
+        chunk = list(g["items"])
+        if g["mode"] in ("g1", "g3") and len(chunk) >= 2:
+            rng.shuffle(chunk)
+        ordered.extend(chunk)
+    return ordered
+
+
+def _shuffle_with_fixed_slots(seq: List, fixed_indices: List[int], rng: random.Random) -> List:
+    """Trộn danh sách nhưng giữ cố định nguyên vị trí các phần tử có dấu '#' (VD: #A., #D., #a))."""
+    n = len(seq)
+    if n < 2:
+        return list(seq)
+    fixed_set = {i for i in (fixed_indices or []) if 0 <= i < n}
+    movable_slots = [i for i in range(n) if i not in fixed_set]
+    if len(movable_slots) < 2:
+        return list(seq)
+    movable_vals = [seq[i] for i in movable_slots]
+    rng.shuffle(movable_vals)
+    out = list(seq)
+    for slot, val in zip(movable_slots, movable_vals):
+        out[slot] = val
+    return out
+
+
 def _shuffle_single_exam(
     mcqs: List[Dict],
     tfs: List[Dict],
@@ -169,21 +225,23 @@ def _shuffle_single_exam(
     exam_code: str,
     rng: random.Random,
 ) -> Dict:
-    """Trộn thứ tự câu hỏi và trộn phương án/ý cho 1 mã đề cụ thể."""
+    """Trộn thứ tự câu hỏi và trộn phương án/ý cho 1 mã đề theo đúng thẻ <g0>..<#g3> và cố định đáp án #A..#D."""
     shuffled_mcq = []
-    mcq_order = list(mcqs)
-    rng.shuffle(mcq_order)
+    mcq_order = _group_and_order_questions(mcqs, rng)
 
     for q in mcq_order:
+        mode = (q.get("shuffle_mode") or "g3").lower()
         opts = list(q.get("options") or [])
         indexed = list(enumerate(opts))
-        # Không trộn nếu đáp án có kiểu "Cả A và B" / "Tất cả đều đúng"
+        fixed_opts = list(q.get("fixed_options") or [])
+        # Không trộn đáp án nếu thuộc nhóm g0/g1 hoặc đáp án tham chiếu chéo ("Cả A và B" / "Tất cả đều đúng")
         has_ref = any(
             re.search(r"(cả\s*[a-d]|tất\s*cả\s*(?:các|đều))", o, re.IGNORECASE)
             for o in opts
         )
-        if not has_ref and len(indexed) >= 2:
-            rng.shuffle(indexed)
+        should_shuffle_opts = (mode in ("g2", "g3")) and (not has_ref) and len(indexed) >= 2
+        if should_shuffle_opts:
+            indexed = _shuffle_with_fixed_slots(indexed, fixed_opts, rng)
 
         orig_correct = q.get("correct_index")
         new_correct = None
@@ -206,14 +264,16 @@ def _shuffle_single_exam(
         )
 
     shuffled_tf = []
-    tf_order = list(tfs)
-    rng.shuffle(tf_order)
+    tf_order = _group_and_order_questions(tfs, rng)
     for q in tf_order:
-        stmts = list(q.get("statements") or [])
-        rng.shuffle(stmts)
+        mode = (q.get("shuffle_mode") or "g3").lower()
+        stmts = list(q.get("statements") or [])[:4]
+        fixed_stmt_slots = [i for i, st in enumerate(stmts) if st.get("fixed")]
+        if mode in ("g2", "g3") and len(stmts) >= 2:
+            stmts = _shuffle_with_fixed_slots(stmts, fixed_stmt_slots, rng)
         new_stmts = []
         ans_keys = {}
-        for idx, st in enumerate(stmts[:4]):
+        for idx, st in enumerate(stmts):
             k = "abcd"[idx]
             ans_val = st.get("answer")
             new_stmts.append({"key": k, "text": st.get("text", ""), "answer": ans_val})
@@ -231,8 +291,7 @@ def _shuffle_single_exam(
         )
 
     shuffled_sa = []
-    sa_order = list(sas)
-    rng.shuffle(sa_order)
+    sa_order = _group_and_order_questions(sas, rng)
     for q in sa_order:
         shuffled_sa.append(
             {
@@ -380,12 +439,16 @@ def build_exams_docx(exams: List[Dict], meta: Dict, actual_counts: Dict) -> byte
         p_info.paragraph_format.space_before = Pt(6)
         p_info.paragraph_format.space_after = Pt(8)
 
-        # PHẦN I: Trắc nghiệm 4 đáp án (0,25 điểm / câu)
+        # PHẦN I: Trắc nghiệm 4 đáp án (hỗ trợ cả Dạng 1 — 3 phần chuẩn 2025 & Dạng 2 — 1 phần 40 câu MCQ)
+        is_single_mcq_only = bool(ex["mcq"]) and not ex["true_false"] and not ex["short_answer"]
         if ex["mcq"]:
             p_sec1 = doc.add_paragraph()
-            r_s1 = p_sec1.add_run(
-                f"PHẦN I. Câu trắc nghiệm nhiều phương án lựa chọn ({len(ex['mcq'])} câu — mỗi câu trả lời đúng được 0,25 điểm)."
+            mcq_sec_title = (
+                f"CÂU HỎI TRẮC NGHIỆM KHÁCH QUAN ({len(ex['mcq'])} câu — mỗi câu trả lời đúng được 0,25 điểm)."
+                if is_single_mcq_only
+                else f"PHẦN I. Câu trắc nghiệm nhiều phương án lựa chọn ({len(ex['mcq'])} câu — mỗi câu trả lời đúng được 0,25 điểm)."
             )
+            r_s1 = p_sec1.add_run(mcq_sec_title)
             r_s1.bold = True
             p_sec1.paragraph_format.space_after = Pt(4)
 
@@ -595,12 +658,14 @@ def build_answer_keys_xlsx(exams: List[Dict], meta: Dict, actual_counts: Dict) -
             if q.get("explanation"):
                 s5_rows.append([ex["code"], "Phần III (TLN)", f"Câu {i}", q.get("answer", ""), q["explanation"]])
 
-    sheets = [
-        ("Dap an 4 dap an", s1_rows),
-        ("Dap an Dung Sai", s2_rows),
-        ("Dap an Tra loi ngan", s3_rows),
-        ("Thong tin va Ma tran", s4_rows),
-    ]
+    sheets = []
+    if max_mcq > 0:
+        sheets.append(("Dap an 4 dap an", s1_rows))
+    if max_tf > 0:
+        sheets.append(("Dap an Dung Sai", s2_rows))
+    if max_sa > 0:
+        sheets.append(("Dap an Tra loi ngan", s3_rows))
+    sheets.append(("Thong tin va Ma tran", s4_rows))
     if len(s5_rows) > 1:
         sheets.append(("Giai chi tiet", s5_rows))
 
