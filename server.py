@@ -53,7 +53,13 @@ from database import (
     verify_password,
 )
 from cache_layer import app_cache
-from exam_generator import build_exam_pool_summary, generate_shuffled_exam_package
+from content_standardizer import apply_answer_pdf_to_topic, discover_reference_pdfs, standardize_topic_content
+from exam_generator import (
+    build_exam_pool_summary,
+    generate_shuffled_exam_from_content,
+    generate_shuffled_exam_package,
+    normalize_exam_codes,
+)
 from importer import build_sample_docx_template, cleanup_topic_uploads, parse_document_to_topic
 from mock_exam_parser import (
     compute_exam_max_score,
@@ -782,6 +788,20 @@ class Bio12Handler(BaseHTTPRequestHandler):
                     return
                 return self.send_json(200, {"ok": True, "cache": app_cache.stats()})
 
+            if path == "/api/staff/reference-status":
+                staff = self.require_teacher(conn, qs)
+                if not staff:
+                    return
+                refs = discover_reference_pdfs()
+                return self.send_json(
+                    200,
+                    {
+                        "ok": True,
+                        "sgk_pdfs": [os.path.basename(p) for p in refs["sgk_pdfs"]],
+                        "answer_pdfs": [os.path.basename(p) for p in refs["answer_pdfs"]],
+                    },
+                )
+
             m_ex_dl = re.match(r"^/api/admin/exam-download/([a-zA-Z0-9_-]+)/(docx|xlsx)$", path)
             if m_ex_dl:
                 teacher = self.require_teacher(conn, qs)
@@ -1215,6 +1235,10 @@ class Bio12Handler(BaseHTTPRequestHandler):
             meta, file_bytes = self._parse_upload_request(qs)
             return self._handle_parse_mock_exam_file(meta, file_bytes, qs)
 
+        if path == "/api/staff/exam-mixer/parse-docx":
+            meta, file_bytes = self._parse_upload_request(qs)
+            return self._handle_parse_word_exam_for_mixer(meta, file_bytes, qs)
+
         m_imp = re.match(r"^/api/topics/([a-zA-Z0-9_-]+)/import-file$", path)
         if m_imp:
             meta, file_bytes = self._parse_upload_request(qs)
@@ -1250,6 +1274,40 @@ class Bio12Handler(BaseHTTPRequestHandler):
             return self.send_json(400, {"error": f"Lỗi khi phân tích đề thi: {e}"})
 
         return self.send_json(200, {"ok": True, **parsed})
+
+    def _handle_parse_word_exam_for_mixer(self, body, file_bytes: bytes, qs):
+        """Phân tích file Word (.docx) đề kiểm tra để Quản trị viên / Giáo viên trộn đề (nhận diện gạch chân, A., Giải chi tiết)."""
+        filename = (body.get("filename") or "").strip()
+        if not filename or not file_bytes:
+            return self.send_json(400, {"error": "Vui lòng chọn tệp đề kiểm tra Word (.docx)."})
+        ext = os.path.splitext(filename)[1].lower()
+        if ext != ".docx":
+            return self.send_json(400, {"error": "Tính năng trộn đề kiểm tra hỗ trợ tệp định dạng Word (.docx)."})
+
+        conn = get_conn()
+        try:
+            staff = self.require_teacher(conn, qs, body)
+            if not staff:
+                return
+        finally:
+            conn.close()
+
+        try:
+            parsed = parse_mock_exam_document(file_bytes, filename, next_order_number=1)
+        except Exception as e:
+            return self.send_json(400, {"error": f"Lỗi khi đọc & phân tích file Word: {e}"})
+
+        return self.send_json(
+            200,
+            {
+                "ok": True,
+                "source_filename": filename,
+                "content": parsed["draft"]["content"],
+                "stats": parsed["stats"],
+                "warnings": parsed.get("warnings") or [],
+                "spelling_report": parsed.get("spelling_report") or {},
+            },
+        )
 
     def _handle_preview_new_topic_file(self, body, file_bytes: bytes, qs):
         filename = (body.get("filename") or "").strip()
@@ -1842,6 +1900,12 @@ class Bio12Handler(BaseHTTPRequestHandler):
                 topic_obj.setdefault("youtube_videos", [])
                 topic_obj.setdefault("review", {"mcq": [], "true_false": [], "short_answer": []})
 
+                # Chuẩn hoá lại chính tả & công thức trước khi xuất bản
+                try:
+                    standardize_topic_content(topic_obj)
+                except Exception:
+                    pass
+
                 ts = now_iso()
                 upsert_topic(
                     conn,
@@ -1908,44 +1972,100 @@ class Bio12Handler(BaseHTTPRequestHandler):
                     {"ok": True, "cache": app_cache.stats(), "message": "Đã làm mới toàn bộ bộ nhớ đệm (Cache)!"},
                 )
 
-            # Admin: Trộn đề trắc nghiệm theo Ma trận 3x3 & xuất Word (.docx) + Excel (.xlsx)
+            # Admin: Đối chiếu & khớp đáp án từ file PDF "Đáp án" vào bản nháp Chủ đề mới
+            if path == "/api/topics/apply-answer-pdf":
+                admin = self.require_admin(conn, qs, body)
+                if not admin:
+                    return
+                topic_obj = body.get("topic")
+                pdf_b64 = body.get("pdf_base64") or ""
+                pdf_name = (body.get("pdf_filename") or "dap-an.pdf").strip()
+                if not isinstance(topic_obj, dict) or not pdf_b64:
+                    return self.send_json(400, {"error": "Thiếu dữ liệu Chủ đề hoặc tệp PDF Đáp án."})
+                try:
+                    pdf_bytes = base64.b64decode(pdf_b64)
+                    report = apply_answer_pdf_to_topic(topic_obj, pdf_bytes, pdf_name)
+                except Exception as e:
+                    return self.send_json(400, {"error": f"Không thể đọc file PDF Đáp án: {e}"})
+                rev = topic_obj.get("review") or {}
+                return self.send_json(
+                    200,
+                    {
+                        "ok": True,
+                        "topic": topic_obj,
+                        "report": report,
+                        "keyed_counts": {
+                            "mcq_keyed": sum(1 for q in (rev.get("mcq") or []) if q.get("answer_key_ready")),
+                            "true_false_keyed": sum(1 for q in (rev.get("true_false") or []) if q.get("answer_key_ready")),
+                            "short_answer_keyed": sum(1 for q in (rev.get("short_answer") or []) if q.get("answer_key_ready")),
+                        },
+                        "message": f"Đã đối chiếu '{pdf_name}': khớp thêm {report['total_matched']} đáp án (TN: {report['matched_mcq']}, Đ/S: {report['matched_tf']}, TLN: {report['matched_sa']}).",
+                    },
+                )
+
+            # Admin & Teacher: Trộn đề kiểm tra từ file Word (.docx) & xuất Word (.docx) + Excel (.xlsx)
+            if path == "/api/staff/exam-mixer/generate-from-docx":
+                staff = self.require_teacher(conn, qs, body)
+                if not staff:
+                    return
+                content = body.get("content")
+                if not isinstance(content, dict):
+                    return self.send_json(400, {"error": "Thiếu nội dung câu hỏi từ file Word để trộn đề."})
+                exam_count = max(1, min(30, int(body.get("exam_count") or 4)))
+                codes = normalize_exam_codes(body.get("exam_codes") or [], exam_count, default_start=1001)
+
+                meta = {
+                    "school_name": (body.get("school_name") or staff["school_name"] or "TRƯỜNG THPT").strip(),
+                    "exam_period": (body.get("exam_period") or body.get("title") or "KIỂM TRA ĐỊNH KÌ").strip(),
+                    "school_year": (body.get("school_year") or "2026 - 2027").strip(),
+                    "subject": (body.get("subject") or "Sinh học 12").strip(),
+                    "duration_minutes": max(5, min(180, int(body.get("duration_minutes") or 45))),
+                }
+                meta["title"] = meta["exam_period"]
+
+                try:
+                    pkg = generate_shuffled_exam_from_content(content, codes, meta)
+                except Exception as e:
+                    return self.send_json(400, {"error": str(e)})
+
+                job_id = secrets.token_urlsafe(12)
+                stamp = now_vn().strftime("%Y%m%d-%H%M")
+                EXAM_EXPORTS[job_id] = {
+                    "docx": pkg["docx_bytes"],
+                    "xlsx": pkg["xlsx_bytes"],
+                    "filename_base": f"de-tron-sinhhoc12-{stamp}",
+                    "created_at": now_iso(),
+                }
+                if len(EXAM_EXPORTS) > 20:
+                    oldest_key = next(iter(EXAM_EXPORTS.keys()))
+                    EXAM_EXPORTS.pop(oldest_key, None)
+
+                return self.send_json(
+                    200,
+                    {
+                        "ok": True,
+                        "job_id": job_id,
+                        "summary": pkg["summary"],
+                    },
+                )
+
+            # Admin & Teacher: Trộn đề trắc nghiệm theo Ma trận 3x3 & xuất Word (.docx) + Excel (.xlsx)
             if path == "/api/admin/generate-exam":
                 teacher = self.require_teacher(conn, qs, body)
                 if not teacher:
                     return
                 selected_lesson_ids = body.get("selected_lesson_ids") or []
                 matrix = body.get("matrix") or {}
-                exam_count = max(1, min(30, int(body.get("exam_count") or 1)))
-                raw_codes = body.get("exam_codes") or []
-                if isinstance(raw_codes, str):
-                    raw_codes = [c.strip() for c in re.split(r"[,;\s]+", raw_codes) if c.strip()]
-                else:
-                    raw_codes = [str(c).strip() for c in raw_codes if str(c).strip()]
-
-                # Đồng bộ danh sách mã đề với số lượng đề trộn
-                codes = []
-                if raw_codes:
-                    codes = list(raw_codes[:exam_count])
-                    if len(codes) < exam_count:
-                        last_code = codes[-1]
-                        if last_code.isdigit():
-                            base_num = int(last_code)
-                            width = len(last_code)
-                            while len(codes) < exam_count:
-                                base_num += 1
-                                codes.append(str(base_num).zfill(width))
-                        else:
-                            idx = 1
-                            while len(codes) < exam_count:
-                                codes.append(f"{last_code}-{idx}")
-                                idx += 1
-                else:
-                    codes = [str(101 + i) for i in range(exam_count)]
+                exam_count = max(1, min(30, int(body.get("exam_count") or 4)))
+                codes = normalize_exam_codes(body.get("exam_codes") or [], exam_count, default_start=1001)
 
                 meta = {
-                    "title": (body.get("title") or "ĐỀ KIỂM TRA MÔN SINH HỌC 12").strip(),
+                    "title": (body.get("exam_period") or body.get("title") or "ĐỀ KIỂM TRA MÔN SINH HỌC 12").strip(),
+                    "exam_period": (body.get("exam_period") or body.get("title") or "KIỂM TRA ĐỊNH KÌ").strip(),
                     "school_name": (body.get("school_name") or teacher["school_name"] or "TRƯỜNG THPT").strip(),
-                    "duration_minutes": max(5, min(180, int(body.get("duration_minutes") or 50))),
+                    "school_year": (body.get("school_year") or "2026 - 2027").strip(),
+                    "subject": (body.get("subject") or "Sinh học 12").strip(),
+                    "duration_minutes": max(5, min(180, int(body.get("duration_minutes") or 45))),
                 }
 
                 rows = conn.execute("SELECT content_json FROM topics ORDER BY order_index ASC").fetchall()

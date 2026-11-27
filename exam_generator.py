@@ -10,6 +10,7 @@ Bộ trộn đề trắc nghiệm theo Ma trận 3x3 (3 dạng câu hỏi x 3 m�
 - Xuất file Đề trộn dạng Word (.docx) kèm đầy đủ hình ảnh & bảng biểu
 - Xuất file Đáp án dạng Excel (.xlsx chuẩn OOXML nhiều sheet, mở thẳng bằng Microsoft Excel không lỗi font)
 """
+import base64
 import io
 import os
 import random
@@ -42,20 +43,50 @@ LEVEL_LABELS = {
 
 
 def format_short_answer_4chars(ans_list: List[str]) -> str:
-    """Chuẩn hóa đáp án trả lời ngắn về giá trị số tối đa 4 ký tự (số, dấu âm, dấu phẩy)."""
+    """Chuẩn hóa đáp án trả lời ngắn (giữ chính xác giá trị số, chuẩn dấu phẩy thập phân)."""
     if not ans_list:
         return ""
     raw = str(ans_list[0]).strip().replace(".", ",")
-    # Giữ số, dấu âm, dấu phẩy (nếu dạng phân số a/b thì tính sang số thập phân 2 chữ số)
+    # Nếu dạng phân số a/b thì tính sang số thập phân gọn
     m_frac = re.match(r"^(-?\d+)\s*/\s*(\d+)$", raw)
     if m_frac and int(m_frac.group(2)) != 0:
         val = int(m_frac.group(1)) / int(m_frac.group(2))
         s = f"{val:.2f}".rstrip("0").rstrip(".").replace(".", ",")
-        return s[:4]
+        return s
     cleaned = re.sub(r"[^0-9,\-]", "", raw)
     if cleaned:
-        return cleaned[:4]
-    return raw[:4]
+        return cleaned
+    return raw
+
+
+def normalize_exam_codes(raw_codes, exam_count: int, default_start: int = 1001) -> List[str]:
+    """Chuẩn hoá danh sách mã đề (mặc định 4 chữ số: 1001, 1002, 1003, 1004...) khớp đúng số lượng đề trộn."""
+    count = max(1, min(30, int(exam_count or 1)))
+    if isinstance(raw_codes, str):
+        parsed = [c.strip() for c in re.split(r"[,;\s]+", raw_codes) if c.strip()]
+    elif isinstance(raw_codes, list):
+        parsed = [str(c).strip() for c in raw_codes if str(c).strip()]
+    else:
+        parsed = []
+
+    if not parsed:
+        return [str(default_start + i).zfill(4) for i in range(count)]
+
+    codes = list(parsed[:count])
+    if len(codes) < count:
+        last_code = codes[-1]
+        if last_code.isdigit():
+            base_num = int(last_code)
+            width = max(4, len(last_code))
+            while len(codes) < count:
+                base_num += 1
+                codes.append(str(base_num).zfill(width))
+        else:
+            idx = 1
+            while len(codes) < count:
+                codes.append(f"{last_code}-{idx}")
+                idx += 1
+    return codes
 
 
 def _pick_from_pool(pool: List[Dict], count: int, rng: random.Random) -> List[Dict]:
@@ -169,6 +200,7 @@ def _shuffle_single_exam(
                 "tables": q.get("tables") or [],
                 "options": new_opts,
                 "correct_letter": "ABCD"[new_correct] if new_correct is not None and new_correct < 4 else "",
+                "explanation": q.get("explanation", ""),
                 "level": LEVEL_LABELS.get(q.get("cognitive_level", ""), ""),
             }
         )
@@ -188,11 +220,12 @@ def _shuffle_single_exam(
             ans_keys[k] = "Đ" if ans_val is True else ("S" if ans_val is False else "")
         shuffled_tf.append(
             {
-                "stem": q.get("stem", ""),
+                "stem": q.get("stem") or q.get("question") or "",
                 "images": q.get("images") or [],
                 "tables": q.get("tables") or [],
                 "statements": new_stmts,
                 "ans_keys": ans_keys,
+                "explanation": q.get("explanation", ""),
                 "level": LEVEL_LABELS.get(q.get("cognitive_level", ""), ""),
             }
         )
@@ -207,6 +240,7 @@ def _shuffle_single_exam(
                 "images": q.get("images") or [],
                 "tables": q.get("tables") or [],
                 "answer": format_short_answer_4chars(q.get("accepted_answers") or []),
+                "explanation": q.get("explanation", ""),
                 "level": LEVEL_LABELS.get(q.get("cognitive_level", ""), ""),
             }
         )
@@ -221,7 +255,24 @@ def _shuffle_single_exam(
 
 def _add_question_media_to_docx(doc, images: List[str], tables: List[List[List[str]]]):
     for img_url in images or []:
-        rel = img_url.lstrip("/")
+        if not img_url:
+            continue
+        # Hỗ trợ ảnh Data URL nhúng từ file Word upload (data:image/png;base64,...)
+        if isinstance(img_url, str) and img_url.startswith("data:image/"):
+            try:
+                _, b64_part = img_url.split(",", 1)
+                raw_img = base64.b64decode(b64_part)
+                if raw_img:
+                    p = doc.add_paragraph()
+                    p.alignment = WD_ALIGN_PARAGRAPH.CENTER
+                    p.paragraph_format.space_before = Pt(2)
+                    p.paragraph_format.space_after = Pt(4)
+                    p.add_run().add_picture(io.BytesIO(raw_img), width=Inches(4.3))
+            except Exception:
+                pass
+            continue
+
+        rel = str(img_url).lstrip("/")
         if rel.startswith("sinhhoc12/"):
             rel = rel[len("sinhhoc12/") :]
         fpath = ""
@@ -281,35 +332,45 @@ def build_exams_docx(exams: List[Dict], meta: Dict, actual_counts: Dict) -> byte
     normal_style.font.name = "Times New Roman"
     normal_style.font.size = Pt(12)
 
-    exam_title = meta.get("title") or "ĐỀ KIỂM TRA MÔN SINH HỌC 12"
-    school_name = meta.get("school_name") or "TRƯỜNG THPT"
-    duration_min = int(meta.get("duration_minutes") or 50)
+    exam_period = (meta.get("exam_period") or meta.get("title") or "KIỂM TRA ĐỊNH KÌ").strip()
+    school_name = (meta.get("school_name") or "TRƯỜNG THPT").strip()
+    school_year = (meta.get("school_year") or "2026 - 2027").strip()
+    subject = (meta.get("subject") or "Sinh học 12").strip()
+    duration_min = int(meta.get("duration_minutes") or 45)
 
     for e_idx, ex in enumerate(exams):
         if e_idx > 0:
             doc.add_page_break()
 
-        # Header bảng 2 cột: Trường & Tiêu đề kỳ thi + Mã đề
+        total_q_in_ex = len(ex["mcq"]) + len(ex["true_false"]) + len(ex["short_answer"])
+
+        # Header bảng 2 cột chuẩn: Trường / Năm học | Kỳ kiểm tra / Môn / Thời gian / Mã đề 4 số
         hdr_tbl = doc.add_table(rows=1, cols=2)
         hdr_tbl.autofit = True
         c0, c1 = hdr_tbl.rows[0].cells[0], hdr_tbl.rows[0].cells[1]
 
         p0 = c0.paragraphs[0]
         p0.alignment = WD_ALIGN_PARAGRAPH.CENTER
-        r0 = p0.add_run(f"{school_name.upper()}\n")
+        r0 = p0.add_run(f"Trường: {school_name}\n")
         r0.bold = True
         r0.font.size = Pt(11)
-        r0b = p0.add_run("TỔ SINH HỌC\n(Đề thi gồm nhiều trang)")
+        r0y = p0.add_run(f"Năm học: {school_year}\n")
+        r0y.bold = True
+        r0y.font.size = Pt(10.5)
+        r0b = p0.add_run(f"(Đề kiểm tra gồm {total_q_in_ex} câu)")
         r0b.italic = True
         r0b.font.size = Pt(10)
 
         p1 = c1.paragraphs[0]
         p1.alignment = WD_ALIGN_PARAGRAPH.CENTER
-        r1 = p1.add_run(f"{exam_title.upper()}\n")
+        r1 = p1.add_run(f"Kỳ kiểm tra: {exam_period}\n")
         r1.bold = True
-        r1.font.size = Pt(12)
-        r1b = p1.add_run(f"Môn: Sinh học 12 — Thời gian làm bài: {duration_min} phút\n")
-        r1b.font.size = Pt(11)
+        r1.font.size = Pt(11.5)
+        r1m = p1.add_run(f"Môn: {subject}\n")
+        r1m.bold = True
+        r1m.font.size = Pt(11)
+        r1t = p1.add_run(f"Thời gian: {duration_min} phút\n")
+        r1t.font.size = Pt(10.5)
         r1c = p1.add_run(f"MÃ ĐỀ: {ex['code']}")
         r1c.bold = True
         r1c.font.size = Pt(12)
@@ -480,14 +541,21 @@ def build_answer_keys_xlsx(exams: List[Dict], meta: Dict, actual_counts: Dict) -
             row.append(ex["short_answer"][i]["answer"] if i < len(ex["short_answer"]) else "")
         s3_rows.append(row)
 
-    # Sheet 4: Ma trận đề & Thang điểm
-    mcq_n = sum(actual_counts["mcq"].values())
-    tf_n = sum(actual_counts["true_false"].values())
-    sa_n = sum(actual_counts["short_answer"].values())
+    # Sheet 4: Thông tin đề & Ma trận
+    mcq_n = max((len(ex["mcq"]) for ex in exams), default=0)
+    tf_n = max((len(ex["true_false"]) for ex in exams), default=0)
+    sa_n = max((len(ex["short_answer"]) for ex in exams), default=0)
     total_pts = round(mcq_n * 0.25 + tf_n * 1.0 + sa_n * 0.25, 2)
 
     s4_rows = [
-        ["Mức độ \\ Dạng câu hỏi", "Trắc nghiệm 4 đáp án (0,25đ)", "Trắc nghiệm Đúng/Sai (1,0đ)", "Trả lời ngắn (0,25đ)", "Tổng số câu"],
+        ["Thông tin kỳ kiểm tra", "Nội dung chi tiết", "", "Thống kê đề trộn", "Giá trị"],
+        ["Trường", meta.get("school_name") or "TRƯỜNG THPT", "", "Số lượng đề trộn", len(exams)],
+        ["Kỳ kiểm tra", meta.get("exam_period") or meta.get("title") or "Kiểm tra định kì", "", "Danh sách Mã đề", ", ".join(codes)],
+        ["Năm học", meta.get("school_year") or "2026 - 2027", "", "Tổng số câu", mcq_n + tf_n + sa_n],
+        ["Môn", meta.get("subject") or "Sinh học 12", "", "Thang điểm tổng", f"{total_pts:.2f}"],
+        ["Thời gian", f"{int(meta.get('duration_minutes') or 45)} phút", "", "Ngày xuất (giờ VN)", datetime.now(VN_TZ).strftime("%d/%m/%Y %H:%M")],
+        ["", "", "", "", ""],
+        ["Mức độ \\ Dạng câu hỏi", "Phần I - 4 đáp án (0,25đ)", "Phần II - Đúng/Sai (1,0đ)", "Phần III - Trả lời ngắn (0,25đ)", "Tổng số câu"],
         [
             "Nhận biết",
             actual_counts["mcq"]["nhan_biet"],
@@ -511,17 +579,30 @@ def build_answer_keys_xlsx(exams: List[Dict], meta: Dict, actual_counts: Dict) -
         ],
         ["Tổng số câu", mcq_n, tf_n, sa_n, mcq_n + tf_n + sa_n],
         ["Tổng điểm phần", f"{mcq_n * 0.25:.2f}", f"{tf_n * 1.0:.2f}", f"{sa_n * 0.25:.2f}", f"{total_pts:.2f}"],
-        ["", "", "", "", ""],
-        ["Kỳ kiểm tra", meta.get("title") or "Đề kiểm tra Sinh học 12", "", "Số lượng đề", len(exams)],
-        ["Danh sách Mã đề", ", ".join(codes), "", "Ngày xuất", datetime.now(VN_TZ).strftime("%d/%m/%Y %H:%M")],
     ]
+
+    # Sheet 5 (tuỳ chọn): Giải chi tiết cho từng mã đề nếu đề gốc có phần "Giải chi tiết"
+    s5_rows = [["Mã đề", "Phần", "Câu", "Đáp án đúng", "Giải chi tiết"]]
+    for ex in exams:
+        for i, q in enumerate(ex["mcq"], 1):
+            if q.get("explanation"):
+                s5_rows.append([ex["code"], "Phần I (TN)", f"Câu {i}", q.get("correct_letter", ""), q["explanation"]])
+        for i, q in enumerate(ex["true_false"], 1):
+            if q.get("explanation"):
+                ak = " | ".join(f"{k}-{q['ans_keys'].get(k, '')}" for k in ("a", "b", "c", "d"))
+                s5_rows.append([ex["code"], "Phần II (Đ/S)", f"Câu {i}", ak, q["explanation"]])
+        for i, q in enumerate(ex["short_answer"], 1):
+            if q.get("explanation"):
+                s5_rows.append([ex["code"], "Phần III (TLN)", f"Câu {i}", q.get("answer", ""), q["explanation"]])
 
     sheets = [
         ("Dap an 4 dap an", s1_rows),
         ("Dap an Dung Sai", s2_rows),
         ("Dap an Tra loi ngan", s3_rows),
-        ("Ma tran de", s4_rows),
+        ("Thong tin va Ma tran", s4_rows),
     ]
+    if len(s5_rows) > 1:
+        sheets.append(("Giai chi tiet", s5_rows))
 
     content_types = [
         '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>',
@@ -676,7 +757,7 @@ def generate_shuffled_exam_package(
     if not mcqs and not tfs and not sas:
         raise ValueError("Không có câu hỏi nào phù hợp với các bài học và ma trận đã nhập.")
 
-    codes = [c.strip() for c in exam_codes if c.strip()] or ["101"]
+    codes = [c.strip() for c in exam_codes if c.strip()] or ["1001"]
     exams = [_shuffle_single_exam(mcqs, tfs, sas, code, rng) for code in codes]
 
     docx_bytes = build_exams_docx(exams, meta, actual_counts)
@@ -698,5 +779,60 @@ def generate_shuffled_exam_package(
             "short_answer_count": sa_n,
             "max_score": max_score,
             "actual_counts": actual_counts,
+        },
+    }
+
+
+def generate_shuffled_exam_from_content(
+    content: Dict,
+    exam_codes: List[str],
+    meta: Dict,
+) -> Dict:
+    """
+    Trộn đề trực tiếp từ nội dung đề gốc (file Word .docx đã nhận diện đáp án thông minh:
+    gạch chân cho Phần I & II, sau 'A.' cho Phần III, sau 'Giải chi tiết' cho gợi ý).
+    Xuất trọn bộ file đề trộn (.docx) + file đáp án Excel (.xlsx).
+    """
+    mcqs = list((content or {}).get("mcq") or [])
+    tfs = list((content or {}).get("true_false") or [])
+    sas = list((content or {}).get("short_answer") or [])
+
+    if not mcqs and not tfs and not sas:
+        raise ValueError("File Word chưa có câu hỏi nào để trộn đề.")
+
+    rng = random.Random()
+    codes = [c.strip() for c in exam_codes if c.strip()] or ["1001"]
+    exams = [_shuffle_single_exam(mcqs, tfs, sas, code, rng) for code in codes]
+
+    actual_counts = {
+        "mcq": {"nhan_biet": len(mcqs), "thong_hieu": 0, "van_dung": 0},
+        "true_false": {"nhan_biet": len(tfs), "thong_hieu": 0, "van_dung": 0},
+        "short_answer": {"nhan_biet": len(sas), "thong_hieu": 0, "van_dung": 0},
+    }
+
+    docx_bytes = build_exams_docx(exams, meta, actual_counts)
+    xlsx_bytes = build_answer_keys_xlsx(exams, meta, actual_counts)
+
+    mcq_n = len(mcqs)
+    tf_n = len(tfs)
+    sa_n = len(sas)
+    max_score = round(mcq_n * 0.25 + tf_n * 1.0 + sa_n * 0.25, 2)
+
+    return {
+        "docx_bytes": docx_bytes,
+        "xlsx_bytes": xlsx_bytes,
+        "summary": {
+            "exam_count": len(exams),
+            "exam_codes": codes,
+            "mcq_count": mcq_n,
+            "true_false_count": tf_n,
+            "short_answer_count": sa_n,
+            "max_score": max_score,
+            "actual_counts": actual_counts,
+            "school_name": meta.get("school_name", ""),
+            "exam_period": meta.get("exam_period", ""),
+            "school_year": meta.get("school_year", ""),
+            "subject": meta.get("subject", ""),
+            "duration_minutes": meta.get("duration_minutes", 45),
         },
     }
