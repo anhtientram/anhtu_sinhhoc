@@ -129,7 +129,7 @@ SPELLING_FIX_RULES: List[Tuple[str, str]] = [
     (r"\bphương\s+phap\b", "phương pháp"),
     (r"\bứng\s+dung\b", "ứng dụng"),
     (r"\bcông\s+nghê\b", "công nghệ"),
-    # Chuẩn hoá thuật ngữ GDPT 2018 (SGK Sinh học 12 mới)
+    # Chuẩn hoá thuật ngữ GDPT 2018 (SGK Sinh học 10–12 mới)
     (r"\bADN\b", "DNA"),
     (r"\bARN\b", "RNA"),
     (r"\bmARN\b", "mRNA"),
@@ -139,15 +139,53 @@ SPELLING_FIX_RULES: List[Tuple[str, str]] = [
     (r"\bnucleotit\b", "nucleotide"),
     (r"\bpôlinuclêôtit\b", "polynucleotide"),
     (r"\bpolinucleotit\b", "polynucleotide"),
+    (r"\bpôlipeptit\b", "polypeptide"),
+    (r"\bpolipeptit\b", "polypeptide"),
     (r"\baxit\s+amin\b", "amino acid"),
+    (r"\baxit\s+nuclêic\b", "nucleic acid"),
+    (r"\baxit\s+nucleic\b", "nucleic acid"),
+    (r"\baxit\s+piruvic\b", "pyruvic acid"),
+    (r"\baxit\s+pyruvic\b", "pyruvic acid"),
+    (r"\baxit\s+lactic\b", "lactic acid"),
     (r"\bribôxôm\b", "ribosome"),
+    (r"\bribôxom\b", "ribosome"),
     (r"\benzim\b", "enzyme"),
     (r"\bprôtêin\b", "protein"),
+    (r"\bhoocmôn\b", "hormone"),
+    (r"\bhoocmon\b", "hormone"),
+    (r"\bcôđon\b", "codon"),
+    (r"\bcôđôn\b", "codon"),
+    (r"\banticôđon\b", "anticodon"),
+    (r"\banticôđôn\b", "anticodon"),
+    (r"\bôpêron\b", "operon"),
+    (r"\bopêron\b", "operon"),
+    (r"\bOpreron\b", "Operon"),
+    (r"\bprômôtơ\b", "promoter"),
+    (r"\btilacôit\b", "thylakoid"),
+    (r"\btilacoit\b", "thylakoid"),
+    (r"\bclorôphin\b", "chlorophyll"),
+    (r"\bclorophin\b", "chlorophyll"),
+    (r"\bcarôtenôit\b", "carotenoid"),
+    (r"\bcarotenoit\b", "carotenoid"),
+    (r"\bglucôzơ\b", "glucose"),
+    (r"\bglucozơ\b", "glucose"),
+    (r"\bfructôzơ\b", "fructose"),
+    (r"\bsaccarôzơ\b", "saccharose"),
+    (r"\blactôzơ\b", "lactose"),
+    (r"\bcacbohiđrat\b", "carbohydrate"),
+    (r"\bcacbohydrat\b", "carbohydrate"),
+    (r"\blipit\b", "lipid"),
     (r"\bhiđrô\b", "hydrogen"),
     (r"\bhiđro\b", "hydrogen"),
-    (r"\bôxi\b", "oxygen"),
+    (r"\bôxi\b(?!\s*h[oóò]a)", "oxygen"),
+    (r"\bnitơ\b", "nitrogen"),
+    (r"\bcacbon\b", "carbon"),
+    (r"\bphôtpho\b", "phosphorus"),
     (r"\balen\b", "allele"),
     (r"\bgen\b", "gene"),
+    (r"\bthành\s+dảy\b", "thành dày"),
+    (r"\bcường\s+độ\s+anh\s+sáng\b", "cường độ ánh sáng"),
+    (r"\bthoát\s+rA\b", "thoát ra"),
 ]
 
 COMPILED_SPELLING_RULES = [(re.compile(pat, re.IGNORECASE), repl) for pat, repl in SPELLING_FIX_RULES]
@@ -480,9 +518,22 @@ def standardize_exam_content(content: Dict[str, Any]) -> Dict[str, Any]:
         all_texts.append(cleaned)
         return cleaned
 
+    def fix_stem_blocks(q_obj: Dict[str, Any], tag: str):
+        for blk in q_obj.get("stem_blocks") or []:
+            if blk.get("type") == "text" and isinstance(blk.get("text"), str):
+                blk["text"] = fix_field(blk["text"], tag)
+            elif blk.get("type") == "table" and isinstance(blk.get("rows"), list):
+                blk["rows"] = [[fix_field(c, f"{tag} - Bảng") for c in row] for row in blk["rows"]]
+        if isinstance(q_obj.get("tables"), list):
+            q_obj["tables"] = [
+                [[fix_field(c, f"{tag} - Bảng") for c in row] for row in tbl]
+                for tbl in q_obj["tables"]
+            ]
+
     for i, q in enumerate(content.get("mcq") or [], 1):
         tag = f"Phần I - Câu {i}"
         q["question"] = fix_field(q.get("question", ""), tag)
+        fix_stem_blocks(q, tag)
         if isinstance(q.get("options"), list):
             q["options"] = [fix_field(o, tag) for o in q["options"]]
         if q.get("explanation"):
@@ -492,6 +543,7 @@ def standardize_exam_content(content: Dict[str, Any]) -> Dict[str, Any]:
         tag = f"Phần II - Câu {i}"
         key_name = "stem" if "stem" in q else "question"
         q[key_name] = fix_field(q.get(key_name, ""), tag)
+        fix_stem_blocks(q, tag)
         for st in q.get("statements") or []:
             st["text"] = fix_field(st.get("text", ""), tag)
         if q.get("explanation"):
@@ -500,6 +552,7 @@ def standardize_exam_content(content: Dict[str, Any]) -> Dict[str, Any]:
     for i, q in enumerate(content.get("short_answer") or [], 1):
         tag = f"Phần III - Câu {i}"
         q["question"] = fix_field(q.get("question", ""), tag)
+        fix_stem_blocks(q, tag)
         if q.get("explanation"):
             q["explanation"] = fix_field(q["explanation"], f"{tag} - Giải chi tiết")
 

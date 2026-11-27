@@ -15,14 +15,26 @@ Tính năng:
 
 import base64
 import io
+import json
 import os
 import posixpath
 import re
+import subprocess
+import sys
+import tempfile
 import xml.etree.ElementTree as ET
 import zipfile
 from typing import Any, Dict, List, Optional, Tuple
 
 from importer import _clean, _detect_image_ext, _local_tag, _omml_to_text, _safe_zip_read
+
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+CROP_BIN = os.path.join(BASE_DIR, "tools", "crop_img_bin")
+
+try:
+    from PIL import Image as _PILImage
+except ImportError:
+    _PILImage = None
 
 try:
     from pypdf import PdfReader
@@ -84,6 +96,101 @@ def _blob_to_data_url(blob: bytes, fallback_ext: str = ".png") -> Optional[str]:
     mime = _mime_from_ext(ext)
     b64 = base64.b64encode(blob).decode("ascii")
     return f"data:{mime};base64,{b64}"
+
+
+def _extract_exact_word_image_blob(
+    blob: bytes,
+    ext: str,
+    l: int = 0,
+    t: int = 0,
+    r: int = 0,
+    b: int = 0,
+    rot: int = 0,
+) -> Tuple[bytes, str]:
+    """
+    Chỉ lấy đúng phần hình ảnh hiển thị trong file Word:
+      - Nếu ảnh gốc trong Word KHÔNG đặt vùng cắt (<a:srcRect> = 0) -> giữ nguyên 100% ảnh gốc, tuyệt đối không tự cắt ảnh.
+      - Nếu ảnh trong Word có đặt sẵn <a:srcRect l t r b> (tránh dính chữ chụp màn hình thừa ngoài khung ảnh) -> trích đúng vùng hiển thị của Word.
+    """
+    if not blob:
+        return blob, ext
+    cl = max(0, int(l or 0))
+    ct = max(0, int(t or 0))
+    cr = max(0, int(r or 0))
+    cb = max(0, int(b or 0))
+    crot = int(rot or 0) % 360
+
+    if cl + cr >= 98000 or ct + cb >= 98000:
+        cl = ct = cr = cb = 0
+    if cl == 0 and ct == 0 and cr == 0 and cb == 0 and crot == 0:
+        return blob, ext
+
+    # 1. Ưu tiên Pillow trên RAM (đa nền tảng)
+    if _PILImage is not None:
+        try:
+            im = _PILImage.open(io.BytesIO(blob))
+            w, h = im.size
+            if w > 1 and h > 1:
+                left = max(0, min(w - 1, int(round(w * cl / 100000.0))))
+                top = max(0, min(h - 1, int(round(h * ct / 100000.0))))
+                right = max(left + 1, min(w, int(round(w * (1.0 - cr / 100000.0)))))
+                bottom = max(top + 1, min(h, int(round(h * (1.0 - cb / 100000.0)))))
+                if left > 0 or top > 0 or right < w or bottom < h:
+                    im = im.crop((left, top, right, bottom))
+                if crot != 0:
+                    im = im.rotate(-crot, expand=True)
+                out_buf = io.BytesIO()
+                out_ext = ".png" if (ext == ".png" or im.mode in ("RGBA", "LA", "P")) else ".jpg"
+                if out_ext == ".jpg" and im.mode not in ("RGB", "L"):
+                    im = im.convert("RGB")
+                im.save(out_buf, format=("PNG" if out_ext == ".png" else "JPEG"))
+                cropped = out_buf.getvalue()
+                if cropped and len(cropped) >= 120:
+                    return cropped, out_ext
+        except Exception:
+            pass
+
+    # 2. Dự phòng macOS CoreGraphics (tools/crop_img_bin)
+    if sys.platform == "darwin" and os.path.exists(CROP_BIN):
+        try:
+            with tempfile.TemporaryDirectory(prefix="sh12_crop_") as tmp_dir:
+                det_ext = _detect_image_ext(blob, ext or ".png") or ".png"
+                src_path = os.path.join(tmp_dir, f"src{det_ext}")
+                out_ext = ".png" if det_ext == ".png" else ".jpg"
+                dst_path = os.path.join(tmp_dir, f"dst{out_ext}")
+                jobs_path = os.path.join(tmp_dir, "jobs.json")
+                with open(src_path, "wb") as sf:
+                    sf.write(blob)
+                with open(jobs_path, "w", encoding="utf-8") as jf:
+                    json.dump(
+                        [{"src": src_path, "dst": dst_path, "l": cl, "t": ct, "r": cr, "b": cb, "rot": crot}],
+                        jf,
+                    )
+                subprocess.run([CROP_BIN, jobs_path], check=False, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                if os.path.isfile(dst_path):
+                    with open(dst_path, "rb") as df:
+                        cropped = df.read()
+                    if cropped and len(cropped) >= 120:
+                        return cropped, out_ext
+        except Exception:
+            pass
+
+    return blob, ext
+
+
+def _run_vert_align(run_el) -> str:
+    """Đọc thuộc tính chỉ số dưới / chỉ số trên (<w:vertAlign w:val='subscript|superscript'/>) của run Word."""
+    for ch in run_el:
+        if _local_tag(ch) == "rPr":
+            for prop in ch:
+                if _local_tag(prop) == "vertAlign":
+                    for k, v in prop.attrib.items():
+                        if k.endswith("}val") or k == "val":
+                            vv = (v or "").strip().lower()
+                            if vv in ("subscript", "superscript"):
+                                return vv
+            break
+    return ""
 
 
 def _is_highlight_color(color_val: str) -> bool:
@@ -157,10 +264,11 @@ def _run_has_answer_mark(run_el) -> bool:
 
 
 def _extract_docx_elements(file_bytes: bytes) -> List[Dict[str, Any]]:
-    """Đọc toàn bộ đoạn văn + bảng + ảnh nhúng (dạng data URL) + dấu đáp án từ file .docx."""
+    """Đọc toàn bộ đoạn văn + bảng (kèm colspan/vMerge) + ảnh đúng khung hiển thị Word + chỉ số sub/sup + dấu đáp án từ file .docx."""
     elements: List[Dict[str, Any]] = []
     rid_to_target: Dict[str, Tuple[str, str]] = {}
-    rid_to_data_url: Dict[str, Optional[str]] = {}
+    rid_raw_blobs: Dict[str, Tuple[Optional[bytes], str]] = {}
+    cropped_img_cache: Dict[Tuple[str, int, int, int, int, int], Optional[str]] = {}
 
     with zipfile.ZipFile(io.BytesIO(file_bytes)) as zf:
         names = set(zf.namelist())
@@ -187,16 +295,104 @@ def _extract_docx_elements(file_bytes: bytes) -> List[Dict[str, Any]]:
                         ext = os.path.splitext(clean_target)[1].lower() or ".png"
                         rid_to_target[rid] = (clean_target, ext)
 
-        def get_img_url(rid: str) -> Optional[str]:
-            if rid in rid_to_data_url:
-                return rid_to_data_url[rid]
+        def get_img_url(
+            rid: str,
+            l: int = 0,
+            t: int = 0,
+            r: int = 0,
+            b: int = 0,
+            rot: int = 0,
+        ) -> Optional[str]:
+            key = (rid, int(l or 0), int(t or 0), int(r or 0), int(b or 0), int(rot or 0) % 360)
+            if key in cropped_img_cache:
+                return cropped_img_cache[key]
             if rid not in rid_to_target:
+                cropped_img_cache[key] = None
                 return None
-            target, ext = rid_to_target[rid]
-            blob = _safe_zip_read(zf, target)
-            url = _blob_to_data_url(blob, ext) if blob else None
-            rid_to_data_url[rid] = url
+            if rid not in rid_raw_blobs:
+                target, ext = rid_to_target[rid]
+                rid_raw_blobs[rid] = (_safe_zip_read(zf, target), ext)
+            blob, ext = rid_raw_blobs[rid]
+            if not blob:
+                cropped_img_cache[key] = None
+                return None
+            out_blob, out_ext = _extract_exact_word_image_blob(blob, ext, key[1], key[2], key[3], key[4], key[5])
+            url = _blob_to_data_url(out_blob, out_ext)
+            cropped_img_cache[key] = url
             return url
+
+        def extract_run_images(run_el) -> List[Dict[str, Any]]:
+            """Trích xuất đúng ảnh trong <w:r>, bỏ qua <mc:Fallback>, tôn trọng <a:srcRect>, <a:xfrm rot> và <wp:extent>."""
+            found: List[Dict[str, Any]] = []
+            seen_urls = set()
+
+            def walk(el, width_in: Optional[float], rot_deg: int):
+                lt = _local_tag(el)
+                if lt == "Fallback":
+                    return
+                if lt in ("inline", "anchor"):
+                    for ch in el:
+                        if _local_tag(ch) == "extent":
+                            try:
+                                cx = int(ch.attrib.get("cx") or 0)
+                                if cx > 0:
+                                    width_in = round(cx / 914400.0, 2)
+                            except Exception:
+                                pass
+                            break
+                elif lt == "pic":
+                    for sp in el:
+                        if _local_tag(sp) == "spPr":
+                            for x in sp:
+                                if _local_tag(x) == "xfrm":
+                                    raw_rot = x.attrib.get("rot")
+                                    if raw_rot:
+                                        try:
+                                            rot_deg = int(round(int(raw_rot) / 60000.0)) % 360
+                                        except Exception:
+                                            pass
+                elif lt == "blipFill":
+                    rid = ""
+                    l = t = r = b = 0
+                    for ch in el:
+                        clt = _local_tag(ch)
+                        if clt == "blip":
+                            for ak, av in ch.attrib.items():
+                                if ak == "embed" or ak.endswith("}embed"):
+                                    rid = av
+                                    break
+                        elif clt == "srcRect":
+                            try:
+                                l = int(ch.attrib.get("l") or 0)
+                                t = int(ch.attrib.get("t") or 0)
+                                r = int(ch.attrib.get("r") or 0)
+                                b = int(ch.attrib.get("b") or 0)
+                            except Exception:
+                                l = t = r = b = 0
+                    if rid:
+                        u = get_img_url(rid, l, t, r, b, rot_deg)
+                        if u and u not in seen_urls:
+                            seen_urls.add(u)
+                            found.append({"src": u, "width_inches": width_in})
+                    return
+                elif lt == "imagedata":
+                    rid = ""
+                    for ak, av in el.attrib.items():
+                        if ak == "id" or ak.endswith("}id"):
+                            rid = av
+                            break
+                    if rid:
+                        u = get_img_url(rid)
+                        if u and u not in seen_urls:
+                            seen_urls.add(u)
+                            found.append({"src": u, "width_inches": width_in})
+                    return
+
+                for ch in el:
+                    walk(ch, width_in, rot_deg)
+
+            walk(run_el, None, 0)
+            return found
 
         def parse_paragraph(p_el) -> Dict[str, Any]:
             parts: List[str] = []
@@ -204,6 +400,9 @@ def _extract_docx_elements(file_bytes: bytes) -> List[Dict[str, Any]]:
             underlined_segments: List[str] = []
             red_segments: List[str] = []
             imgs: List[str] = []
+            image_items: List[Dict[str, Any]] = []
+            seen_text_before_img = False
+            image_before_text = False
 
             for node in p_el:
                 nt = _local_tag(node)
@@ -211,11 +410,11 @@ def _extract_docx_elements(file_bytes: bytes) -> List[Dict[str, Any]]:
                     run_texts: List[str] = []
                     is_u = _run_is_underlined(node)
                     is_marked = is_u or _run_has_answer_mark(node)
+                    vert = _run_vert_align(node)
                     is_red = False
                     if not is_u and is_marked:
                         is_red = True
                     else:
-                        # Kiểm tra thêm màu đỏ trực tiếp ngay cả khi vừa gạch chân vừa tô đỏ
                         for ch_r in node:
                             if _local_tag(ch_r) == "rPr":
                                 for prop in ch_r:
@@ -227,30 +426,53 @@ def _extract_docx_elements(file_bytes: bytes) -> List[Dict[str, Any]]:
                                                 break
                                         if _is_highlight_color(cval):
                                             is_red = True
-                    for sub in node.iter():
-                        st = _local_tag(sub)
-                        if st == "t" and sub.text:
-                            run_texts.append(sub.text)
+
+                    def _collect_run_text(el):
+                        st = _local_tag(el)
+                        if st == "Fallback":
+                            return
+                        if st == "t" and el.text:
+                            run_texts.append(el.text)
                         elif st == "tab":
                             run_texts.append(" ")
                         elif st == "br":
                             run_texts.append("\n")
-                        elif st == "blip":
-                            # Bỏ qua ảnh lặp trong mc:Fallback
-                            for k, v in sub.attrib.items():
-                                if k.endswith("}embed") or k == "embed":
-                                    u = get_img_url(v)
-                                    if u and u not in imgs:
-                                        imgs.append(u)
-                        elif st == "imagedata":
-                            for k, v in sub.attrib.items():
-                                if k.endswith("}id") or k == "id":
-                                    u = get_img_url(v)
-                                    if u and u not in imgs:
-                                        imgs.append(u)
+                        else:
+                            for ch in el:
+                                _collect_run_text(ch)
+
+                    _collect_run_text(node)
+
+                    run_img_list = extract_run_images(node)
+                    if run_img_list:
+                        if not seen_text_before_img and not "".join(run_texts).strip() and not imgs:
+                            image_before_text = True
+                        for im_obj in run_img_list:
+                            u = im_obj["src"]
+                            if u not in imgs:
+                                imgs.append(u)
+                                image_items.append(im_obj)
+
                     rtxt = "".join(run_texts)
                     if rtxt:
-                        parts.append(rtxt)
+                        if rtxt.strip():
+                            seen_text_before_img = True
+                        formatted_rtxt = rtxt
+                        core = rtxt.strip()
+                        if (
+                            vert in ("subscript", "superscript")
+                            and core
+                            and len(core) <= 12
+                            and "\n" not in core
+                            and not re.match(r"^#?[A-D][\.\)]$", core)
+                        ):
+                            lead_len = len(rtxt) - len(rtxt.lstrip(" \t"))
+                            trail_len = len(rtxt) - len(rtxt.rstrip(" \t"))
+                            lead = rtxt[:lead_len]
+                            trail = rtxt[len(rtxt) - trail_len :] if trail_len > 0 else ""
+                            marker = "_" if vert == "subscript" else "^"
+                            formatted_rtxt = f"{lead}{marker}{{{core}}}{trail}"
+                        parts.append(formatted_rtxt)
                         if is_marked:
                             marked_segments.append(rtxt)
                         if is_u:
@@ -260,13 +482,17 @@ def _extract_docx_elements(file_bytes: bytes) -> List[Dict[str, Any]]:
                 elif nt in ("oMath", "oMathPara"):
                     om = _omml_to_text(node)
                     if om:
+                        seen_text_before_img = True
                         parts.append(om)
                 elif nt == "hyperlink":
                     for sub in node.iter():
                         if _local_tag(sub) == "t" and sub.text:
+                            seen_text_before_img = True
                             parts.append(sub.text)
 
             raw_text = "".join(parts)
+            raw_text = re.sub(r"\}_\{", "", raw_text)
+            raw_text = re.sub(r"\}\^\{", "", raw_text)
             text = "\n".join(_clean(ln) for ln in raw_text.splitlines() if _clean(ln))
 
             def _extract_mcq_letters(segs: List[str]) -> List[str]:
@@ -274,7 +500,6 @@ def _extract_docx_elements(file_bytes: bytes) -> List[Dict[str, Any]]:
                 if not segs:
                     return out
                 joined = "".join(segs)
-                # Bắt cả dạng "A.", "#A.", "B)", "#B."
                 for m in re.finditer(r"(?:^|\s)#?([A-D])\s*[\.\)]", joined):
                     lt = m.group(1)
                     if lt not in out:
@@ -303,7 +528,6 @@ def _extract_docx_elements(file_bytes: bytes) -> List[Dict[str, Any]]:
             red_letters = _extract_mcq_letters(red_segments)
             marked_letters = underlined_letters or red_letters or _extract_mcq_letters(marked_segments)
 
-            # Kiểm tra nhãn ý Phần II (a), b), c), d) hoặc #a)...) có được gạch chân (<w:u>) hay tô đỏ không
             tf_underlined = False
             tf_red = False
             m_tf_line = re.match(r"^\s*#?([a-d])\s*[\)\.]", text, re.IGNORECASE)
@@ -322,6 +546,8 @@ def _extract_docx_elements(file_bytes: bytes) -> List[Dict[str, Any]]:
                 "type": "paragraph",
                 "text": text,
                 "images": imgs,
+                "image_items": image_items,
+                "image_before_text": image_before_text,
                 "underlined_letters": underlined_letters,
                 "red_letters": red_letters,
                 "marked_letters": marked_letters,
@@ -332,27 +558,57 @@ def _extract_docx_elements(file_bytes: bytes) -> List[Dict[str, Any]]:
 
         def parse_table(tbl_el) -> Dict[str, Any]:
             rows: List[List[str]] = []
+            spans: List[List[Dict[str, Any]]] = []
             imgs: List[str] = []
+            image_items: List[Dict[str, Any]] = []
             for tr in tbl_el:
                 if _local_tag(tr) != "tr":
                     continue
                 row: List[str] = []
+                row_spans: List[Dict[str, Any]] = []
                 for tc in tr:
                     if _local_tag(tc) != "tc":
                         continue
+                    colspan = 1
+                    vmerge = ""
+                    for ch in tc:
+                        if _local_tag(ch) == "tcPr":
+                            for tp in ch:
+                                tpt = _local_tag(tp)
+                                if tpt == "gridSpan":
+                                    for k, v in tp.attrib.items():
+                                        if k.endswith("}val") or k == "val":
+                                            try:
+                                                colspan = max(1, int(v))
+                                            except Exception:
+                                                colspan = 1
+                                elif tpt == "vMerge":
+                                    vm_val = ""
+                                    for k, v in tp.attrib.items():
+                                        if k.endswith("}val") or k == "val":
+                                            vm_val = (v or "").strip().lower()
+                                    vmerge = "restart" if vm_val == "restart" else "continue"
+                            break
                     cell_lines: List[str] = []
                     for ch in tc:
                         if _local_tag(ch) == "p":
                             p = parse_paragraph(ch)
                             if p["text"]:
                                 cell_lines.append(p["text"])
-                            for im in p["images"]:
-                                if im not in imgs:
-                                    imgs.append(im)
-                    row.append("\n".join(cell_lines).strip())
-                if any(c for c in row):
+                            for im_obj in p.get("image_items") or []:
+                                if im_obj["src"] not in imgs:
+                                    imgs.append(im_obj["src"])
+                                    image_items.append(im_obj)
+                    cell_txt = "\n".join(cell_lines).strip()
+                    row.append(cell_txt)
+                    row_spans.append({"colspan": colspan, "vmerge": vmerge})
+                    for _ in range(colspan - 1):
+                        row.append("")
+                        row_spans.append({"colspan": 0, "vmerge": ""})
+                if any(c for c in row) or any(sp.get("vmerge") for sp in row_spans):
                     rows.append(row)
-            return {"type": "table", "rows": rows, "images": imgs}
+                    spans.append(row_spans)
+            return {"type": "table", "rows": rows, "spans": spans, "images": imgs, "image_items": image_items}
 
         if "word/document.xml" not in names:
             raise ValueError("File Word (.docx) không hợp lệ: thiếu word/document.xml.")
@@ -876,18 +1132,53 @@ def parse_mock_exam_document(
             sa_list.append(cur_q)
         cur_q = None
 
+    def _append_stem_text(q_obj: Dict[str, Any], txt_str: str):
+        for ln in (txt_str or "").splitlines():
+            cl = ln.strip()
+            if cl:
+                q_obj["stem_blocks"].append({"type": "text", "text": cl})
+
+    def _append_stem_images(q_obj: Dict[str, Any], img_items_list: List[Dict[str, Any]], img_urls_list: List[str], add_to_blocks: bool = True):
+        items_norm = list(img_items_list or [])
+        if not items_norm and img_urls_list:
+            items_norm = [{"src": u, "width_inches": None} for u in img_urls_list]
+        existing_block_imgs = {
+            b.get("src") for b in q_obj.get("stem_blocks") or [] if b.get("type") == "image"
+        }
+        for im_obj in items_norm:
+            u = im_obj.get("src")
+            if not u:
+                continue
+            w_in = im_obj.get("width_inches")
+            if w_in is not None:
+                q_obj["image_widths"][u] = w_in
+            if u not in q_obj["images"]:
+                q_obj["images"].append(u)
+            if add_to_blocks and u not in existing_block_imgs:
+                q_obj["stem_blocks"].append({"type": "image", "src": u, "width_inches": w_in})
+                existing_block_imgs.add(u)
+
     for el in body_elements:
         if el["type"] == "table":
-            if cur_q is not None:
+            if cur_q is not None and not in_explanation:
                 if el.get("rows"):
                     cur_q["tables"].append(el["rows"])
-                for im in el.get("images", []):
-                    if im not in cur_q["images"]:
-                        cur_q["images"].append(im)
+                    tbl_blk: Dict[str, Any] = {"type": "table", "rows": el["rows"]}
+                    if el.get("spans"):
+                        tbl_blk["spans"] = el["spans"]
+                    cur_q["stem_blocks"].append(tbl_blk)
+                _append_stem_images(
+                    cur_q,
+                    el.get("image_items") or [],
+                    el.get("images") or [],
+                    add_to_blocks=True,
+                )
             continue
 
         txt = el.get("text", "")
         imgs = el.get("images", [])
+        img_items = el.get("image_items") or [{"src": u, "width_inches": None} for u in imgs]
+        img_before_text = bool(el.get("image_before_text"))
         marked_letters = el.get("marked_letters", [])
 
         # Nhận diện thẻ nhóm trộn <g0>, <g1>, <g2>, <g3>, <#g0>, <#g1>, <#g2>, <#g3>
@@ -937,8 +1228,10 @@ def parse_mock_exam_document(
                 "group_fixed": cur_group["fixed"],
                 "group_tag": cur_group["tag"],
                 "question": "",
-                "images": list(imgs),
+                "images": [],
+                "image_widths": {},
                 "tables": [],
+                "stem_blocks": [],
                 "options": [],
                 "fixed_options": [],
                 "correct_index": None,
@@ -949,6 +1242,9 @@ def parse_mock_exam_document(
             if cur_part == "mcq" and rest:
                 prefix, opts = _split_inline_options(rest)
                 cur_q["question"] = prefix
+                if prefix:
+                    _append_stem_text(cur_q, prefix)
+                _append_stem_images(cur_q, img_items, imgs, add_to_blocks=True)
                 for lt, otxt, is_fixed in opts:
                     idx = LETTER_TO_IDX[lt]
                     while len(cur_q["options"]) <= idx:
@@ -960,16 +1256,23 @@ def parse_mock_exam_document(
                     cur_q["correct_index"] = LETTER_TO_IDX.get(marked_letters[0])
             else:
                 cur_q["question"] = rest
+                if rest:
+                    _append_stem_text(cur_q, rest)
+                _append_stem_images(cur_q, img_items, imgs, add_to_blocks=True)
             continue
 
         if cur_q is None:
             continue
 
-        # Gắn ảnh rời rạc vào câu hỏi hiện tại
-        for im in imgs:
-            if im not in cur_q["images"]:
-                cur_q["images"].append(im)
+        # Đoạn chỉ chứa hình ảnh (không có chữ)
         if not txt:
+            if not in_explanation:
+                in_stem = (
+                    (cur_q["_type"] == "mcq" and not cur_q["options"])
+                    or (cur_q["_type"] == "true_false" and not cur_q["statements"])
+                    or (cur_q["_type"] == "short_answer")
+                )
+                _append_stem_images(cur_q, img_items, imgs, add_to_blocks=in_stem)
             continue
 
         # Dòng giải thích / hướng dẫn giải chi tiết ngay dưới câu hỏi
@@ -1013,7 +1316,6 @@ def parse_mock_exam_document(
 
         if in_explanation:
             cur_q["explanation"] = (cur_q["explanation"] + "\n" + txt).strip()
-            # Nếu trong lời giải chi tiết có ghi "Chọn A" / "a) Đúng" / "Đáp số: 8" mà câu chưa có key -> tự bắt luôn
             if cur_q["_type"] == "mcq" and cur_q.get("correct_index") is None:
                 mp = re.search(r"(?:Chọn|Đáp\s*án(?:\s*đúng)?)\s*[:\s]*([A-D])\b", txt, re.IGNORECASE)
                 if mp:
@@ -1045,8 +1347,16 @@ def parse_mock_exam_document(
                 if prefix:
                     if not cur_q["options"]:
                         cur_q["question"] = (cur_q["question"] + "\n" + prefix).strip()
+                        if img_before_text and img_items:
+                            _append_stem_images(cur_q, img_items, imgs, add_to_blocks=True)
+                        _append_stem_text(cur_q, prefix)
+                        if not img_before_text and img_items:
+                            _append_stem_images(cur_q, img_items, imgs, add_to_blocks=True)
                     else:
                         cur_q["options"][-1] = (cur_q["options"][-1] + " " + prefix).strip()
+                        _append_stem_images(cur_q, img_items, imgs, add_to_blocks=False)
+                else:
+                    _append_stem_images(cur_q, img_items, imgs, add_to_blocks=(not cur_q["options"]))
                 for lt, otxt, is_fixed in opts:
                     idx = LETTER_TO_IDX[lt]
                     while len(cur_q["options"]) <= idx:
@@ -1059,8 +1369,14 @@ def parse_mock_exam_document(
             else:
                 if cur_q["options"]:
                     cur_q["options"][-1] = (cur_q["options"][-1] + " " + txt).strip()
+                    _append_stem_images(cur_q, img_items, imgs, add_to_blocks=False)
                 else:
                     cur_q["question"] = (cur_q["question"] + "\n" + txt).strip()
+                    if img_before_text and img_items:
+                        _append_stem_images(cur_q, img_items, imgs, add_to_blocks=True)
+                    _append_stem_text(cur_q, txt)
+                    if not img_before_text and img_items:
+                        _append_stem_images(cur_q, img_items, imgs, add_to_blocks=True)
 
         elif cur_q["_type"] == "true_false":
             m_st = RE_STMT_START.match(txt)
@@ -1068,7 +1384,6 @@ def parse_mock_exam_document(
                 is_fixed_st = bool(m_st.group(1))
                 key = m_st.group(2).lower()
                 st_text = m_st.group(3).strip()
-                # Kiểm tra xem cuối mệnh đề có ghi sẵn (Đúng)/(Sai) không
                 st_ans = None
                 m_tail = re.search(r"[\(\[]\s*(Đúng|Sai|Đ|S)\s*[\)\]]\s*$", st_text, re.IGNORECASE)
                 if m_tail:
@@ -1082,14 +1397,20 @@ def parse_mock_exam_document(
                     "_underlined": bool(el.get("tf_underlined")),
                     "_red": bool(el.get("tf_red")),
                 })
+                _append_stem_images(cur_q, img_items, imgs, add_to_blocks=False)
             else:
                 if cur_q["statements"]:
                     cur_q["statements"][-1]["text"] = (cur_q["statements"][-1]["text"] + " " + txt).strip()
+                    _append_stem_images(cur_q, img_items, imgs, add_to_blocks=False)
                 else:
                     cur_q["question"] = (cur_q["question"] + "\n" + txt).strip()
+                    if img_before_text and img_items:
+                        _append_stem_images(cur_q, img_items, imgs, add_to_blocks=True)
+                    _append_stem_text(cur_q, txt)
+                    if not img_before_text and img_items:
+                        _append_stem_images(cur_q, img_items, imgs, add_to_blocks=True)
 
         else:  # short_answer
-            # Quy ước chuẩn: Trả lời ngắn ghi đáp án sau từ "A." (VD: "A. 12,5" hoặc "A. 4. Giải chi tiết: ...")
             m_sa_a = RE_SA_PREFIX_A.match(txt)
             if m_sa_a:
                 raw_a = m_sa_a.group(1).strip()
@@ -1114,10 +1435,14 @@ def parse_mock_exam_document(
                         acc.append(v_clean.replace(".", ","))
                     cur_q["accepted_answers"] = acc
                 continue
-            # Bỏ dòng "Đáp số: ...." rỗng
             if re.match(r"^(?:Đáp\s*số|Đáp\s*án)\s*[:\-–]?\s*[…\.\-_]+$", txt, re.IGNORECASE):
                 continue
             cur_q["question"] = (cur_q["question"] + "\n" + txt).strip()
+            if img_before_text and img_items:
+                _append_stem_images(cur_q, img_items, imgs, add_to_blocks=True)
+            _append_stem_text(cur_q, txt)
+            if not img_before_text and img_items:
+                _append_stem_images(cur_q, img_items, imgs, add_to_blocks=True)
 
     finalize_current()
 

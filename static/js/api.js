@@ -412,6 +412,11 @@ export const api = {
     return withBase(`/api/admin/exam-download/${encodeURIComponent(jobId)}/${encodeURIComponent(fmt)}?token=${token}`);
   },
 
+  adminExamIndividualFileUrl: (jobId, filename) => {
+    const token = encodeURIComponent(getToken());
+    return withBase(`/api/admin/exam-download/${encodeURIComponent(jobId)}/file?name=${encodeURIComponent(filename)}&token=${token}`);
+  },
+
   staffReferenceStatus: () => apiRequest("/api/staff/reference-status"),
 
   applyAnswerPdfToDraftTopic: (payload) =>

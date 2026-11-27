@@ -905,7 +905,7 @@ class Bio12Handler(BaseHTTPRequestHandler):
                 self._safe_write(raw_bytes)
                 return
 
-            m_ex_dl = re.match(r"^/api/admin/exam-download/([a-zA-Z0-9_-]+)/(docx|xlsx)$", path)
+            m_ex_dl = re.match(r"^/api/admin/exam-download/([a-zA-Z0-9_-]+)/(zip|docx|xlsx|file)$", path)
             if m_ex_dl:
                 teacher = self.require_teacher(conn, qs)
                 if not teacher:
@@ -914,11 +914,29 @@ class Bio12Handler(BaseHTTPRequestHandler):
                 pkg = EXAM_EXPORTS.get(job_id)
                 if not pkg:
                     return self.send_json(404, {"error": "File đề trộn đã hết hạn, vui lòng nhấn Tạo & Trộn đề lại."})
-                raw_bytes = pkg[fmt]
-                if fmt == "docx":
+                if fmt == "zip":
+                    raw_bytes = pkg.get("zip")
+                    if not raw_bytes:
+                        return self.send_json(404, {"error": "Không tìm thấy gói nén (.zip), vui lòng trộn lại đề."})
+                    ctype = "application/zip"
+                    fname = f"{pkg['filename_base']}-tron-bo.zip"
+                elif fmt == "file":
+                    req_name = (qs.get("name", [""])[0] or "").strip()
+                    indiv = pkg.get("individual_files") or {}
+                    if not req_name or req_name not in indiv:
+                        return self.send_json(404, {"error": "Không tìm thấy tệp đề yêu cầu."})
+                    raw_bytes = indiv[req_name]
+                    if req_name.lower().endswith(".xlsx"):
+                        ctype = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                    else:
+                        ctype = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                    fname = req_name
+                elif fmt == "docx":
+                    raw_bytes = pkg["docx"]
                     ctype = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
                     fname = f"{pkg['filename_base']}-de-tron.docx"
                 else:
+                    raw_bytes = pkg["xlsx"]
                     ctype = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
                     fname = f"{pkg['filename_base']}-dap-an.xlsx"
                 self.send_response(200)
@@ -2156,10 +2174,10 @@ class Bio12Handler(BaseHTTPRequestHandler):
                 codes = normalize_exam_codes(body.get("exam_codes") or [], exam_count, default_start=1001)
 
                 meta = {
-                    "school_name": (body.get("school_name") or staff["school_name"] or "TRƯỜNG THPT").strip(),
+                    "school_name": (body.get("school_name") or "").strip(),
                     "exam_period": (body.get("exam_period") or body.get("title") or "KIỂM TRA ĐỊNH KÌ").strip(),
                     "school_year": (body.get("school_year") or "2026 - 2027").strip(),
-                    "subject": (body.get("subject") or "Sinh học 12").strip(),
+                    "subject": (body.get("subject") or "").strip(),
                     "duration_minutes": max(5, min(180, int(body.get("duration_minutes") or 45))),
                 }
                 meta["title"] = meta["exam_period"]
@@ -2172,8 +2190,10 @@ class Bio12Handler(BaseHTTPRequestHandler):
                 job_id = secrets.token_urlsafe(12)
                 stamp = now_vn().strftime("%Y%m%d-%H%M")
                 EXAM_EXPORTS[job_id] = {
+                    "zip": pkg["zip_bytes"],
                     "docx": pkg["docx_bytes"],
                     "xlsx": pkg["xlsx_bytes"],
+                    "individual_files": pkg.get("individual_files") or {},
                     "filename_base": f"de-tron-sinhhoc12-{stamp}",
                     "created_at": now_iso(),
                 }
@@ -2201,11 +2221,11 @@ class Bio12Handler(BaseHTTPRequestHandler):
                 codes = normalize_exam_codes(body.get("exam_codes") or [], exam_count, default_start=1001)
 
                 meta = {
-                    "title": (body.get("exam_period") or body.get("title") or "ĐỀ KIỂM TRA MÔN SINH HỌC 12").strip(),
+                    "title": (body.get("exam_period") or body.get("title") or "KIỂM TRA ĐỊNH KÌ").strip(),
                     "exam_period": (body.get("exam_period") or body.get("title") or "KIỂM TRA ĐỊNH KÌ").strip(),
-                    "school_name": (body.get("school_name") or teacher["school_name"] or "TRƯỜNG THPT").strip(),
+                    "school_name": (body.get("school_name") or "").strip(),
                     "school_year": (body.get("school_year") or "2026 - 2027").strip(),
-                    "subject": (body.get("subject") or "Sinh học 12").strip(),
+                    "subject": (body.get("subject") or "").strip(),
                     "duration_minutes": max(5, min(180, int(body.get("duration_minutes") or 45))),
                 }
 
@@ -2226,8 +2246,10 @@ class Bio12Handler(BaseHTTPRequestHandler):
                 job_id = secrets.token_urlsafe(12)
                 stamp = now_vn().strftime("%Y%m%d-%H%M")
                 EXAM_EXPORTS[job_id] = {
+                    "zip": pkg["zip_bytes"],
                     "docx": pkg["docx_bytes"],
                     "xlsx": pkg["xlsx_bytes"],
+                    "individual_files": pkg.get("individual_files") or {},
                     "filename_base": f"sinhhoc12-{stamp}",
                     "created_at": now_iso(),
                 }
@@ -2983,7 +3005,7 @@ class Bio12Handler(BaseHTTPRequestHandler):
             if is_upload_img:
                 cache_hdr = "public, max-age=604800, immutable"
             elif rel == "index.html" or rel.endswith(".js") or rel.endswith(".css"):
-                cache_hdr = "no-cache"
+                cache_hdr = "no-store, no-cache, must-revalidate"
             else:
                 cache_hdr = "public, max-age=60, must-revalidate"
 

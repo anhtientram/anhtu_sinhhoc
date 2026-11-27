@@ -41,11 +41,11 @@ export function mountTeacherDashboard(container, activeTopic, onTopicUpdated, sh
     short_answer: { nhan_biet: 1, thong_hieu: 2, van_dung: 3 },
   };
   let examConfig = {
-    school_name: currentUser.school_name || "TRƯỜNG THPT",
+    school_name: "",
     exam_period: "KIỂM TRA GIỮA KÌ I",
     school_year: "2026 - 2027",
-    subject: "Sinh học 12",
-    title: "ĐỀ KIỂM TRA ĐỊNH KÌ MÔN SINH HỌC 12",
+    subject: "",
+    title: "KIỂM TRA GIỮA KÌ I",
     duration_minutes: 45,
     exam_count: 4,
     exam_codes: "1001, 1002, 1003, 1004",
@@ -674,13 +674,13 @@ export function mountTeacherDashboard(container, activeTopic, onTopicUpdated, sh
               }
             </div>
 
-            <!-- Bước 2: Tiêu đề đề kiểm tra (5 dòng chuẩn) + Số lượng đề + Mã đề 4 số -->
+            <!-- Bước 2: Tiêu đề đề kiểm tra + Số lượng đề + Mã đề 4 số -->
             <div class="card">
               <h3 class="card-title">Bước 2. Tiêu đề đề kiểm tra, Số lượng đề &amp; Mã đề (mặc định 4 số)</h3>
               <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;">
                 <div class="form-group">
-                  <label>Trường: *</label>
-                  <input class="form-control" id="wx-school" value="${escapeHtml(examConfig.school_name)}" placeholder="VD: TRƯỜNG THPT ..." />
+                  <label>Trường (tuỳ chọn — để trống sẽ ẩn):</label>
+                  <input class="form-control" id="wx-school" value="${escapeHtml(examConfig.school_name)}" placeholder="VD: THPT ..., TT GDNN-GDTX ... (để trống sẽ ẩn)" />
                 </div>
                 <div class="form-group">
                   <label>Kỳ kiểm tra: *</label>
@@ -691,8 +691,8 @@ export function mountTeacherDashboard(container, activeTopic, onTopicUpdated, sh
                   <input class="form-control" id="wx-year" value="${escapeHtml(examConfig.school_year)}" placeholder="VD: 2026 - 2027" />
                 </div>
                 <div class="form-group">
-                  <label>Môn: *</label>
-                  <input class="form-control" id="wx-subject" value="${escapeHtml(examConfig.subject)}" placeholder="VD: Sinh học 12" />
+                  <label>Môn (tuỳ chọn — để trống sẽ ẩn):</label>
+                  <input class="form-control" id="wx-subject" value="${escapeHtml(examConfig.subject)}" placeholder="VD: Sinh học 12, Hoá học 12, Toán 12..." />
                 </div>
                 <div class="form-group">
                   <label>Thời gian (phút): *</label>
@@ -714,6 +714,7 @@ export function mountTeacherDashboard(container, activeTopic, onTopicUpdated, sh
                 </div>
                 <input class="form-control" id="wx-codes" value="${escapeHtml(examConfig.exam_codes)}" placeholder="VD: 1001, 1002, 1003, 1004" />
                 <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px;">
+                  <span class="pill pill-muted">Đề gốc: 0000</span>
                   ${codePreviewList
                     .slice(0, examConfig.exam_count)
                     .map((c) => `<span class="pill pill-primary">Mã đề ${escapeHtml(c)}</span>`)
@@ -723,39 +724,75 @@ export function mountTeacherDashboard(container, activeTopic, onTopicUpdated, sh
 
               <div style="margin-top:12px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
                 <button type="button" class="btn btn-primary btn-lg" id="btn-generate-word-exam" ${wordMixer.generating || !wp ? "disabled" : ""}>
-                  ${wordMixer.generating ? "Đang trộn đề & xuất Word / Excel..." : "🔀 Trộn đề kiểm tra & Xuất Word + Excel"}
+                  ${wordMixer.generating ? "Đang tách từng mã đề & nén gói ZIP..." : "🔀 Trộn đề & Xuất gói nén (.zip)"}
                 </button>
                 ${!wp ? `<span style="font-size:0.82rem;color:var(--text-muted);">Hãy tải lên file Word (.docx) ở Bước 1 trước khi bấm trộn đề.</span>` : ""}
               </div>
 
               ${
                 wordMixer.result
-                  ? `
-                    <div style="margin-top:16px;padding:16px;border-radius:10px;border:1px solid var(--primary-border);background:var(--surface-tint);">
-                      <div style="display:flex;justify-content:space-between;align-items:center;gap:14px;flex-wrap:wrap;">
-                        <div>
-                          <span class="pill pill-green">Đã trộn xong ${wordMixer.result.summary.exam_count} mã đề</span>
-                          <div style="font-weight:700;margin-top:6px;">
-                            Mã đề: ${escapeHtml((wordMixer.result.summary.exam_codes || []).join(", "))}
+                  ? (() => {
+                      const rs = wordMixer.result.summary || {};
+                      const metaParts = [
+                        rs.school_name || "",
+                        rs.exam_period || "",
+                        rs.school_year ? `Năm học ${rs.school_year}` : "",
+                        rs.subject ? `Môn ${rs.subject}` : "",
+                        `${rs.duration_minutes || 45} phút`,
+                      ].filter(Boolean);
+                      const filesInZip = Array.isArray(rs.files_in_zip) ? rs.files_in_zip : [];
+                      return `
+                        <div style="margin-top:16px;padding:16px;border-radius:10px;border:1px solid var(--primary-border);background:var(--surface-tint);">
+                          <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:14px;flex-wrap:wrap;">
+                            <div>
+                              <span class="pill pill-green">Đã trộn xong ${rs.exam_count} mã đề + Đề gốc ${escapeHtml(rs.original_code || "0000")}</span>
+                              <div style="font-weight:700;margin-top:6px;">
+                                Đề gốc: ${escapeHtml(rs.original_code || "0000")} · Mã đề trộn: ${escapeHtml((rs.exam_codes || []).join(", "))}
+                              </div>
+                              <div style="font-size:0.83rem;color:var(--text-secondary);margin-top:3px;">
+                                ${escapeHtml(metaParts.join(" · "))}
+                              </div>
+                              <div style="font-size:0.82rem;color:var(--text-secondary);margin-top:2px;">
+                                Phần I: ${rs.mcq_count} câu · Phần II: ${rs.true_false_count} câu · Phần III: ${rs.short_answer_count} câu · Tổng thang điểm: <strong>${rs.max_score} điểm</strong>
+                              </div>
+                            </div>
+                            <div style="display:flex;gap:8px;flex-wrap:wrap;">
+                              <a class="btn btn-primary" id="btn-dl-word-zip" href="${api.adminExamDownloadUrl(wordMixer.result.job_id, "zip")}" target="_blank">
+                                📦 Tải trọn bộ file nén (.zip)
+                              </a>
+                              <a class="btn btn-soft" href="${api.adminExamDownloadUrl(wordMixer.result.job_id, "xlsx")}" target="_blank">
+                                📊 Tải riêng Đáp án (.xlsx)
+                              </a>
+                              <a class="btn btn-secondary" href="${api.adminExamDownloadUrl(wordMixer.result.job_id, "docx")}" target="_blank">
+                                📄 Tải bản gộp (.docx)
+                              </a>
+                            </div>
                           </div>
-                          <div style="font-size:0.83rem;color:var(--text-secondary);margin-top:3px;">
-                            ${escapeHtml(wordMixer.result.summary.school_name || "")} · ${escapeHtml(wordMixer.result.summary.exam_period || "")} · Năm học ${escapeHtml(wordMixer.result.summary.school_year || "")} · Môn ${escapeHtml(wordMixer.result.summary.subject || "")} (${wordMixer.result.summary.duration_minutes || 45} phút)
-                          </div>
-                          <div style="font-size:0.82rem;color:var(--text-secondary);margin-top:2px;">
-                            Phần I: ${wordMixer.result.summary.mcq_count} câu · Phần II: ${wordMixer.result.summary.true_false_count} câu · Phần III: ${wordMixer.result.summary.short_answer_count} câu · Tổng thang điểm: <strong>${wordMixer.result.summary.max_score} điểm</strong>
-                          </div>
+                          ${
+                            filesInZip.length
+                              ? `
+                                <div style="margin-top:12px;padding-top:10px;border-top:1px dashed var(--primary-border);">
+                                  <div style="font-size:0.8rem;font-weight:700;color:var(--text-secondary);margin-bottom:6px;">
+                                    📂 Các tệp đã tách riêng trong gói nén (${filesInZip.length} tệp — bấm vào từng tệp để tải lẻ):
+                                  </div>
+                                  <div style="display:flex;gap:6px;flex-wrap:wrap;">
+                                    ${filesInZip
+                                      .map((fname) => {
+                                        const isOrig = fname === "Ma_de_0000.docx";
+                                        const isXlsx = fname.toLowerCase().endsWith(".xlsx");
+                                        const icon = isXlsx ? "📊" : "📄";
+                                        const tag = isOrig ? " (Đề gốc)" : "";
+                                        return `<a class="btn btn-secondary btn-sm" style="padding:4px 9px;font-size:0.78rem;" href="${api.adminExamIndividualFileUrl(wordMixer.result.job_id, fname)}" target="_blank">${icon} ${escapeHtml(fname)}${tag}</a>`;
+                                      })
+                                      .join("")}
+                                  </div>
+                                </div>
+                              `
+                              : ""
+                          }
                         </div>
-                        <div style="display:flex;gap:10px;flex-wrap:wrap;">
-                          <a class="btn btn-primary" href="${api.adminExamDownloadUrl(wordMixer.result.job_id, "docx")}" target="_blank">
-                            📄 Tải Đề trộn (Word .docx)
-                          </a>
-                          <a class="btn btn-soft" href="${api.adminExamDownloadUrl(wordMixer.result.job_id, "xlsx")}" target="_blank">
-                            📊 Tải Đáp án (Excel .xlsx)
-                          </a>
-                        </div>
-                      </div>
-                    </div>
-                  `
+                      `;
+                    })()
                   : ""
               }
             </div>
@@ -925,8 +962,8 @@ export function mountTeacherDashboard(container, activeTopic, onTopicUpdated, sh
           <h3 class="card-title">Bước 3. Tiêu đề, Số lượng đề &amp; Mã đề (mặc định 4 số) → Xuất Word + Excel</h3>
           <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;">
             <div class="form-group">
-              <label>Trường:</label>
-              <input class="form-control" id="ex-school" value="${escapeHtml(examConfig.school_name)}" />
+              <label>Trường (để trống sẽ ẩn):</label>
+              <input class="form-control" id="ex-school" value="${escapeHtml(examConfig.school_name)}" placeholder="VD: THPT ..., TT GDNN-GDTX ... (để trống sẽ ẩn)" />
             </div>
             <div class="form-group">
               <label>Kỳ kiểm tra:</label>
@@ -937,8 +974,8 @@ export function mountTeacherDashboard(container, activeTopic, onTopicUpdated, sh
               <input class="form-control" id="ex-year" value="${escapeHtml(examConfig.school_year)}" />
             </div>
             <div class="form-group">
-              <label>Môn:</label>
-              <input class="form-control" id="ex-subject" value="${escapeHtml(examConfig.subject)}" />
+              <label>Môn (để trống sẽ ẩn):</label>
+              <input class="form-control" id="ex-subject" value="${escapeHtml(examConfig.subject)}" placeholder="VD: Sinh học 12..." />
             </div>
             <div class="form-group">
               <label>Thời gian (phút):</label>
@@ -956,35 +993,56 @@ export function mountTeacherDashboard(container, activeTopic, onTopicUpdated, sh
 
           <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-top:8px;">
             <button type="button" class="btn btn-primary btn-lg" id="btn-generate-exam" ${examGenerating ? "disabled" : ""}>
-              ${examGenerating ? "Đang trộn đề & tạo file..." : "Tạo & Trộn đề thi ngay"}
+              ${examGenerating ? "Đang trộn đề & nén gói ZIP..." : "Tạo & Trộn đề thi (File nén .zip)"}
             </button>
           </div>
 
           ${
             examResult
-              ? `
-                <div style="margin-top:16px;padding:16px;border-radius:10px;border:1px solid var(--primary-border);background:var(--surface-tint);">
-                  <div style="display:flex;justify-content:space-between;align-items:center;gap:14px;flex-wrap:wrap;">
-                    <div>
-                      <span class="pill pill-green">Đã trộn xong ${examResult.summary.exam_count} đề</span>
-                      <div style="font-weight:700;margin-top:6px;">
-                        Mã đề: ${escapeHtml((examResult.summary.exam_codes || []).join(", "))}
+              ? (() => {
+                  const filesInZip = Array.isArray(examResult.summary?.files_in_zip) ? examResult.summary.files_in_zip : [];
+                  return `
+                    <div style="margin-top:16px;padding:16px;border-radius:10px;border:1px solid var(--primary-border);background:var(--surface-tint);">
+                      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:14px;flex-wrap:wrap;">
+                        <div>
+                          <span class="pill pill-green">Đã trộn xong ${examResult.summary.exam_count} đề + Đề gốc ${escapeHtml(examResult.summary.original_code || "0000")}</span>
+                          <div style="font-weight:700;margin-top:6px;">
+                            Đề gốc: ${escapeHtml(examResult.summary.original_code || "0000")} · Mã đề: ${escapeHtml((examResult.summary.exam_codes || []).join(", "))}
+                          </div>
+                          <div style="font-size:0.84rem;color:var(--text-secondary);margin-top:2px;">
+                            Phần I: ${examResult.summary.mcq_count} câu · Phần II: ${examResult.summary.true_false_count} câu · Phần III: ${examResult.summary.short_answer_count} câu · Tổng thang điểm: <strong>${examResult.summary.max_score} điểm</strong>
+                          </div>
+                        </div>
+                        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+                          <a class="btn btn-primary" href="${api.adminExamDownloadUrl(examResult.job_id, "zip")}" target="_blank" id="btn-dl-exam-zip">
+                            📦 Tải trọn bộ file nén (.zip)
+                          </a>
+                          <a class="btn btn-soft" href="${api.adminExamDownloadUrl(examResult.job_id, "xlsx")}" target="_blank" id="btn-dl-exam-xlsx">
+                            📊 Tải riêng Đáp án (.xlsx)
+                          </a>
+                          <a class="btn btn-secondary" href="${api.adminExamDownloadUrl(examResult.job_id, "docx")}" target="_blank" id="btn-dl-exam-docx">
+                            📄 Tải bản gộp (.docx)
+                          </a>
+                        </div>
                       </div>
-                      <div style="font-size:0.84rem;color:var(--text-secondary);margin-top:2px;">
-                        Phần I: ${examResult.summary.mcq_count} câu · Phần II: ${examResult.summary.true_false_count} câu · Phần III: ${examResult.summary.short_answer_count} câu · Tổng thang điểm: <strong>${examResult.summary.max_score} điểm</strong>
-                      </div>
+                      ${
+                        filesInZip.length
+                          ? `
+                            <div style="margin-top:12px;padding-top:10px;border-top:1px dashed var(--primary-border);display:flex;gap:6px;flex-wrap:wrap;">
+                              ${filesInZip
+                                .map((fname) => {
+                                  const isOrig = fname === "Ma_de_0000.docx";
+                                  const icon = fname.toLowerCase().endsWith(".xlsx") ? "📊" : "📄";
+                                  return `<a class="btn btn-secondary btn-sm" style="padding:4px 9px;font-size:0.78rem;" href="${api.adminExamIndividualFileUrl(examResult.job_id, fname)}" target="_blank">${icon} ${escapeHtml(fname)}${isOrig ? " (Đề gốc)" : ""}</a>`;
+                                })
+                                .join("")}
+                            </div>
+                          `
+                          : ""
+                      }
                     </div>
-                    <div style="display:flex;gap:10px;flex-wrap:wrap;">
-                      <a class="btn btn-primary" href="${api.adminExamDownloadUrl(examResult.job_id, "docx")}" target="_blank" id="btn-dl-exam-docx">
-                        Tải Đề trộn (Word .docx)
-                      </a>
-                      <a class="btn btn-soft" href="${api.adminExamDownloadUrl(examResult.job_id, "xlsx")}" target="_blank" id="btn-dl-exam-xlsx">
-                        Tải Đáp án (Excel .xlsx)
-                      </a>
-                    </div>
-                  </div>
-                </div>
-              `
+                  `;
+                })()
               : ""
           }
         </div>
@@ -2686,10 +2744,10 @@ export function mountTeacherDashboard(container, activeTopic, onTopicUpdated, sh
           const dur = container.querySelector("#wx-duration");
           const cnt = container.querySelector("#wx-count");
           const cds = container.querySelector("#wx-codes");
-          if (s) examConfig.school_name = s.value.trim() || examConfig.school_name;
+          if (s) examConfig.school_name = s.value.trim();
           if (p) examConfig.exam_period = p.value.trim() || examConfig.exam_period;
           if (y) examConfig.school_year = y.value.trim() || examConfig.school_year;
-          if (sub) examConfig.subject = sub.value.trim() || examConfig.subject;
+          if (sub) examConfig.subject = sub.value.trim();
           if (dur) examConfig.duration_minutes = Math.max(5, Math.min(180, parseInt(dur.value || "45", 10) || 45));
           if (cnt) examConfig.exam_count = Math.max(1, Math.min(30, parseInt(cnt.value || "4", 10) || 4));
           if (cds) examConfig.exam_codes = cds.value.trim();
@@ -2874,11 +2932,13 @@ export function mountTeacherDashboard(container, activeTopic, onTopicUpdated, sh
       });
 
       const syncConfig = () => {
-        examConfig.exam_period = container.querySelector("#ex-title")?.value || examConfig.exam_period;
+        examConfig.exam_period = container.querySelector("#ex-title")?.value.trim() || examConfig.exam_period;
         examConfig.title = examConfig.exam_period;
-        examConfig.school_name = container.querySelector("#ex-school")?.value || examConfig.school_name;
-        examConfig.school_year = container.querySelector("#ex-year")?.value || examConfig.school_year;
-        examConfig.subject = container.querySelector("#ex-subject")?.value || examConfig.subject;
+        const sEl = container.querySelector("#ex-school");
+        if (sEl) examConfig.school_name = sEl.value.trim();
+        examConfig.school_year = container.querySelector("#ex-year")?.value.trim() || examConfig.school_year;
+        const subEl = container.querySelector("#ex-subject");
+        if (subEl) examConfig.subject = subEl.value.trim();
         examConfig.duration_minutes = Math.max(5, parseInt(container.querySelector("#ex-duration")?.value || "45", 10) || 45);
         examConfig.exam_count = Math.max(1, Math.min(30, parseInt(container.querySelector("#ex-count")?.value || "4", 10) || 4));
         examConfig.exam_codes = container.querySelector("#ex-codes")?.value || "";
