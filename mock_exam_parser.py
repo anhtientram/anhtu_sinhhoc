@@ -49,9 +49,10 @@ RE_ANSWER_SECTION = re.compile(
     r"^\s*(?:BẢNG\s+ĐÁP\s+ÁN|ĐÁP\s+ÁN\s*(?:CHÍNH\s+THỨC|CHI\s+TIẾT|THAM\s+KHẢO|VÀ\s+HƯỚNG\s+DẪN(?:\s+GIẢI(?:\s+CHI\s+TIẾT)?)?|&\s*HƯỚNG\s+DẪN(?:\s+GIẢI(?:\s+CHI\s+TIẾT)?)?|ĐỀ\s+THI)?|HƯỚNG\s+DẪN\s+CHẤM|HƯỚNG\s+DẪN\s+GIẢI\s+CHI\s+TIẾT|LỜI\s+GIẢI\s+CHI\s+TIẾT)\s*[:\-–.]?\s*$",
     re.IGNORECASE,
 )
-RE_Q_START = re.compile(r"^\s*(?:Câu|Bài)\s*(\d+)\s*[:\.\-–]?\s*(.*)$", re.IGNORECASE)
-RE_OPT_INLINE = re.compile(r"(?:^|\s)([A-D])\s*[\.\)]\s+")
-RE_STMT_START = re.compile(r"^\s*([a-d])\s*[\)\.]\s*(.*)$", re.IGNORECASE)
+RE_Q_START = re.compile(r"^\s*(?:Câu|Question|Bài)\s*(\d+)\s*[:\.\-–\)]?\s*(.*)$", re.IGNORECASE)
+RE_GROUP_TAG = re.compile(r"^\s*<\s*(#?)\s*g([0-3])\s*>\s*(.*)$", re.IGNORECASE)
+RE_OPT_INLINE = re.compile(r"(?:^|\s)(#?)([A-D])\s*[\.\)]\s+")
+RE_STMT_START = re.compile(r"^\s*(#?)([a-d])\s*[\)\.]\s*(.*)$", re.IGNORECASE)
 RE_INLINE_ANS = re.compile(
     r"^\s*(?:Đáp\s*án(?:\s*đúng)?|Chọn|Đáp\s*số|Key)\s*[:\.\-–]?\s*(.+)$",
     re.IGNORECASE,
@@ -201,6 +202,7 @@ def _extract_docx_elements(file_bytes: bytes) -> List[Dict[str, Any]]:
             parts: List[str] = []
             marked_segments: List[str] = []
             underlined_segments: List[str] = []
+            red_segments: List[str] = []
             imgs: List[str] = []
 
             for node in p_el:
@@ -209,6 +211,22 @@ def _extract_docx_elements(file_bytes: bytes) -> List[Dict[str, Any]]:
                     run_texts: List[str] = []
                     is_u = _run_is_underlined(node)
                     is_marked = is_u or _run_has_answer_mark(node)
+                    is_red = False
+                    if not is_u and is_marked:
+                        is_red = True
+                    else:
+                        # Kiểm tra thêm màu đỏ trực tiếp ngay cả khi vừa gạch chân vừa tô đỏ
+                        for ch_r in node:
+                            if _local_tag(ch_r) == "rPr":
+                                for prop in ch_r:
+                                    if _local_tag(prop) == "color":
+                                        cval = ""
+                                        for k, v in prop.attrib.items():
+                                            if k.endswith("}val") or k == "val":
+                                                cval = v
+                                                break
+                                        if _is_highlight_color(cval):
+                                            is_red = True
                     for sub in node.iter():
                         st = _local_tag(sub)
                         if st == "t" and sub.text:
@@ -218,6 +236,7 @@ def _extract_docx_elements(file_bytes: bytes) -> List[Dict[str, Any]]:
                         elif st == "br":
                             run_texts.append("\n")
                         elif st == "blip":
+                            # Bỏ qua ảnh lặp trong mc:Fallback
                             for k, v in sub.attrib.items():
                                 if k.endswith("}embed") or k == "embed":
                                     u = get_img_url(v)
@@ -236,6 +255,8 @@ def _extract_docx_elements(file_bytes: bytes) -> List[Dict[str, Any]]:
                             marked_segments.append(rtxt)
                         if is_u:
                             underlined_segments.append(rtxt)
+                        if is_red:
+                            red_segments.append(rtxt)
                 elif nt in ("oMath", "oMathPara"):
                     om = _omml_to_text(node)
                     if om:
@@ -253,52 +274,60 @@ def _extract_docx_elements(file_bytes: bytes) -> List[Dict[str, Any]]:
                 if not segs:
                     return out
                 joined = "".join(segs)
-                for m in re.finditer(r"(?:^|\s)([A-D])\s*[\.\)]", joined):
+                # Bắt cả dạng "A.", "#A.", "B)", "#B."
+                for m in re.finditer(r"(?:^|\s)#?([A-D])\s*[\.\)]", joined):
                     lt = m.group(1)
                     if lt not in out:
                         out.append(lt)
                 if not out:
                     for sg in segs:
-                        m = re.match(r"^\s*([A-D])\s*[\.\)]?\s*$", sg)
+                        m = re.match(r"^\s*#?([A-D])\s*[\.\)]?\s*$", sg)
                         if m and m.group(1) not in out:
                             out.append(m.group(1))
                 if not out:
-                    m_start = re.match(r"^\s*([A-D])\s*[\.\)]\s+", text)
-                    if m_start and not re.search(r"(?:^|\s)B\s*[\.\)]\s+", text):
+                    m_start = re.match(r"^\s*#?([A-D])\s*[\.\)]\s+", text)
+                    if m_start and not re.search(r"(?:^|\s)#?B\s*[\.\)]\s+", text):
                         first_m = _clean(joined)
                         if len(first_m) >= 1 and first_m in text:
                             out.append(m_start.group(1))
-                if not out and re.search(r"(?:^|\s)B\s*[\.\)]\s+", text):
+                if not out and re.search(r"(?:^|\s)#?B\s*[\.\)]\s+", text):
                     jc = _clean(joined)
                     if len(jc) >= 2:
                         _, inline_opts = _split_inline_options(text)
-                        for lt, otxt in inline_opts:
+                        for lt, otxt, _ in inline_opts:
                             if otxt and (jc in otxt or otxt in jc) and lt not in out:
                                 out.append(lt)
                 return out
 
             underlined_letters = _extract_mcq_letters(underlined_segments)
-            marked_letters = underlined_letters or _extract_mcq_letters(marked_segments)
+            red_letters = _extract_mcq_letters(red_segments)
+            marked_letters = underlined_letters or red_letters or _extract_mcq_letters(marked_segments)
 
-            # Kiểm tra nhãn ý Phần II (a), b), c), d)) có được gạch chân (<w:u>) hay không
+            # Kiểm tra nhãn ý Phần II (a), b), c), d) hoặc #a)...) có được gạch chân (<w:u>) hay tô đỏ không
             tf_underlined = False
-            if underlined_segments:
-                m_tf_line = re.match(r"^\s*([a-d])\s*[\)\.]", text, re.IGNORECASE)
-                if m_tf_line:
+            tf_red = False
+            m_tf_line = re.match(r"^\s*#?([a-d])\s*[\)\.]", text, re.IGNORECASE)
+            if m_tf_line:
+                tf_key = m_tf_line.group(1).lower()
+                if underlined_segments:
                     u_joined = "".join(underlined_segments).strip()
-                    tf_key = m_tf_line.group(1).lower()
-                    # Gạch chân chữ a / a) / a. ở đầu dòng HOẶC gạch chân phần lớn nội dung mệnh đề
-                    if re.match(rf"^\s*{tf_key}\s*[\)\.]?", u_joined, re.IGNORECASE) or len(u_joined) >= max(4, int(len(text) * 0.4)):
+                    if re.match(rf"^\s*#?{tf_key}\s*[\)\.]?", u_joined, re.IGNORECASE) or len(u_joined) >= max(4, int(len(text) * 0.4)):
                         tf_underlined = True
+                if red_segments:
+                    r_joined = "".join(red_segments).strip()
+                    if re.match(rf"^\s*#?{tf_key}\s*[\)\.]?", r_joined, re.IGNORECASE) or len(r_joined) >= max(4, int(len(text) * 0.4)):
+                        tf_red = True
 
             return {
                 "type": "paragraph",
                 "text": text,
                 "images": imgs,
                 "underlined_letters": underlined_letters,
+                "red_letters": red_letters,
                 "marked_letters": marked_letters,
                 "marked_text": _clean(" ".join(marked_segments)),
                 "tf_underlined": tf_underlined,
+                "tf_red": tf_red,
             }
 
         def parse_table(tbl_el) -> Dict[str, Any]:
@@ -419,19 +448,44 @@ def _extract_pdf_elements(file_bytes: bytes) -> List[Dict[str, Any]]:
     return elements
 
 
-def _split_inline_options(text: str) -> Tuple[str, List[Tuple[str, str]]]:
-    """Tách các phương án A. ... B. ... C. ... D. ... nằm trên cùng một dòng."""
-    matches = list(re.finditer(r"(?:^|\s)([A-D])\s*[\.\)]\s+", text))
+def _split_inline_options(text: str) -> Tuple[str, List[Tuple[str, str, bool]]]:
+    """
+    Tách các phương án A. ... B. ... C. ... D. ... (hỗ trợ cả dấu # cố định như #A., #D. và dạng nhãn đơn A./B./C./D.) nằm trên cùng hoặc riêng dòng.
+    Trả về: (prefix, [(letter, text, is_fixed), ...])
+    """
+    raw_matches = list(re.finditer(r"(?:^|\s)(#?)([A-D])\s*[\.\)](?:\s+|$)", text))
+    if not raw_matches:
+        return text, []
+
+    # Nếu chỉ có 1 match nhưng KHÔNG đứng ở đầu dòng và không đi kèm B./C./D. -> tránh nhầm tên như "Vitamin A. ..."
+    if len(raw_matches) == 1 and raw_matches[0].start() > 0:
+        prefix_before = text[: raw_matches[0].start()].strip()
+        # Chỉ tách nếu phía trước rỗng hoặc là phần cuối stem rõ ràng kết thúc bằng ?, :, .
+        if prefix_before and not re.search(r"[?:]\s*$", prefix_before):
+            return text, []
+
+    # Lọc giữ chuỗi chữ cái tăng dần hợp lệ (A->B->C->D hoặc C->D)
+    matches = []
+    seen = set()
+    for m in raw_matches:
+        lt = m.group(2).upper()
+        if lt in seen:
+            continue
+        if matches and ord(lt) <= ord(matches[-1].group(2).upper()):
+            continue
+        seen.add(lt)
+        matches.append(m)
     if not matches:
         return text, []
-    # Bảo vệ trường hợp đầu câu không phải phương án nhưng giữa dòng có "A. ..."
+
     prefix = text[: matches[0].start()].strip()
-    opts: List[Tuple[str, str]] = []
+    opts: List[Tuple[str, str, bool]] = []
     for i, m in enumerate(matches):
-        letter = m.group(1).upper()
+        is_fixed = bool(m.group(1))
+        letter = m.group(2).upper()
         start = m.end()
         end = matches[i + 1].start() if i + 1 < len(matches) else len(text)
-        opts.append((letter, text[start:end].strip()))
+        opts.append((letter, text[start:end].strip(), is_fixed))
     return prefix, opts
 
 
@@ -744,6 +798,36 @@ def parse_mock_exam_document(
     in_explanation = False
     warnings: List[str] = []
 
+    # Theo dõi thẻ nhóm trộn chuẩn Young Mix: <g0>, <g1>, <g2>, <g3>, <#g0>, <#g1>, <#g2>, <#g3>
+    group_counter = 1
+    cur_group = {
+        "id": "grp-1",
+        "mode": "g3",
+        "fixed": False,
+        "tag": "<g3>",
+        "explicit": False,
+        "has_questions": False,
+    }
+    detected_groups: List[Dict[str, Any]] = []
+
+    def start_new_group(mode: str, fixed: bool, explicit: bool = True):
+        nonlocal group_counter, cur_group
+        if explicit and not cur_group["has_questions"] and not cur_group["explicit"]:
+            cur_group["mode"] = mode
+            cur_group["fixed"] = fixed
+            cur_group["tag"] = f"<{'#' if fixed else ''}{mode}>"
+            cur_group["explicit"] = True
+            return
+        group_counter += 1
+        cur_group = {
+            "id": f"grp-{group_counter}",
+            "mode": mode,
+            "fixed": fixed,
+            "tag": f"<{'#' if fixed else ''}{mode}>",
+            "explicit": explicit,
+            "has_questions": False,
+        }
+
     def finalize_current():
         nonlocal cur_q, in_explanation
         if not cur_q:
@@ -763,6 +847,7 @@ def parse_mock_exam_document(
             while len(opts) < 4:
                 opts.append("")
             cur_q["options"] = opts[:4]
+            cur_q["fixed_options"] = sorted(set(cur_q.get("fixed_options") or []))
             cur_q.pop("statements", None)
             cur_q.pop("accepted_answers", None)
             cur_q["id"] = f"mcq-{len(mcq_list) + 1}"
@@ -772,16 +857,18 @@ def parse_mock_exam_document(
             existing_keys = {s["key"] for s in stmts}
             for k in ("a", "b", "c", "d"):
                 if k not in existing_keys:
-                    stmts.append({"key": k, "text": "", "answer": None})
+                    stmts.append({"key": k, "text": "", "answer": None, "fixed": False})
             stmts.sort(key=lambda s: ("a", "b", "c", "d").index(s["key"]) if s["key"] in ("a", "b", "c", "d") else 9)
             cur_q["statements"] = stmts[:4]
             cur_q.pop("options", None)
+            cur_q.pop("fixed_options", None)
             cur_q.pop("correct_index", None)
             cur_q.pop("accepted_answers", None)
             cur_q["id"] = f"tf-{len(tf_list) + 1}"
             tf_list.append(cur_q)
         else:
             cur_q.pop("options", None)
+            cur_q.pop("fixed_options", None)
             cur_q.pop("correct_index", None)
             cur_q.pop("statements", None)
             cur_q.setdefault("accepted_answers", [])
@@ -803,18 +890,35 @@ def parse_mock_exam_document(
         imgs = el.get("images", [])
         marked_letters = el.get("marked_letters", [])
 
+        # Nhận diện thẻ nhóm trộn <g0>, <g1>, <g2>, <g3>, <#g0>, <#g1>, <#g2>, <#g3>
+        m_grp = RE_GROUP_TAG.match(txt)
+        if m_grp:
+            finalize_current()
+            g_fixed = bool(m_grp.group(1))
+            g_mode = f"g{m_grp.group(2)}"
+            start_new_group(g_mode, g_fixed, explicit=True)
+            txt = (m_grp.group(3) or "").strip()
+            if not txt:
+                continue
+
         # Bỏ qua các dòng tiêu đề đề thi trước câu 1
         if RE_PART1.match(txt):
             finalize_current()
             cur_part = "mcq"
+            if cur_group["has_questions"]:
+                start_new_group("g3", False, explicit=False)
             continue
         if RE_PART2.match(txt):
             finalize_current()
             cur_part = "true_false"
+            if cur_group["has_questions"]:
+                start_new_group("g3", False, explicit=False)
             continue
         if RE_PART3.match(txt):
             finalize_current()
             cur_part = "short_answer"
+            if cur_group["has_questions"]:
+                start_new_group("g3", False, explicit=False)
             continue
 
         # Bắt đầu câu hỏi mới
@@ -824,13 +928,19 @@ def parse_mock_exam_document(
             qnum = int(m_q.group(1))
             rest = m_q.group(2).strip()
             in_explanation = False
+            cur_group["has_questions"] = True
             cur_q = {
                 "_type": cur_part,
                 "orig_num": qnum,
+                "group_id": cur_group["id"],
+                "shuffle_mode": cur_group["mode"],
+                "group_fixed": cur_group["fixed"],
+                "group_tag": cur_group["tag"],
                 "question": "",
                 "images": list(imgs),
                 "tables": [],
                 "options": [],
+                "fixed_options": [],
                 "correct_index": None,
                 "statements": [],
                 "accepted_answers": [],
@@ -839,11 +949,13 @@ def parse_mock_exam_document(
             if cur_part == "mcq" and rest:
                 prefix, opts = _split_inline_options(rest)
                 cur_q["question"] = prefix
-                for lt, otxt in opts:
+                for lt, otxt, is_fixed in opts:
                     idx = LETTER_TO_IDX[lt]
                     while len(cur_q["options"]) <= idx:
                         cur_q["options"].append("")
                     cur_q["options"][idx] = otxt
+                    if is_fixed and idx not in cur_q["fixed_options"]:
+                        cur_q["fixed_options"].append(idx)
                 if marked_letters and len(marked_letters) == 1 and cur_q["correct_index"] is None:
                     cur_q["correct_index"] = LETTER_TO_IDX.get(marked_letters[0])
             else:
@@ -935,11 +1047,13 @@ def parse_mock_exam_document(
                         cur_q["question"] = (cur_q["question"] + "\n" + prefix).strip()
                     else:
                         cur_q["options"][-1] = (cur_q["options"][-1] + " " + prefix).strip()
-                for lt, otxt in opts:
+                for lt, otxt, is_fixed in opts:
                     idx = LETTER_TO_IDX[lt]
                     while len(cur_q["options"]) <= idx:
                         cur_q["options"].append("")
                     cur_q["options"][idx] = otxt
+                    if is_fixed and idx not in cur_q["fixed_options"]:
+                        cur_q["fixed_options"].append(idx)
                 if marked_letters and len(marked_letters) == 1 and cur_q["correct_index"] is None:
                     cur_q["correct_index"] = LETTER_TO_IDX.get(marked_letters[0])
             else:
@@ -951,8 +1065,9 @@ def parse_mock_exam_document(
         elif cur_q["_type"] == "true_false":
             m_st = RE_STMT_START.match(txt)
             if m_st:
-                key = m_st.group(1).lower()
-                st_text = m_st.group(2).strip()
+                is_fixed_st = bool(m_st.group(1))
+                key = m_st.group(2).lower()
+                st_text = m_st.group(3).strip()
                 # Kiểm tra xem cuối mệnh đề có ghi sẵn (Đúng)/(Sai) không
                 st_ans = None
                 m_tail = re.search(r"[\(\[]\s*(Đúng|Sai|Đ|S)\s*[\)\]]\s*$", st_text, re.IGNORECASE)
@@ -963,7 +1078,9 @@ def parse_mock_exam_document(
                     "key": key,
                     "text": st_text,
                     "answer": st_ans,
+                    "fixed": is_fixed_st,
                     "_underlined": bool(el.get("tf_underlined")),
+                    "_red": bool(el.get("tf_red")),
                 })
             else:
                 if cur_q["statements"]:
@@ -1017,29 +1134,35 @@ def parse_mock_exam_document(
         if not q.get("explanation"):
             q["explanation"] = ans_explanations.get(("mcq", on)) or ans_explanations.get(("mcq", idx)) or ""
 
-    # Quy tắc gạch chân cho Phần II (Đúng/Sai): ý có gạch chân (<w:u>) = Đúng, không gạch chân = Sai
+    # Quy tắc gạch chân hoặc tô đỏ cho Phần II (Đúng/Sai): ý đánh dấu = Đúng, không đánh dấu = Sai
     any_tf_underlined = any(
         st.get("_underlined") for q in tf_list for st in q.get("statements", [])
     )
+    any_tf_red = any(
+        st.get("_red") for q in tf_list for st in q.get("statements", [])
+    )
+    tf_mark_key = "_underlined" if any_tf_underlined else ("_red" if any_tf_red else "")
+
     for idx, q in enumerate(tf_list, start=1):
         on = int(q.get("orig_num") or idx)
-        has_u_here = any(st.get("_underlined") for st in q.get("statements", []))
+        has_mark_here = bool(tf_mark_key) and any(st.get(tf_mark_key) for st in q.get("statements", []))
         vals = tf_keys.get(on) or tf_keys.get(idx)
-        if has_u_here:
+        if has_mark_here:
             for st in q.get("statements", []):
                 if st.get("answer") is None:
-                    st["answer"] = bool(st.get("_underlined"))
+                    st["answer"] = bool(st.get(tf_mark_key))
         elif vals:
             for si, st in enumerate(q.get("statements", [])):
                 if st.get("answer") is None and si < len(vals) and vals[si] is not None:
                     st["answer"] = vals[si]
-        elif any_tf_underlined:
+        elif tf_mark_key:
             for st in q.get("statements", []):
                 if st.get("answer") is None:
                     st["answer"] = False
-        # Dọn cờ tạm _underlined trước khi trả JSON
+        # Dọn cờ tạm trước khi trả JSON
         for st in q.get("statements", []):
             st.pop("_underlined", None)
+            st.pop("_red", None)
         if not q.get("explanation"):
             q["explanation"] = ans_explanations.get(("true_false", on)) or ans_explanations.get(("true_false", idx)) or ""
 
@@ -1075,6 +1198,33 @@ def parse_mock_exam_document(
         "true_false": tf_list,
         "short_answer": sa_list,
     }
+    # Nhận diện tự động 2 dạng đề chuẩn:
+    #   - Dạng 1: Đề TN gồm 3 phần chuẩn 2025 (có Phần II Đúng/Sai hoặc Phần III Trả lời ngắn)
+    #   - Dạng 2: Đề TN gồm 1 phần chỉ có câu trắc nghiệm 4 đáp án (VD: 40 câu)
+    if len(tf_list) > 0 or len(sa_list) > 0:
+        exam_format = "format_2025_3parts"
+        exam_format_label = "Dạng 1 · Đề TN 3 phần chuẩn 2025"
+    else:
+        exam_format = "format_1part_mcq"
+        exam_format_label = f"Dạng 2 · Đề TN 1 phần ({len(mcq_list)} câu 4 đáp án)"
+
+    # Tổng hợp danh sách nhóm thẻ <g0>..<#g3> đã nhận diện
+    grp_summary_map: Dict[str, Dict[str, Any]] = {}
+    for p_name, q_arr in (("Phần I", mcq_list), ("Phần II", tf_list), ("Phần III", sa_list)):
+        for q in q_arr:
+            gid = f"{p_name}:{q.get('group_id', 'grp-1')}"
+            if gid not in grp_summary_map:
+                grp_summary_map[gid] = {
+                    "part": p_name,
+                    "tag": q.get("group_tag") or "<g3>",
+                    "mode": q.get("shuffle_mode") or "g3",
+                    "fixed": bool(q.get("group_fixed")),
+                    "count": 0,
+                }
+            grp_summary_map[gid]["count"] += 1
+    groups_summary = list(grp_summary_map.values())
+    fixed_options_count = sum(len(q.get("fixed_options") or []) for q in mcq_list)
+
     try:
         from content_standardizer import standardize_exam_content
         spelling_report = standardize_exam_content(content_obj)
@@ -1092,6 +1242,8 @@ def parse_mock_exam_document(
             "content": content_obj,
         },
         "stats": {
+            "exam_format": exam_format,
+            "exam_format_label": exam_format_label,
             "total_questions": total_q,
             "mcq_count": len(mcq_list),
             "tf_count": len(tf_list),
@@ -1102,6 +1254,8 @@ def parse_mock_exam_document(
             "images_count": total_imgs,
             "max_score": max_score,
             "spelling_auto_fixed": spelling_report.get("auto_fixed_count", 0),
+            "groups_summary": groups_summary,
+            "fixed_options_count": fixed_options_count,
         },
         "spelling_report": spelling_report,
         "warnings": warnings,
