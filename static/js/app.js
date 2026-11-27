@@ -37,7 +37,26 @@ const ICONS = {
   barChart: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>`,
   user: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>`,
   menu: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg>`,
+  panelLeft: `<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="9" y1="3" x2="9" y2="21"/></svg>`,
+  chevronLeft: `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>`,
+  chevronRight: `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>`,
+  feather: `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.24 12.24a6 6 0 0 0-8.49-8.49L5 10.5V19h8.5z"/><line x1="16" y1="8" x2="2" y2="22"/><line x1="17.5" y1="15" x2="9" y2="15"/></svg>`,
+  helixBg: `<svg class="bio-helix-watermark" viewBox="0 0 180 120" fill="none" aria-hidden="true"><path d="M12 18 C46 18, 52 102, 88 102 C124 102, 130 18, 168 18" stroke="currentColor" stroke-width="3.2" stroke-linecap="round"/><path d="M12 102 C46 102, 52 18, 88 18 C124 18, 130 102, 168 102" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-dasharray="4 4"/><line x1="34" y1="32" x2="34" y2="88" stroke="currentColor" stroke-width="2"/><line x1="56" y1="54" x2="56" y2="66" stroke="currentColor" stroke-width="2"/><line x1="88" y1="22" x2="88" y2="98" stroke="currentColor" stroke-width="2"/><line x1="120" y1="54" x2="120" y2="66" stroke="currentColor" stroke-width="2"/><line x1="142" y1="32" x2="142" y2="88" stroke="currentColor" stroke-width="2"/><circle cx="34" cy="32" r="3.5" fill="currentColor"/><circle cx="88" cy="22" r="3.5" fill="currentColor"/><circle cx="142" cy="88" r="3.5" fill="currentColor"/></svg>`,
 };
+
+function readStoredRailCollapsed() {
+  try {
+    return localStorage.getItem("sh12_rail_collapsed") === "1";
+  } catch {
+    return false;
+  }
+}
+
+function saveStoredRailCollapsed(val) {
+  try {
+    localStorage.setItem("sh12_rail_collapsed", val ? "1" : "0");
+  } catch {}
+}
 
 const state = {
   user: null,
@@ -53,6 +72,8 @@ const state = {
   teacherPreviewAsStudent: false,
   presentationMode: false,
   mobileMenuOpen: false,
+  topicsRailCollapsed: readStoredRailCollapsed(),
+  railScrollTop: 0,
 
   activeSession: null,
   sessionElapsedSeconds: 0,
@@ -343,8 +364,14 @@ function renderAuthView() {
           </div>
         </div>
 
-        <div style="font-size:0.78rem;color:#94a3b8;">
-          Bộ môn Sinh học 12 — Hệ thống cấp phát tài khoản tập trung
+        <div class="auth-author-bar">
+          <div class="auth-author-chip">
+            ${ICONS.feather}
+            <span>Tác giả: <strong>Thầy Bạch Anh Tú</strong></span>
+          </div>
+          <div style="font-size:0.76rem;color:#94a3b8;">
+            Bộ môn Sinh học 12 (CT GDPT 2018) · Hệ thống cấp phát tài khoản tập trung
+          </div>
         </div>
       </section>
 
@@ -560,10 +587,16 @@ function renderMainShell() {
   const topic = state.activeTopic;
   const lessons = topic?.lessons || [];
 
+  // Ghi nhớ vị trí cuộn của thanh Chủ đề trước khi re-render
+  const prevRailScroll = document.getElementById("topics-rail-scroll");
+  if (prevRailScroll) {
+    state.railScrollTop = prevRailScroll.scrollTop;
+  }
+
   appEl.innerHTML = `
     <div class="app-root">
       ${state.topicLoading ? `<div class="topic-progress-bar" aria-hidden="true"></div>` : ""}
-      <!-- Top Header with Menu Toggle -->
+      <!-- Top Header with Menu & Collapsible Topics Rail Toggle -->
       <header class="app-topbar">
         <div class="topbar-left-group">
           <button class="menu-trigger-btn" id="btn-toggle-menu" aria-label="Mở thanh công cụ Menu">
@@ -571,19 +604,31 @@ function renderMainShell() {
             <span>Menu</span>
           </button>
 
+          <button class="rail-toggle-btn ${state.topicsRailCollapsed ? "is-collapsed" : "is-open"}" id="btn-toggle-rail" aria-expanded="${!state.topicsRailCollapsed}" aria-controls="topics-rail" title="${state.topicsRailCollapsed ? "Hiện thanh Chủ đề Sinh học 12" : "Ẩn thanh Chủ đề Sinh học 12"}">
+            ${ICONS.panelLeft}
+            <span>${state.topicsRailCollapsed ? "Hiện Chủ đề" : "Ẩn Chủ đề"}</span>
+          </button>
+
           <div class="topbar-brand-inline" id="btn-brand-home">
-            <div class="brand-mark" style="width:30px;height:30px;">${ICONS.dna}</div>
-            <span>Sinh học 12</span>
+            <div class="brand-mark" style="width:32px;height:32px;">${ICONS.dna}</div>
+            <div class="topbar-brand-text">
+              <span class="topbar-brand-name">Sinh học 12</span>
+              <span class="topbar-brand-sub">CT GDPT 2018</span>
+            </div>
           </div>
 
           ${
             topic
-              ? `<span class="topbar-current-topic">${escapeHtml(topic.title)}</span>`
+              ? `<span class="topbar-current-topic" title="${escapeHtml(topic.title)}">${escapeHtml(topic.title)}</span>`
               : ""
           }
         </div>
 
         <div class="topbar-actions">
+          <span class="topbar-author-badge" title="Tác giả biên soạn hệ thống">
+            ${ICONS.feather}
+            <span>Tác giả: <strong>Thầy Bạch Anh Tú</strong></span>
+          </span>
           ${
             !isStaff
               ? state.activeSession
@@ -613,7 +658,7 @@ function renderMainShell() {
             <div class="brand-mark" style="width:30px;height:30px;">${ICONS.dna}</div>
             <div>
               <div style="font-weight:700;font-size:0.94rem;">Menu công cụ</div>
-              <div style="font-size:0.72rem;color:var(--text-muted);">Sinh học 12 · GDPT 2018</div>
+              <div style="font-size:0.72rem;color:var(--text-muted);">Sinh học 12 · Thầy Bạch Anh Tú</div>
             </div>
           </div>
           <button class="btn btn-ghost btn-sm" id="btn-close-menu">Đóng ✕</button>
@@ -702,34 +747,64 @@ function renderMainShell() {
         </div>
       </aside>
 
-      <!-- Main 2-Column Body: Left Contrasting Topics + Centered Content Tabs & View -->
-      <div class="workspace-body">
-        <aside class="topics-rail" aria-label="Danh sách Chủ đề">
-          <div class="topics-rail-heading">Chủ đề Sinh học 12</div>
-          ${state.topicsList
-            .map((t, i) => {
-              const num = t.order_index || i + 1;
-              const themeCls = `topic-theme-${((num - 1) % 8) + 1}`;
-              const shortTitle = (t.title || "").replace(/^Chủ đề\s*\d+[\.\:]?\s*/i, "");
-              const isLoadingThis = state.topicLoading && state.loadingTopicId === t.id;
-              return `
-                <button class="topic-color-card ${themeCls} ${t.id === state.activeTopicId && state.activeTab !== "mock_exam" ? "active" : ""} ${isLoadingThis ? "is-loading" : ""}" data-select-topic="${t.id}">
-                  <span class="topic-color-badge">Chủ đề ${num}${isLoadingThis ? `<span class="topic-card-spinner" aria-hidden="true"></span>` : ""}</span>
-                  <span class="topic-color-title">${escapeHtml(shortTitle || t.title)}</span>
-                </button>
-              `;
-            })
-            .join("")}
+      <!-- Floating Left Edge Reopen Button when Topics Rail is Collapsed -->
+      <button class="rail-reopen-fab ${state.topicsRailCollapsed ? "visible" : ""}" id="btn-expand-rail-float" type="button" title="Mở thanh Chủ đề Sinh học 12" aria-label="Mở thanh Chủ đề Sinh học 12">
+        ${ICONS.chevronRight}
+        <span>Chủ đề</span>
+      </button>
 
-          <div class="topics-rail-heading" style="margin-top:10px;">Kỳ thi &amp; Luyện đề</div>
-          <button class="topic-color-card topic-theme-mock ${state.activeTab === "mock_exam" ? "active" : ""}" data-tab="mock_exam">
-            <span class="topic-color-badge">PHÒNG LUYỆN TẬP · 45 PHÚT</span>
-            <span class="topic-color-title">Thi thử Tốt nghiệp THPT</span>
-          </button>
+      <!-- Main 2-Column Body: Independently Scrollable Collapsible Topics Rail + Balanced Biology Content Workspace -->
+      <div class="workspace-body ${state.topicsRailCollapsed ? "rail-collapsed" : ""}" id="workspace-body">
+        <aside class="topics-rail ${state.topicsRailCollapsed ? "collapsed" : ""}" id="topics-rail" aria-label="Danh sách Chủ đề Sinh học 12">
+          <div class="topics-rail-header">
+            <div class="topics-rail-header-title">
+              <span class="topics-rail-dna-dot" aria-hidden="true">${ICONS.dna}</span>
+              <div>
+                <div class="topics-rail-heading">Chủ đề Sinh học 12</div>
+                <div class="topics-rail-sub">${state.topicsList.length} chủ đề · GDPT 2018</div>
+              </div>
+            </div>
+            <button type="button" class="rail-collapse-icon-btn" id="btn-collapse-rail" title="Ẩn thanh Chủ đề" aria-label="Ẩn thanh Chủ đề">
+              ${ICONS.chevronLeft}
+            </button>
+          </div>
+
+          <div class="topics-rail-scroll" id="topics-rail-scroll">
+            ${state.topicsList
+              .map((t, i) => {
+                const num = t.order_index || i + 1;
+                const themeCls = `topic-theme-${((num - 1) % 8) + 1}`;
+                const shortTitle = (t.title || "").replace(/^Chủ đề\s*\d+[\.\:]?\s*/i, "");
+                const isLoadingThis = state.topicLoading && state.loadingTopicId === t.id;
+                return `
+                  <button class="topic-color-card ${themeCls} ${t.id === state.activeTopicId && state.activeTab !== "mock_exam" ? "active" : ""} ${isLoadingThis ? "is-loading" : ""}" data-select-topic="${t.id}">
+                    <span class="topic-color-badge">Chủ đề ${num}${isLoadingThis ? `<span class="topic-card-spinner" aria-hidden="true"></span>` : ""}</span>
+                    <span class="topic-color-title">${escapeHtml(shortTitle || t.title)}</span>
+                  </button>
+                `;
+              })
+              .join("")}
+
+            <div class="topics-rail-divider">Kỳ thi &amp; Luyện đề</div>
+            <button class="topic-color-card topic-theme-mock ${state.activeTab === "mock_exam" ? "active" : ""}" data-tab="mock_exam">
+              <span class="topic-color-badge">PHÒNG LUYỆN TẬP · 45 PHÚT</span>
+              <span class="topic-color-title">Thi thử Tốt nghiệp THPT</span>
+            </button>
+          </div>
+
+          <div class="topics-rail-footer">
+            <div class="rail-author-card">
+              <span class="rail-author-icon">${ICONS.feather}</span>
+              <div class="rail-author-info">
+                <span class="rail-author-label">Tác giả biên soạn</span>
+                <strong class="rail-author-name">Thầy Bạch Anh Tú</strong>
+              </div>
+            </div>
+          </div>
         </aside>
 
         <section class="center-stage">
-          <!-- Centered Contrasting Content Cards -->
+          <!-- Balanced Scientific Navigation Tabs Bar -->
           <nav class="center-tabs-bar" aria-label="Các thẻ nội dung">
             <button class="center-tab-card ctab-theory ${state.activeTab === "theory" ? "active" : ""}" data-tab="theory">
               ${ICONS.book}<span>1. Lý thuyết</span>
@@ -755,10 +830,54 @@ function renderMainShell() {
           </nav>
 
           <div class="center-content-wrap" id="tab-view"></div>
+
+          <footer class="bio-workspace-footer" aria-label="Thông tin tác giả và bản quyền">
+            <div class="bio-footer-left">
+              <span class="bio-footer-dna">${ICONS.dna}</span>
+              <div>
+                <div class="bio-footer-title">Hệ thống Giảng dạy &amp; Ôn tập Thông minh — Sinh học 12</div>
+                <div class="bio-footer-sub">Chương trình Giáo dục Phổ thông 2018 · Học tập khoa học &amp; trực quan</div>
+              </div>
+            </div>
+            <div class="bio-footer-author">
+              ${ICONS.feather}
+              <span>Tác giả: <strong>Thầy Bạch Anh Tú</strong></span>
+            </div>
+          </footer>
         </section>
       </div>
     </div>
   `;
+
+  // Khôi phục vị trí cuộn độc lập của thanh Chủ đề
+  const railScrollEl = document.getElementById("topics-rail-scroll");
+  if (railScrollEl) {
+    railScrollEl.scrollTop = state.railScrollTop || 0;
+    railScrollEl.addEventListener("scroll", () => {
+      state.railScrollTop = railScrollEl.scrollTop;
+    }, { passive: true });
+  }
+
+  const setRailCollapsed = (collapsed) => {
+    state.topicsRailCollapsed = Boolean(collapsed);
+    saveStoredRailCollapsed(state.topicsRailCollapsed);
+    document.getElementById("workspace-body")?.classList.toggle("rail-collapsed", state.topicsRailCollapsed);
+    document.getElementById("topics-rail")?.classList.toggle("collapsed", state.topicsRailCollapsed);
+    document.getElementById("btn-expand-rail-float")?.classList.toggle("visible", state.topicsRailCollapsed);
+    const topBtn = document.getElementById("btn-toggle-rail");
+    if (topBtn) {
+      topBtn.classList.toggle("is-collapsed", state.topicsRailCollapsed);
+      topBtn.classList.toggle("is-open", !state.topicsRailCollapsed);
+      topBtn.setAttribute("aria-expanded", String(!state.topicsRailCollapsed));
+      topBtn.title = state.topicsRailCollapsed ? "Hiện thanh Chủ đề Sinh học 12" : "Ẩn thanh Chủ đề Sinh học 12";
+      const sp = topBtn.querySelector("span");
+      if (sp) sp.textContent = state.topicsRailCollapsed ? "Hiện Chủ đề" : "Ẩn Chủ đề";
+    }
+  };
+
+  document.getElementById("btn-toggle-rail")?.addEventListener("click", () => setRailCollapsed(!state.topicsRailCollapsed));
+  document.getElementById("btn-collapse-rail")?.addEventListener("click", () => setRailCollapsed(true));
+  document.getElementById("btn-expand-rail-float")?.addEventListener("click", () => setRailCollapsed(false));
 
   const setDrawer = (open) => {
     state.mobileMenuOpen = open;
@@ -920,13 +1039,24 @@ function renderTheoryTab(container) {
   const ytCount = (topic.youtube_videos || []).length;
   const canManageYt = state.user?.role === "admin" && !state.teacherPreviewAsStudent;
 
+  const doneCount = lessons.filter((l) => state.completedLessonIds.has(l.id)).length;
+
   container.innerHTML = `
-    <div class="page-header">
-      <div>
+    <div class="page-header bio-page-header">
+      ${ICONS.helixBg}
+      <div class="bio-page-header-main">
+        <div class="bio-topic-kicker">
+          <span class="bio-kicker-dot"></span>
+          <span>SINH HỌC 12 · CHƯƠNG TRÌNH GDPT 2018</span>
+        </div>
         <h1>${formatBioHtml(topic.title)}</h1>
-        <p>${lessons.length} bài lý thuyết · ${ytCount} video YouTube đã nhúng</p>
+        <div class="bio-header-meta">
+          <span class="pill pill-primary">${lessons.length} bài lý thuyết</span>
+          <span class="pill pill-muted">${ytCount} video YouTube</span>
+          <span class="pill pill-green">Hoàn thành ${doneCount}/${lessons.length} bài</span>
+        </div>
       </div>
-      <div class="segmented">
+      <div class="segmented bio-mode-segmented">
         <button class="seg-btn ${state.theoryMode === "lessons" ? "active" : ""}" id="mode-lessons">Nội dung bài học</button>
         <button class="seg-btn ${state.theoryMode === "youtube" ? "active" : ""}" id="mode-youtube">Video bài giảng YouTube (${ytCount})</button>
       </div>
@@ -1097,12 +1227,20 @@ function renderKnowledgeTab(container) {
 
   const draw = () => {
     container.innerHTML = `
-      <div class="page-header">
-        <div>
-          <h1>Hệ thống kiến thức — ${formatBioHtml(topic.title)}</h1>
-          <p>${units.length} phiếu bài học · ${(ks.flashcards || []).length} thẻ ghi nhớ</p>
+      <div class="page-header bio-page-header">
+        ${ICONS.helixBg}
+        <div class="bio-page-header-main">
+          <div class="bio-topic-kicker">
+            <span class="bio-kicker-dot"></span>
+            <span>HỆ THỐNG HOÁ KIẾN THỨC SINH HỌC 12</span>
+          </div>
+          <h1>${formatBioHtml(topic.title)}</h1>
+          <div class="bio-header-meta">
+            <span class="pill pill-primary">${units.length} phiếu bài học</span>
+            <span class="pill pill-muted">${(ks.flashcards || []).length} thẻ ghi nhớ</span>
+          </div>
         </div>
-        <div class="segmented">
+        <div class="segmented bio-mode-segmented">
           ${units.length ? `<button class="seg-btn ${ksMode === "source" ? "active" : ""}" id="ks-mode-source">Phiếu hệ thống kiến thức</button>` : ""}
           <button class="seg-btn ${ksMode === "mindmap" ? "active" : ""}" id="ks-mode-mindmap">Sơ đồ &amp; Thẻ ghi nhớ</button>
         </div>
