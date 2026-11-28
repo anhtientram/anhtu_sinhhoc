@@ -22,6 +22,7 @@ import {
 } from "./interactive_blocks.js";
 import { mountMockExamSection, stopMockExamTimers } from "./mock_exam.js";
 import { mountQuizSection } from "./quiz.js";
+import { parseRoute, resetUrlToHome, syncBrowserUrl } from "./router.js";
 import { mountTeacherDashboard } from "./teacher.js";
 import { mountYoutubeLibrary } from "./youtube_videos.js";
 
@@ -66,9 +67,15 @@ const state = {
   loadingTopicId: "",
   activeTopicId: "chu-de-1",
   activeTopic: null,
-  activeTab: "theory", // 'theory' | 'knowledge' | 'review' | 'teacher' | 'profile'
+  activeTab: "theory", // 'theory' | 'knowledge' | 'review' | 'mock_exam' | 'teacher' | 'profile'
   theoryMode: "lessons", // 'lessons' | 'youtube'
   activeLessonId: "",
+  knowledgeMode: "source", // 'source' | 'mindmap'
+  knowledgeUnitIdx: 0,
+  teacherSubtab: "members",
+  teacherContentSubMode: "add_topic",
+  teacherExamMixerMode: "word",
+  pendingInitialRoute: parseRoute(),
   teacherPreviewAsStudent: false,
   presentationMode: false,
   mobileMenuOpen: false,
@@ -89,6 +96,40 @@ const state = {
 
 function isStaffRole(role) {
   return role === "admin" || role === "teacher";
+}
+
+function applyRouteGuardForUser(route, user) {
+  if (!route) return route;
+  const guarded = { ...route };
+  if (!isStaffRole(user?.role) && guarded.activeTab === "teacher") {
+    guarded.activeTab = "theory";
+  }
+  if (
+    user?.role !== "admin" &&
+    guarded.activeTab === "teacher" &&
+    (guarded.teacherSubtab === "content" || guarded.teacherSubtab === "pw_alerts")
+  ) {
+    guarded.teacherSubtab = "members";
+  }
+  return guarded;
+}
+
+function syncCurrentUrl(replace = false) {
+  if (!state.user || state.user.must_change_password) return;
+  syncBrowserUrl(
+    {
+      activeTab: state.activeTab,
+      topicId: state.activeTopicId,
+      lessonId: state.activeLessonId,
+      theoryMode: state.theoryMode,
+      knowledgeMode: state.knowledgeMode,
+      knowledgeUnitIdx: state.knowledgeUnitIdx,
+      teacherSubtab: state.teacherSubtab,
+      teacherContentSubMode: state.teacherContentSubMode,
+      teacherExamMixerMode: state.teacherExamMixerMode,
+    },
+    { replace }
+  );
 }
 
 function roleDisplayName(role) {
@@ -203,8 +244,15 @@ async function handleLeaveClass(shouldLogout = false) {
     state.topicCache = {};
     state.activeTopic = null;
     state.activeTab = "theory";
+    state.theoryMode = "lessons";
+    state.knowledgeMode = "source";
+    state.knowledgeUnitIdx = 0;
+    state.teacherSubtab = "members";
+    state.teacherContentSubMode = "add_topic";
+    state.teacherExamMixerMode = "word";
     state.teacherPreviewAsStudent = false;
     document.body.classList.remove("presentation-mode");
+    resetUrlToHome();
     render();
   } else {
     render();
@@ -218,7 +266,11 @@ window.addEventListener("pagehide", () => {
 });
 
 // ================== DATA LOADERS ==================
-async function loadTopicsAndActive(topicId = state.activeTopicId, forceRefresh = false) {
+async function loadTopicsAndActive(
+  topicId = state.activeTopicId,
+  forceRefresh = false,
+  preferredLessonId = ""
+) {
   if (!state.topicsList.length || forceRefresh) {
     const listRes = await api.listTopics();
     state.topicsList = listRes.topics || [];
@@ -240,16 +292,29 @@ async function loadTopicsAndActive(topicId = state.activeTopicId, forceRefresh =
     clientCache.setTopic(chosenId, detailRes.topic);
   }
 
-  if (state.activeTopic?.lessons?.length) {
-    state.activeLessonId = state.activeTopic.lessons[0].id;
+  const lessons = state.activeTopic?.lessons || [];
+  if (lessons.length) {
+    if (preferredLessonId && lessons.some((l) => l.id === preferredLessonId)) {
+      state.activeLessonId = preferredLessonId;
+    } else {
+      state.activeLessonId = lessons[0].id;
+    }
   } else {
     state.activeLessonId = "";
   }
 }
 
-async function switchTopicSmoothly(targetId) {
+async function switchTopicSmoothly(targetId, preferredLessonId = "", skipUrlSync = false) {
   if (!targetId) return;
-  if (targetId === state.activeTopicId && state.activeTopic && !state.topicLoading) return;
+  if (
+    targetId === state.activeTopicId &&
+    state.activeTopic &&
+    !state.topicLoading &&
+    !preferredLessonId
+  ) {
+    if (!skipUrlSync) syncCurrentUrl(false);
+    return;
+  }
 
   state.mobileMenuOpen = false;
   const topicMeta = state.topicsList.find((t) => t.id === targetId);
@@ -262,8 +327,14 @@ async function switchTopicSmoothly(targetId) {
     state.activeTopic = cached;
     state.topicLoading = false;
     state.loadingTopicId = "";
-    state.activeLessonId = cached?.lessons?.[0]?.id || "";
+    const lessons = cached?.lessons || [];
+    state.activeLessonId =
+      preferredLessonId && lessons.some((l) => l.id === preferredLessonId)
+        ? preferredLessonId
+        : lessons[0]?.id || "";
+    state.knowledgeUnitIdx = 0;
     sendThrottledHeartbeat(targetId, state.activeTab);
+    if (!skipUrlSync) syncCurrentUrl(false);
     renderMainShell();
     window.scrollTo({ top: 0, behavior: "smooth" });
     return;
@@ -272,6 +343,7 @@ async function switchTopicSmoothly(targetId) {
   state.activeTopicId = targetId;
   state.loadingTopicId = targetId;
   state.topicLoading = true;
+  if (!skipUrlSync) syncCurrentUrl(false);
   renderMainShell();
 
   try {
@@ -283,8 +355,14 @@ async function switchTopicSmoothly(targetId) {
     state.activeTopic = detailRes.topic;
     state.topicCache[targetId] = detailRes.topic;
     clientCache.setTopic(targetId, detailRes.topic);
-    state.activeLessonId = detailRes.topic?.lessons?.[0]?.id || "";
+    const lessons = detailRes.topic?.lessons || [];
+    state.activeLessonId =
+      preferredLessonId && lessons.some((l) => l.id === preferredLessonId)
+        ? preferredLessonId
+        : lessons[0]?.id || "";
+    state.knowledgeUnitIdx = 0;
     sendThrottledHeartbeat(targetId, state.activeTab);
+    if (!skipUrlSync) syncCurrentUrl(true);
   } catch (err) {
     showToast(err.message, "error");
   } finally {
@@ -570,11 +648,36 @@ async function enterAuthenticatedApp() {
     render();
     return;
   }
-  await loadTopicsAndActive(state.activeTopicId);
+  const initialRoute = applyRouteGuardForUser(
+    state.pendingInitialRoute || parseRoute(),
+    state.user
+  );
+  state.pendingInitialRoute = null;
+
+  if (initialRoute?.hasExplicitRoute) {
+    state.activeTab = initialRoute.activeTab;
+    state.theoryMode = initialRoute.theoryMode || "lessons";
+    state.knowledgeMode = initialRoute.knowledgeMode || "source";
+    state.knowledgeUnitIdx = initialRoute.knowledgeUnitIdx || 0;
+    state.teacherSubtab = initialRoute.teacherSubtab || "members";
+    state.teacherContentSubMode = initialRoute.teacherContentSubMode || "add_topic";
+    state.teacherExamMixerMode = initialRoute.teacherExamMixerMode || "word";
+    clientCache.setTeacherData({
+      subtab: state.teacherSubtab,
+      contentSubMode: state.teacherContentSubMode,
+    });
+  }
+
+  await loadTopicsAndActive(
+    initialRoute?.topicId || state.activeTopicId,
+    false,
+    initialRoute?.lessonId || ""
+  );
   await loadMyProgressAndSessions();
   if (state.user.role === "student") {
     await ensureStudentCheckedIn();
   }
+  syncCurrentUrl(true);
   render();
 }
 
@@ -891,6 +994,7 @@ function renderMainShell() {
 
   document.getElementById("btn-brand-home")?.addEventListener("click", () => {
     state.activeTab = "theory";
+    syncCurrentUrl(false);
     render();
   });
 
@@ -911,6 +1015,7 @@ function renderMainShell() {
       state.activeTab = "theory";
       state.theoryMode = "lessons";
       state.activeLessonId = btn.dataset.drawerLesson;
+      syncCurrentUrl(false);
       render();
     });
   });
@@ -927,6 +1032,7 @@ function renderMainShell() {
       state.mobileMenuOpen = false;
       state.activeTab = nextTab;
       sendThrottledHeartbeat(state.activeTopicId, state.activeTab);
+      syncCurrentUrl(false);
       render();
     });
   });
@@ -934,6 +1040,7 @@ function renderMainShell() {
   document.getElementById("btn-open-profile")?.addEventListener("click", () => {
     state.mobileMenuOpen = false;
     state.activeTab = "profile";
+    syncCurrentUrl(false);
     render();
   });
 
@@ -949,6 +1056,7 @@ function renderMainShell() {
     state.teacherPreviewAsStudent = !state.teacherPreviewAsStudent;
     if (state.teacherPreviewAsStudent && state.activeTab === "teacher") {
       state.activeTab = "theory";
+      syncCurrentUrl(false);
     }
     render();
   });
@@ -997,6 +1105,15 @@ function renderMainShell() {
       {
         currentUser: state.user,
         topicsList: state.topicsList,
+        initialSubtab: state.teacherSubtab,
+        initialContentSubMode: state.teacherContentSubMode,
+        initialExamMixerMode: state.teacherExamMixerMode,
+        onSubRouteChange: (patch, replace = false) => {
+          if (patch?.subtab) state.teacherSubtab = patch.subtab;
+          if (patch?.contentSubMode) state.teacherContentSubMode = patch.contentSubMode;
+          if (patch?.examMixerMode) state.teacherExamMixerMode = patch.examMixerMode;
+          syncCurrentUrl(replace);
+        },
         onSelectTopic: async (tid) => {
           state.activeTab = "theory";
           await switchTopicSmoothly(tid);
@@ -1011,6 +1128,7 @@ function renderMainShell() {
           }
           clientCache.invalidateTeacherData();
           await loadTopicsAndActive(newTopicId || state.activeTopicId, true);
+          syncCurrentUrl(true);
           render();
         },
       }
@@ -1067,10 +1185,12 @@ function renderTheoryTab(container) {
 
   container.querySelector("#mode-lessons")?.addEventListener("click", () => {
     state.theoryMode = "lessons";
+    syncCurrentUrl(false);
     renderTheoryTab(container);
   });
   container.querySelector("#mode-youtube")?.addEventListener("click", () => {
     state.theoryMode = "youtube";
+    syncCurrentUrl(false);
     renderTheoryTab(container);
   });
 
@@ -1162,6 +1282,7 @@ function renderTheoryTab(container) {
   bodyEl.querySelectorAll("[data-lesson-id]").forEach((btn) => {
     btn.addEventListener("click", () => {
       state.activeLessonId = btn.dataset.lessonId;
+      syncCurrentUrl(false);
       renderTheoryTab(container);
       window.scrollTo({ top: 0, behavior: "smooth" });
     });
@@ -1203,11 +1324,13 @@ function renderTheoryTab(container) {
 
   bodyEl.querySelector("#btn-open-yt-from-lesson")?.addEventListener("click", () => {
     state.theoryMode = "youtube";
+    syncCurrentUrl(false);
     renderTheoryTab(container);
   });
 
   bodyEl.querySelector("#btn-goto-review-from-lesson")?.addEventListener("click", () => {
     state.activeTab = "review";
+    syncCurrentUrl(false);
     render();
   });
 }
@@ -1222,8 +1345,14 @@ function renderKnowledgeTab(container) {
   }
 
   const units = ks.units || [];
-  let ksMode = units.length ? "source" : "mindmap";
-  let activeUnitIdx = 0;
+  let ksMode = units.length
+    ? state.knowledgeMode === "mindmap"
+      ? "mindmap"
+      : "source"
+    : "mindmap";
+  let activeUnitIdx = Math.min(Math.max(0, Number(state.knowledgeUnitIdx || 0)), Math.max(0, units.length - 1));
+  state.knowledgeMode = ksMode;
+  state.knowledgeUnitIdx = activeUnitIdx;
 
   const draw = () => {
     container.innerHTML = `
@@ -1251,10 +1380,14 @@ function renderKnowledgeTab(container) {
 
     container.querySelector("#ks-mode-source")?.addEventListener("click", () => {
       ksMode = "source";
+      state.knowledgeMode = ksMode;
+      syncCurrentUrl(false);
       draw();
     });
     container.querySelector("#ks-mode-mindmap")?.addEventListener("click", () => {
       ksMode = "mindmap";
+      state.knowledgeMode = ksMode;
+      syncCurrentUrl(false);
       draw();
     });
 
@@ -1296,6 +1429,8 @@ function renderKnowledgeTab(container) {
       bodyEl.querySelectorAll("[data-ks-unit]").forEach((btn) => {
         btn.addEventListener("click", () => {
           activeUnitIdx = Number(btn.dataset.ksUnit);
+          state.knowledgeUnitIdx = activeUnitIdx;
+          syncCurrentUrl(false);
           draw();
         });
       });
@@ -1730,6 +1865,44 @@ async function renderProfileTab(container) {
 }
 
 // ================== ROOT RENDER & BOOTSTRAP ==================
+window.addEventListener("popstate", async () => {
+  if (!state.user || state.user.must_change_password) return;
+  const route = applyRouteGuardForUser(parseRoute(), state.user);
+  if (state.activeTab === "mock_exam" && route.activeTab !== "mock_exam") {
+    stopMockExamTimers();
+  }
+  if (state.activeTab === "theory" && route.activeTab !== "theory") {
+    cleanupTheoryObserver();
+  }
+  state.mobileMenuOpen = false;
+  state.activeTab = route.activeTab;
+  state.theoryMode = route.theoryMode || "lessons";
+  state.knowledgeMode = route.knowledgeMode || "source";
+  state.knowledgeUnitIdx = route.knowledgeUnitIdx || 0;
+  state.teacherSubtab = route.teacherSubtab || "members";
+  state.teacherContentSubMode = route.teacherContentSubMode || "add_topic";
+  state.teacherExamMixerMode = route.teacherExamMixerMode || "word";
+  clientCache.setTeacherData({
+    subtab: state.teacherSubtab,
+    contentSubMode: state.teacherContentSubMode,
+  });
+
+  if (
+    route.topicId &&
+    route.topicId !== state.activeTopicId &&
+    state.topicsList.some((t) => t.id === route.topicId)
+  ) {
+    await switchTopicSmoothly(route.topicId, route.lessonId || "", true);
+    return;
+  }
+
+  if (route.lessonId && (state.activeTopic?.lessons || []).some((l) => l.id === route.lessonId)) {
+    state.activeLessonId = route.lessonId;
+  }
+  sendThrottledHeartbeat(state.activeTopicId, state.activeTab);
+  render();
+});
+
 function render() {
   if (!state.user) renderAuthView();
   else if (state.user.must_change_password) renderFirstLoginSetupView();

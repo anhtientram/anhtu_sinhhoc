@@ -462,7 +462,7 @@ class Bio12Handler(BaseHTTPRequestHandler):
 
             if path.startswith("/api/"):
                 return self.handle_api_get(path, qs)
-            return self.serve_static(path)
+            return self.serve_static(path, raw_path=raw_path)
         except (BrokenPipeError, ConnectionResetError, TimeoutError):
             return
         except Exception as e:
@@ -2962,7 +2962,7 @@ class Bio12Handler(BaseHTTPRequestHandler):
             return self.send_json(404, {"error": "API endpoint không tồn tại."})
 
     # ---------------------- STATIC FILE SERVING ----------------------
-    def serve_static(self, path):
+    def serve_static(self, path, raw_path: str = ""):
         if path == "/" or path == "":
             rel = "index.html"
         else:
@@ -3026,6 +3026,21 @@ class Bio12Handler(BaseHTTPRequestHandler):
 
         try:
             raw, gz, etag, mime_out = _get_cached_static(safe_path, mime)
+            if rel == "index.html":
+                if BASE_PATH != "/" and (
+                    raw_path == BASE_PATH or raw_path.startswith(BASE_PATH + "/")
+                ):
+                    base_href = BASE_PATH.rstrip("/") + "/"
+                else:
+                    base_href = "/"
+                html_str = raw.decode("utf-8", errors="replace")
+                if "<base " not in html_str.lower():
+                    html_str = html_str.replace(
+                        "<head>", f'<head>\n  <base href="{base_href}" />', 1
+                    )
+                    raw = html_str.encode("utf-8")
+                    gz = gzip.compress(raw, compresslevel=6) if len(raw) >= 512 else b""
+                    etag = f'W/"{hashlib.sha1(raw).hexdigest()[:14]}"'
             is_upload_img = rel.startswith("uploads/")
             if is_upload_img:
                 cache_hdr = "public, max-age=604800, immutable"

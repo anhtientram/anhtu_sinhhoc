@@ -112,7 +112,9 @@ export const clientCache = {
   },
 };
 
-export const BASE_PATH = window.location.pathname.startsWith("/sinhhoc12") ? "/sinhhoc12" : "";
+const _locPath = typeof window !== "undefined" ? window.location.pathname : "";
+export const BASE_PATH =
+  _locPath === "/sinhhoc12" || _locPath.startsWith("/sinhhoc12/") ? "/sinhhoc12" : "";
 
 export function withBase(path) {
   if (!path) return "";
