@@ -3154,18 +3154,24 @@ class Bio12Handler(BaseHTTPRequestHandler):
             rel = path.lstrip("/")
 
         if rel.startswith("uploads/") and EXTRA_UPLOADS_DIR:
-            abs_extra = os.path.abspath(EXTRA_UPLOADS_DIR)
-            candidate = os.path.abspath(
-                os.path.normpath(os.path.join(abs_extra, rel[len("uploads/") :]))
-            )
-            try:
-                in_extra = os.path.commonpath([candidate, abs_extra]) == abs_extra
-            except ValueError:
-                in_extra = False
-            if in_extra and os.path.isfile(candidate):
-                safe_path = candidate
+            static_cand = os.path.normpath(os.path.join(STATIC_DIR, rel))
+            if os.path.isfile(static_cand):
+                # Ưu tiên bản ảnh chuẩn hoá trong gói phát hành (static/uploads/) để bản sửa từ Git
+                # luôn thắng mọi bản cũ/lỗi (.emf) từng lưu trên volume bền vững /data/uploads/
+                safe_path = static_cand
             else:
-                safe_path = os.path.normpath(os.path.join(STATIC_DIR, rel))
+                abs_extra = os.path.abspath(EXTRA_UPLOADS_DIR)
+                candidate = os.path.abspath(
+                    os.path.normpath(os.path.join(abs_extra, rel[len("uploads/") :]))
+                )
+                try:
+                    in_extra = os.path.commonpath([candidate, abs_extra]) == abs_extra
+                except ValueError:
+                    in_extra = False
+                if in_extra and os.path.isfile(candidate):
+                    safe_path = candidate
+                else:
+                    safe_path = static_cand
         else:
             safe_path = os.path.normpath(os.path.join(STATIC_DIR, rel))
 
@@ -3238,7 +3244,7 @@ class Bio12Handler(BaseHTTPRequestHandler):
                 elif len(raw) >= 12 and raw[:4] == b"RIFF" and raw[8:12] == b"WEBP":
                     mime_out = "image/webp"
             if is_upload_img:
-                cache_hdr = "public, max-age=604800, immutable"
+                cache_hdr = "public, max-age=3600, must-revalidate"
             elif rel == "index.html" or rel.endswith(".js") or rel.endswith(".css"):
                 cache_hdr = "no-store, no-cache, must-revalidate"
             else:

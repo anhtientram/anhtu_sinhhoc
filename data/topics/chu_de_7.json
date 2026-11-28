@@ -20311,7 +20311,7 @@
         "lesson": "7.3",
         "stem": "Biểu đồ bên miêu tả mối tương quan giữa số lượng giun tròn (Ascaris lumbricoides) kí sinh trong ruột một loài động vật và số lượng trứng giữa mỗi con giun. Mỗi phát biểu sau đây là đúng hay sai?",
         "images": [
-          "/uploads/chu-de-7/img_23d8b77a68.png"
+          "/uploads/chu-de-7/img_23d8b77a68.png?v=2"
         ],
         "tables": [],
         "statements": [
@@ -20415,7 +20415,7 @@
         "lesson": "7.3",
         "stem": "Sơ đồ dưới đây thể hiện mô hình tương tác giữa các quần thể của một hệ sinh thái. Các chữ in hoa kí hiệu cho các quần thể. Mũi tên hai đầu (↔) cho biết có sự tương tác trực tiếp giữa hai quần thể. các tương tác có thể có lợi (+), có hại (-) hoặc không có lợi, không có hại đối với mỗi quần thể được chỉ ra ở cuối dấu các mũi tên. Mỗi nhận xét sau đây là đúng hay sai?",
         "images": [
-          "/uploads/chu-de-7/img_bedc9ea121.png"
+          "/uploads/chu-de-7/img_bedc9ea121.png?v=2"
         ],
         "tables": [],
         "statements": [
@@ -20454,7 +20454,7 @@
         "lesson": "7.3",
         "stem": "Khi nghiên cứu mối quan hệ sinh thái giữa 2 loài vi sinh vật (A và B), người ta đã nuôi trong cùng một điều kiện môi trường: Loài A và B được nuôi riêng và nuôi chung. Kết quả khảo sát số lượng cá thể ở mỗi trường hợp được minh họa bằng sơ đồ bên dưới. Theo lí thuyết mỗi phát biểu sau đây đúng hay sai?",
         "images": [
-          "/uploads/chu-de-7/img_217a1f6879.png"
+          "/uploads/chu-de-7/img_217a1f6879.png?v=2"
         ],
         "tables": [],
         "statements": [
@@ -24123,5 +24123,5 @@
       }
     ]
   },
-  "bundled_version": "2026.11.28-topic7-dapan-v10"
+  "bundled_version": "2026.11.28-topic7-dapan-v11"
 }
