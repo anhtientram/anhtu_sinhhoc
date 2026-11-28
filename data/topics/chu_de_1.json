@@ -245,7 +245,7 @@
             },
             {
               "type": "text",
-              "text": "Bước 3: Tạo thành phân tử DNA: Từ 1 phân tử DNA ban đầu, tái bản 1 lần → tạo ra 2 phân tử DNA mới giống nhau và giống DNA ban đầu. Trong mỗi phân tử DNA con, có 1 mạch của DNA mẹ và 1 mạch mới được tổng hợp.",
+              "text": "Bước 3: Tạo thành phần tử DNA: Từ 1 phân tử DNA ban đầu, tái bản 1 lần → tạo ra 2 phân tử DNA mới giống nhau và giống DNA ban đầu. Trong mỗi phân tử DNA con, có 1 mạch của DNA mẹ và 1 mạch mới được tổng hợp.",
               "is_bold": false
             },
             {
@@ -295,7 +295,7 @@
             "Bước 2: Tổng hợp mạch DNA: Ở mỗi chạc chữ Y quá trình tái bản được diễn ra như sau:",
             "Mạch khuôn có chiều 3’ → 5’: enzyme primase (RNA polymerase) tổng hợp một đoạn mồi RNA cung cấp đầu 3’ - OH để enzyme DNA polymerase tiếp tục tổng hợp mạch mới theo chiều 5’→3’, liên tục cùng chiều tháo xoắn.",
             "Mạch khuôn có chiều 5’ → 3’: mạch mới được tổng hợp ngược chiều tháo xoắn với đoạn mồi riêng và xảy ra gián đoạn → tạo thành các đoạn Okazaki. Sau đó, enzyme DNA polymerase tiến hành loại bỏ đoạn RNA mồi, tổng hợp đoạn DNA thay thế trước khi enzyme DNA ligase nối chúng lại với nhau để tạo thành một mạch hoàn chỉnh.",
-            "Bước 3: Tạo thành phân tử DNA: Từ 1 phân tử DNA ban đầu, tái bản 1 lần → tạo ra 2 phân tử DNA mới giống nhau và giống DNA ban đầu. Trong mỗi phân tử DNA con, có 1 mạch của DNA mẹ và 1 mạch mới được tổng hợp.",
+            "Bước 3: Tạo thành phần tử DNA: Từ 1 phân tử DNA ban đầu, tái bản 1 lần → tạo ra 2 phân tử DNA mới giống nhau và giống DNA ban đầu. Trong mỗi phân tử DNA con, có 1 mạch của DNA mẹ và 1 mạch mới được tổng hợp.",
             "* Lưu ý: Sự khác biệt quá trình tái bản DNA giữa sinh vật nhân thực và nhân sơ:",
             "- Ở sinh vật nhân sơ: trên mỗi phân tử DNA chỉ có một đơn vị tái bản.",
             "- Ở sinh vật nhân thực: trên mỗi phân tử DNA có nhiều đơn vị tái bản diễn ra đồng thời và hệ thống enzyme tham gia phức tạp hơn ở sinh vật nhân sơ. Tái bản DNA diễn ra ở pha S kỳ trung gian của nguyên phân và giảm phân ( tái bản DNA chính là nhiễm sắc thể nhân đôi từ 2n đơn → 2n kép).",
@@ -318,15 +318,15 @@
                 ],
                 [
                   "Đơn vị kích thước",
-                  "1 mm = 10^3 µm = 10^6 nm = 10^7 Å  (1 nm = 10 Å; 1 µm = 10^4 Å)"
+                  "1 mm = 10^3 µm = 10^6 nm = 10^7 Å (1 nm = 10 Å; 1 µm = 10^4 Å)"
                 ],
                 [
                   "Chiều dài phân tử DNA (gene)",
-                  "L = (N/2) × 3,4 Å  ⇒  N = (2 × L) / 3,4"
+                  "L = (N/2) × 3,4 Å ⇒ N = (2 × L) / 3,4"
                 ],
                 [
                   "Số chu kì xoắn",
-                  "CK = N / 20  (mỗi chu kì xoắn gồm 10 cặp nucleotide = 20 nucleotide, dài 34 Å)"
+                  "CK = N / 20 (mỗi chu kì xoắn gồm 10 cặp nucleotide = 20 nucleotide, dài 34 Å)"
                 ],
                 [
                   "Khối lượng phân tử DNA",
@@ -338,7 +338,7 @@
                 ],
                 [
                   "Số liên kết phosphodiester",
-                  "Giữa các nucleotide trên 2 mạch: N − 2;  Tổng số liên kết phosphodiester trong DNA: 2N − 2"
+                  "Giữa các nucleotide trên 2 mạch: N − 2; Tổng số liên kết phosphodiester trong DNA: 2N − 2"
                 ],
                 [
                   "Số nucleotide từng loại",
@@ -2021,7 +2021,7 @@
             },
             {
               "type": "text",
-              "text": "- Nguyên liệu :",
+              "text": "- Nguyên liệu:",
               "is_bold": true
             },
             {
@@ -2128,7 +2128,7 @@
             "(2) nguyên lí biểu hiện gene là thông tin mã hoá trình tự nucleotide trên gene được biểu hiện thành protein trong tế bào sống thông qua cơ chế phiên mã và dịch mã.",
             "c. Các tiến hành: Quy trình công nghệ DNA tái tổ hợp gồm ba bước:",
             "(1) Tách dòng và tạo DNA tái tổ hợp:",
-            "- Nguyên liệu :",
+            "- Nguyên liệu:",
             "Đoạn DNA hoặc gene mã hoá protein mong muốn",
             "Vector: plasmid từ vi khuẩn DNA của virus (phage) nhiễm sắc thể nhân tạo ở nấm men...",
             "Trong đó, plasmid là loại vector được sử dụng phổ biến.",
@@ -3144,8 +3144,8 @@
               [
                 "4",
                 "Chức năng",
-                ".................................................. ..................................................",
-                "...................................................... ......................................................"
+                "....................................................................................................",
+                "............................................................................................................"
               ]
             ],
             "images": [],
@@ -4225,7 +4225,7 @@
         "tables": [],
         "options": [
           "Guanine (G).",
-          "Uracine (U) .",
+          "Uracine (U).",
           "Adenine (A).",
           "Thymine (T)."
         ],
@@ -4616,7 +4616,7 @@
           "Chủng virus A.",
           "Chủng virus B."
         ],
-        "correct_index": 3,
+        "correct_index": 2,
         "answer_key_ready": true,
         "explanation": "",
         "cognitive_level": "thong_hieu"
@@ -4655,7 +4655,8 @@
         "options": [
           "Hệ gene sợi đơn luôn có 1 tỷ lệ lớn các base purin.",
           "Hệ gene mạch đơn có tỉ lệ đột biến gene cao hơn.",
-          "Hệ gene sợi kép có số lượng A và T bằng nhau. 1.2. Cấu trúc DNA phù hợp với chức năng"
+          "Hệ gene sợi kép có số lượng A và T bằng nhau.",
+          "Hệ gene sợi kép có số lượng purin và pyrimidine khác nhau."
         ],
         "correct_index": 2,
         "answer_key_ready": true,
@@ -4672,13 +4673,14 @@
         "images": [],
         "tables": [],
         "options": [
+          "Thụ tinh.",
           "Phiên mã.",
           "Dịch mã.",
           "Tái bản."
         ],
-        "correct_index": null,
-        "answer_key_ready": false,
-        "explanation": "",
+        "correct_index": 3,
+        "answer_key_ready": true,
+        "explanation": "Đối chiếu ĐÁP ÁN 1.pdf (Bài 1, Câu 24): Thông tin di truyền trên DNA được truyền đạt qua các thế hệ nhờ cơ chế tái bản DNA.",
         "cognitive_level": "nhan_biet"
       },
       {
@@ -4691,9 +4693,10 @@
         "images": [],
         "tables": [],
         "options": [
-          "Gene tính trạng RNA protein.",
-          "Gene RNA tính trạng protein.",
-          "Gene RNA protein tính trạng. C. Gene protein RNA tính trạng."
+          "Gene → tính trạng → RNA → protein.",
+          "Gene → RNA → tính trạng → protein.",
+          "Gene → RNA → protein → tính trạng.",
+          "Gene → protein → RNA → tính trạng."
         ],
         "correct_index": 2,
         "answer_key_ready": true,
@@ -4750,7 +4753,7 @@
         "images": [],
         "tables": [],
         "options": [
-          "Cấu trúc nên màng tế bào và các bào quan .",
+          "Cấu trúc nên màng tế bào và các bào quan.",
           "Mang thông tin di truyền, bảo quản và truyền đạt thông tin di truyền.",
           "Cấu trúc nên enzyme, hoormone và kháng thể.",
           "Cấu trúc nên tính trạng trên cơ thể sinh vật."
@@ -5842,7 +5845,7 @@
         "lesson_id": "chu-de-1-bai-1",
         "lesson": "1.1",
         "level": "3.1. Bài tập cấu trúc DNA",
-        "question": "Mạch thứ nhất của gene dài 0,51µm, mạch đơn thứ hai có tỉ lệ các loại nucleotide A : T : G : C là 1 : 2 : 3 : 4. Theo lí thuyết, có bao nhiêu phát biểu sau đây đúng?\nI. Mạch 1 của gene có G/C =2/15.\nII. Mạch 2 của gene có (A + C)/(T + G) = 21/75.\nIII. Mạch 2 của gene có G/T = 3/2.\nIV. Mạch 2 của gene có 20% số nucleotide loại C.",
+        "question": "Mạch thứ nhất của gene dài 0,51µm, mạch đơn thứ hai có tỉ lệ các loại nucleotide A: T: G: C là 1: 2: 3: 4. Theo lí thuyết, có bao nhiêu phát biểu sau đây đúng?\nI. Mạch 1 của gene có G/C =2/15.\nII. Mạch 2 của gene có (A + C)/(T + G) = 21/75.\nIII. Mạch 2 của gene có G/T = 3/2.\nIV. Mạch 2 của gene có 20% số nucleotide loại C.",
         "images": [],
         "tables": [],
         "options": [
@@ -6189,7 +6192,7 @@
           "46 cặp nhiễm sắc thể.",
           "23 nhiễm sắc thể.",
           "23 cặp nhiễm sắc thể.",
-          "24 cặp nhiễm sắc thê."
+          "24 cặp nhiễm sắc thể."
         ],
         "correct_index": 2,
         "answer_key_ready": true,
@@ -6209,7 +6212,7 @@
           "thành phần hóa học của gene.",
           "trình tự các nucleotide trên phân tử DNA trong hệ gene.",
           "cấu trúc không gian và chức năng của DNA.",
-          "thành phân cấu trúc của mỗi loại nucleotide."
+          "thành phần cấu trúc của mỗi loại nucleotide."
         ],
         "correct_index": 1,
         "answer_key_ready": true,
@@ -6389,7 +6392,7 @@
         "options": [
           "Có liên kết phosphodiester.",
           "Cấu tạo theo nguyên tắc đa phân.",
-          "Có liên kết hydrogen .",
+          "Có liên kết hydrogen.",
           "Chứa bộ ba đối mã (anticodon)."
         ],
         "correct_index": 3,
@@ -6724,7 +6727,7 @@
         "lesson_id": "chu-de-1-bai-2",
         "lesson": "1.2",
         "level": "4.1. Quá trình phiên mã",
-        "question": "Hình sau mô tả một cơ chế di truyền ở cấp độ phân tử. Phân tích hình và cho biết có bao nhiêu phát biểu sau đây là đúng?\nI. Cơ chế di truyền được mô tả trên hình là quá trình phiên mã.\nII. Quá tình trên bắt đầu được thực hiện tại vị trí H và kết thúc tại vị trí A.\nIII. Thành phần có kí hiệu B trên hình là ribosome.\nIV. Sản phẩm tạo thành sau khi kết thúc quá trình trên là chuỗi polypeptide.",
+        "question": "Hình sau mô tả một cơ chế di truyền ở cấp độ phân tử. Phân tích hình và cho biết có bao nhiêu phát biểu sau đây là đúng?\nI. Cơ chế di truyền được mô tả trên hình là quá trình phiên mã.\nII. Quá trình trên bắt đầu được thực hiện tại vị trí H và kết thúc tại vị trí A.\nIII. Thành phần có kí hiệu B trên hình là ribosome.\nIV. Sản phẩm tạo thành sau khi kết thúc quá trình trên là chuỗi polypeptide.",
         "images": [
           "/uploads/chu-de-1/img_aee248cadb.jpg"
         ],
@@ -7446,7 +7449,7 @@
         "lesson_id": "chu-de-1-bai-2",
         "lesson": "1.2",
         "level": "5.1. Mã di truyền",
-        "question": "Thành phần nào sau đây không tham gia trực tiếp trong quá trình dịch mã ?",
+        "question": "Thành phần nào sau đây không tham gia trực tiếp trong quá trình dịch mã?",
         "images": [],
         "tables": [],
         "options": [
@@ -8106,7 +8109,7 @@
         "options": [
           "TAG, GAA, ATA, ATG.",
           "AGG, GTT, TCC, CAA.",
-          "ATC, TAG, GCA, GAA .",
+          "ATC, TAG, GCA, GAA.",
           "AAA, CCA, TAA, TCC."
         ],
         "correct_index": 0,
@@ -9597,7 +9600,7 @@
         "images": [],
         "tables": [],
         "options": [
-          "l .",
+          "l.",
           "2.",
           "3.",
           "4."
@@ -9737,12 +9740,14 @@
         "images": [],
         "tables": [],
         "options": [
-          "A T* → T* G → G",
-          "A T* → G T*→ G C. D. A T* → A G → G C."
+          "A – T* → T* – G → G – C.",
+          "A – T* → T* – C → G – C.",
+          "A – T* → G – T* → G – C.",
+          "A – T* → A – G → G – C."
         ],
-        "correct_index": null,
-        "answer_key_ready": false,
-        "explanation": "",
+        "correct_index": 2,
+        "answer_key_ready": true,
+        "explanation": "Đối chiếu ĐÁP ÁN 1.pdf (Bài 4, Câu 37): C (A – T* → G – T* → G – C).",
         "cognitive_level": "thong_hieu"
       },
       {
@@ -10080,9 +10085,9 @@
           "Quy trình tạo những tế bào có gene bị biến đổi hoặc có thểm gene mới",
           "Quy trình tạo những tế bào hoặc sinh vật có gene bị biến đổi hoặc có thểm gene mới"
         ],
-        "correct_index": null,
-        "answer_key_ready": false,
-        "explanation": "",
+        "correct_index": 3,
+        "answer_key_ready": true,
+        "explanation": "Công nghệ gene là quy trình tạo những tế bào hoặc sinh vật có gene bị biến đổi hoặc có thêm gene mới.",
         "cognitive_level": "nhan_biet"
       },
       {
@@ -10100,9 +10105,9 @@
           "Kĩ thuật cắt gene",
           "Kĩ thuật nối gene"
         ],
-        "correct_index": null,
-        "answer_key_ready": false,
-        "explanation": "",
+        "correct_index": 1,
+        "answer_key_ready": true,
+        "explanation": "Kĩ thuật tạo DNA tái tổ hợp đóng vai trò trung tâm của công nghệ gene.",
         "cognitive_level": "nhan_biet"
       },
       {
@@ -10120,9 +10125,9 @@
           "Là phân tử DNA được tìm thấy trong nhân của vi khuẩn",
           "Là phân tử DNA tham gia cấu tạo nên plasmid"
         ],
-        "correct_index": null,
-        "answer_key_ready": false,
-        "explanation": "",
+        "correct_index": 0,
+        "answer_key_ready": true,
+        "explanation": "DNA tái tổ hợp hình thành từ sự nối hai hay nhiều đoạn DNA cùng nguồn hoặc khác nguồn.",
         "cognitive_level": "nhan_biet"
       },
       {
@@ -10140,9 +10145,9 @@
           "Công nghệ tế bào",
           "Công nghệ vi sinh vật"
         ],
-        "correct_index": null,
-        "answer_key_ready": false,
-        "explanation": "",
+        "correct_index": 0,
+        "answer_key_ready": true,
+        "explanation": "Công nghệ DNA tái tổ hợp dựa trên nguyên lí tái tổ hợp DNA và biểu hiện gene.",
         "cognitive_level": "nhan_biet"
       },
       {
@@ -10160,9 +10165,9 @@
           "Cắt đoạn DNA ngoại lai và vector tại những vị trí nhận biết đặc hiệu.",
           "Đánh dấu được thể truyền để dễ nhận biết trong quá trình chuyển gene."
         ],
-        "correct_index": null,
-        "answer_key_ready": false,
-        "explanation": "",
+        "correct_index": 2,
+        "answer_key_ready": true,
+        "explanation": "Enzyme giới hạn (restrictase/endonuclease) cắt DNA ngoại lai và vector tại các vị trí nhận biết đặc hiệu.",
         "cognitive_level": "nhan_biet"
       },
       {
@@ -10180,9 +10185,9 @@
           "Virus hoặc vi khuẩn.",
           "Vi khuẩn E.coli."
         ],
-        "correct_index": null,
-        "answer_key_ready": false,
-        "explanation": "",
+        "correct_index": 1,
+        "answer_key_ready": true,
+        "explanation": "Thể truyền (vector) thường dùng là plasmid hoặc virus (thể thực khuẩn).",
         "cognitive_level": "nhan_biet"
       },
       {
@@ -10200,9 +10205,9 @@
           "Tồn tại độc lập và tự nhân đôi trong tế bào nhân.",
           "Có thể cài gene cần chuyển vào bộ gene của tế bào nhận"
         ],
-        "correct_index": null,
-        "answer_key_ready": false,
-        "explanation": "",
+        "correct_index": 0,
+        "answer_key_ready": true,
+        "explanation": "Thể truyền không có chức năng ức chế gene của tế bào nhận.",
         "cognitive_level": "nhan_biet"
       },
       {
@@ -10220,9 +10225,9 @@
           "Nếu không có thể truyền thì khó có thể thu được nhiều sản phẩm của gene trong tế bào nhận",
           "Nếu không có thể truyền thì gene sẽ không thể tạo ra sản phẩm trong tế bào nhận"
         ],
-        "correct_index": null,
-        "answer_key_ready": false,
-        "explanation": "",
+        "correct_index": 1,
+        "answer_key_ready": true,
+        "explanation": "Nhờ thể truyền (có điểm khởi đầu tái bản), gene cần chuyển mới nhân lên và phân li đồng đều về tế bào con.",
         "cognitive_level": "nhan_biet"
       },
       {
@@ -10242,9 +10247,9 @@
           "Dễ dàng chuyển DNA tái tổ hợp vào tế bào nhận",
           "Tạo điều kiện cho enzyme nối (ligase) hoạt động tốt hơn."
         ],
-        "correct_index": null,
-        "answer_key_ready": false,
-        "explanation": "",
+        "correct_index": 0,
+        "answer_key_ready": true,
+        "explanation": "Gene đánh dấu giúp nhận biết và phân lập các tế bào đã nhận được DNA tái tổ hợp.",
         "cognitive_level": "thong_hieu"
       },
       {
@@ -10262,9 +10267,9 @@
           "Có trình tự đặc hiệu cho sự nhận biết của enzyme cắt giới hạn",
           "Có gene đánh dấu để nhận biết sau khi chuyển gene."
         ],
-        "correct_index": null,
-        "answer_key_ready": false,
-        "explanation": "",
+        "correct_index": 1,
+        "answer_key_ready": true,
+        "explanation": "Vector chuyển gene cần kích thước nhỏ gọn để dễ biến nạp, không phải kích thước càng lớn càng tốt.",
         "cognitive_level": "nhan_biet"
       },
       {
@@ -10282,9 +10287,9 @@
           "Plasmid - thể truyền dùng để gắn với đoạn gene cần chuyển tạo DNA tái tổ hợp",
           "CaCl2 - hóa chất dùng để làm dãn màng tế bào, tạo điều kiện thuận lợi cho việc đưa DNA tái tổ hợp vào tế bào nhận."
         ],
-        "correct_index": null,
-        "answer_key_ready": false,
-        "explanation": "",
+        "correct_index": 1,
+        "answer_key_ready": true,
+        "explanation": "Restrictase dùng để cắt cả DNA mang gene cần chuyển lẫn thể truyền (tạo cùng đầu dính), không chỉ ở thể truyền.",
         "cognitive_level": "nhan_biet"
       },
       {
@@ -10302,9 +10307,9 @@
           "2, 1, 3, 4",
           "2, 1, 4, 3"
         ],
-        "correct_index": null,
-        "answer_key_ready": false,
-        "explanation": "",
+        "correct_index": 3,
+        "answer_key_ready": true,
+        "explanation": "Trình tự đúng: (2) Tách DNA & plasmid → (1) Cắt → (4) Nối tạo DNA tái tổ hợp → (3) Chuyển vào tế bào nhận.",
         "cognitive_level": "nhan_biet"
       },
       {
@@ -10313,18 +10318,18 @@
         "lesson_id": "chu-de-1-bai-4",
         "lesson": "1.4",
         "level": "4. Công nghệ gene:",
-        "question": "Đặc điểm nào không đúng đối với plasmid ?",
+        "question": "Đặc điểm nào không đúng đối với plasmid?",
         "images": [],
         "tables": [],
         "options": [
-          "Có trong tế bào chất của vi khuẩn ,virus",
+          "Có trong tế bào chất của vi khuẩn,virus",
           "Bản chất là DNA dạng vòng",
           "Có khả năng nhân đôi độc lập với DNA của tế bào",
           "Trong tế bào,mỗi loại plasmid thường có nhiều bản sao"
         ],
-        "correct_index": null,
-        "answer_key_ready": false,
-        "explanation": "",
+        "correct_index": 0,
+        "answer_key_ready": true,
+        "explanation": "Plasmid chỉ có trong tế bào chất vi khuẩn (và một số nấm men), không có ở virus (chưa có cấu tạo tế bào).",
         "cognitive_level": "nhan_biet"
       },
       {
@@ -10342,9 +10347,9 @@
           "endonuclease",
           "amylase"
         ],
-        "correct_index": null,
-        "answer_key_ready": false,
-        "explanation": "",
+        "correct_index": 1,
+        "answer_key_ready": true,
+        "explanation": "Enzyme DNA ligase xúc tác tạo liên kết phosphodiester nối đoạn gene vào plasmid.",
         "cognitive_level": "nhan_biet"
       },
       {
@@ -10362,9 +10367,9 @@
           "tạo DNA tái tổ hợp → phân lập dòng DNA tái tổ hợp → đưa DNA tái tổ hợp vào tế bào nhận",
           "phân lập dòng tế bào chứa DNA tái tổ hợp → tạo DNA tái tổ hợp → chuyển DNA tái tổ hợp vào tế bào nhận"
         ],
-        "correct_index": null,
-        "answer_key_ready": false,
-        "explanation": "",
+        "correct_index": 0,
+        "answer_key_ready": true,
+        "explanation": "Trình tự 3 bước chuẩn: tạo DNA tái tổ hợp → đưa vào tế bào nhận → phân lập dòng tế bào chứa DNA tái tổ hợp.",
         "cognitive_level": "nhan_biet"
       },
       {
@@ -10382,9 +10387,9 @@
           "Có hàng trăm loại enzyme DNA-restrictase khác nhau, có khả năng nhận biết và cắt phân tử DNA ở những vị trí đặc hiệu, các enzyme này chỉ được phân lập từ động vật bậc cao",
           "Các enzyme DNA polymerase, ligase và restrictase (endonuclease) đều được sử dụng trong kỹ thuật di truyền."
         ],
-        "correct_index": null,
-        "answer_key_ready": false,
-        "explanation": "",
+        "correct_index": 2,
+        "answer_key_ready": true,
+        "explanation": "Enzyme cắt giới hạn (restrictase) được phân lập chủ yếu từ vi khuẩn, không phải chỉ từ động vật bậc cao.",
         "cognitive_level": "thong_hieu"
       },
       {
@@ -10402,9 +10407,9 @@
           "Chuyển DNA tái tổ hợp vào tế bào nhận",
           "Tạo điều kiện cho gene đã ghép được biểu hiện"
         ],
-        "correct_index": null,
-        "answer_key_ready": false,
-        "explanation": "",
+        "correct_index": 1,
+        "answer_key_ready": true,
+        "explanation": "Endonuclease (cắt) và ligase (nối) tham gia vào công đoạn tạo phân tử DNA tái tổ hợp.",
         "cognitive_level": "nhan_biet"
       },
       {
@@ -10422,9 +10427,9 @@
           "nhận ra và cắt đứt DNA ở những trình tự nucleotide xác định",
           "nối các đầu nucleotide tự do lại với nhau bằng các liên kết hóa trị"
         ],
-        "correct_index": null,
-        "answer_key_ready": false,
-        "explanation": "",
+        "correct_index": 2,
+        "answer_key_ready": true,
+        "explanation": "Enzyme giới hạn nhận biết và cắt đứt DNA tại những trình tự nucleotide đặc hiệu.",
         "cognitive_level": "nhan_biet"
       },
       {
@@ -10442,9 +10447,9 @@
           "Làm dấu hiệu để nhận biết DNA tái tổ hợp trong tế bào nhận",
           "Tạo các kênh protein vận chuyển DNA vào bên trong."
         ],
-        "correct_index": null,
-        "answer_key_ready": false,
-        "explanation": "",
+        "correct_index": 1,
+        "answer_key_ready": true,
+        "explanation": "CaCl2 hoặc xung điện làm dãn màng sinh chất của tế bào nhận giúp DNA tái tổ hợp dễ đi vào.",
         "cognitive_level": "nhan_biet"
       },
       {
@@ -10462,9 +10467,9 @@
           "Tinh sạch DNA mang gene mong muốn - đưa đoạn DNA này vào tế bào chất của vi khuẩn - dùng enzyme gắn đoạn DNA này với DNA vi khuẩn.",
           "Tinh sạch DNA mang gene mong muốn - trộn các đoạn DNA đã phân lập với vi khuẩn chủ đã xử lí bằng CaCl2 - gắn đoạn DNA mang gene vào plasmid có mặt trong tế bào chất của vi khuẩn."
         ],
-        "correct_index": null,
-        "answer_key_ready": false,
-        "explanation": "",
+        "correct_index": 1,
+        "answer_key_ready": true,
+        "explanation": "Tinh sạch DNA mang gene → cắt DNA mang gene và plasmid bằng cùng 1 enzyme giới hạn → dùng ligase nối đóng vòng.",
         "cognitive_level": "nhan_biet"
       },
       {
@@ -10482,9 +10487,9 @@
           "Cho vào môi trường nuôi dưỡng keo hữu cơ polyethylen glycol để tăng tỉ lệ kết thành tế bào lai.",
           "Cho vào môi trường nuôi dưỡng các virus Xende đã bị làm giảm hoạt tính để tăng tỉ lệ kết thành tế bào lai"
         ],
-        "correct_index": null,
-        "answer_key_ready": false,
-        "explanation": "",
+        "correct_index": 1,
+        "answer_key_ready": true,
+        "explanation": "Nối gene tế bào cho vào plasmid tạo DNA tái tổ hợp thuộc kỹ thuật chuyển gene (A, C, D thuộc lai tế bào soma).",
         "cognitive_level": "nhan_biet"
       },
       {
@@ -10502,9 +10507,9 @@
           "Tồn tại một thời gian nhưng không sinh trưởng và phát triển.",
           "Sinh trưởng và phát triển bình thường khi thêm vào môi trường một loại thuốc kháng sinh khác."
         ],
-        "correct_index": null,
-        "answer_key_ready": false,
-        "explanation": "",
+        "correct_index": 1,
+        "answer_key_ready": true,
+        "explanation": "Vi khuẩn nhận được DNA tái tổ hợp mang gene kháng Tetracycline sẽ sinh trưởng, phát triển bình thường trong môi trường có Tetracycline.",
         "cognitive_level": "nhan_biet"
       },
       {
@@ -10522,9 +10527,9 @@
           "Tổ hợp lại các gene vốn có của bố mẹ bằng lai hữu tính.",
           "Đưa thêm một gene của loài khác vào hệ gene"
         ],
-        "correct_index": null,
-        "answer_key_ready": false,
-        "explanation": "",
+        "correct_index": 2,
+        "answer_key_ready": true,
+        "explanation": "Tổ hợp lại gene vốn có qua lai hữu tính tạo biến dị tổ hợp, không phải sinh vật biến đổi gene (GMO).",
         "cognitive_level": "nhan_biet"
       },
       {
@@ -10542,9 +10547,9 @@
           "Hạ giá thành sản phẩm.",
           "Tăng sản lượng."
         ],
-        "correct_index": null,
-        "answer_key_ready": false,
-        "explanation": "",
+        "correct_index": 3,
+        "answer_key_ready": true,
+        "explanation": "Vi khuẩn E. coli sinh sản rất nhanh giúp tăng mạnh sản lượng kháng sinh.",
         "cognitive_level": "nhan_biet"
       },
       {
@@ -10562,9 +10567,9 @@
           "Gene cần chuyển.",
           "Đặc điểm cấu trúc của DNA tái tổ hợp."
         ],
-        "correct_index": null,
-        "answer_key_ready": false,
-        "explanation": "",
+        "correct_index": 2,
+        "answer_key_ready": true,
+        "explanation": "Cả hai đều dùng tế bào nhận E. coli và vector plasmid, khác nhau chủ yếu ở gene cần chuyển (gene insulin vs gene somatostatin).",
         "cognitive_level": "nhan_biet"
       },
       {
@@ -10582,9 +10587,9 @@
           "Chuyển gene bằng plasmd",
           "Chuyển gene bằng súng bắn gene."
         ],
-        "correct_index": null,
-        "answer_key_ready": false,
-        "explanation": "",
+        "correct_index": 1,
+        "answer_key_ready": true,
+        "explanation": "Thực khuẩn thể (bacteriophage) chỉ xâm nhiễm vi khuẩn, không dùng để chuyển gene vào tế bào thực vật có thành cellulose.",
         "cognitive_level": "nhan_biet"
       },
       {
@@ -10602,9 +10607,9 @@
           "3",
           "1"
         ],
-        "correct_index": null,
-        "answer_key_ready": false,
-        "explanation": "",
+        "correct_index": 3,
+        "answer_key_ready": true,
+        "explanation": "Dùng cùng 1 loại enzyme cắt giới hạn để tạo ra các đầu dính bổ sung khớp nhau giữa gene và plasmid.",
         "cognitive_level": "nhan_biet"
       },
       {
@@ -10622,9 +10627,9 @@
           "Gene điều hoà.",
           "Gene cần chuyển."
         ],
-        "correct_index": null,
-        "answer_key_ready": false,
-        "explanation": "",
+        "correct_index": 0,
+        "answer_key_ready": true,
+        "explanation": "Thể truyền cần có gene đánh dấu (VD: gene kháng kháng sinh) để nhận biết dòng tế bào đã nhận DNA tái tổ hợp.",
         "cognitive_level": "nhan_biet"
       },
       {
@@ -10642,9 +10647,9 @@
           "Cà chua này đã được chuyển gene kháng vius",
           "Gene sản sinh ra ethylen đã bị bất hoạt"
         ],
-        "correct_index": null,
-        "answer_key_ready": false,
-        "explanation": "",
+        "correct_index": 3,
+        "answer_key_ready": true,
+        "explanation": "Bất hoạt gene tổng hợp ethylene giúp quả cà chua chín chậm, thuận lợi cho bảo quản và vận chuyển.",
         "cognitive_level": "nhan_biet"
       },
       {
@@ -10662,9 +10667,9 @@
           "Phương pháp nhân bản vô tính",
           "Công nghệ gene"
         ],
-        "correct_index": null,
-        "answer_key_ready": false,
-        "explanation": "",
+        "correct_index": 3,
+        "answer_key_ready": true,
+        "explanation": "Lúa gạo vàng (chuyển gene tổng hợp β-carotene) là thành tựu của công nghệ gene.",
         "cognitive_level": "nhan_biet"
       },
       {
@@ -10682,9 +10687,9 @@
           "(1)→(2)→(3)→(4)",
           "(2)→(3)→(1)→(4)"
         ],
-        "correct_index": null,
-        "answer_key_ready": false,
-        "explanation": "",
+        "correct_index": 2,
+        "answer_key_ready": true,
+        "explanation": "Trình tự đúng: (1) Chuyển gene vào tế bào soma → (2) Chuyển nhân vào trứng đã loại nhân → (3) Chọn lọc, nhân dòng và kích thích phát triển thành phôi → (4) Cấy phôi vào tử cung cừu mẹ.",
         "cognitive_level": "nhan_biet"
       },
       {
@@ -10702,9 +10707,9 @@
           "Thịt",
           "Tủy xương"
         ],
-        "correct_index": null,
-        "answer_key_ready": false,
-        "explanation": "",
+        "correct_index": 0,
+        "answer_key_ready": true,
+        "explanation": "Protein tái tổ hợp ở bò, cừu chuyển gene được thu nhận chủ yếu từ sữa.",
         "cognitive_level": "nhan_biet"
       },
       {
@@ -10722,9 +10727,9 @@
           "đưa gene cần chuyển vào phôi ở giai đoạn phát triển muộn để tạo ra con mang gene cần chuyển và tạo điề kiện cho gene đó được biểu hiện",
           "Lấy trứng của con cái rồi cho thụ tinh trong ống nghiệm, sau đó đưa gene vào hợp tử (ở giai đoạn nhân con), cho hợp tử phát triển thành phôi rồi cấy phôi đã chuyển gene vào tử cung con cái"
         ],
-        "correct_index": null,
-        "answer_key_ready": false,
-        "explanation": "",
+        "correct_index": 3,
+        "answer_key_ready": true,
+        "explanation": "Quy trình tạo động vật chuyển gene: thụ tinh ống nghiệm → vi tiêm gene vào hợp tử (giai đoạn nhân con) → phát triển thành phôi → cấy vào tử cung con cái.",
         "cognitive_level": "nhan_biet"
       },
       {
@@ -10742,9 +10747,9 @@
           "Enzyme Restrictase (endonuclease) và enzyme ligase",
           "Enzyme DNA – polymerase và enzyme RNA – polymerase"
         ],
-        "correct_index": null,
-        "answer_key_ready": false,
-        "explanation": "",
+        "correct_index": 2,
+        "answer_key_ready": true,
+        "explanation": "Hai enzyme tạo DNA tái tổ hợp là restrictase (cắt giới hạn) và ligase (nối).",
         "cognitive_level": "nhan_biet"
       },
       {
@@ -10762,9 +10767,9 @@
           "Công nghệ sinh học",
           "Kĩ thuật vi sinh"
         ],
-        "correct_index": null,
-        "answer_key_ready": false,
-        "explanation": "",
+        "correct_index": 1,
+        "answer_key_ready": true,
+        "explanation": "Loại bỏ hoặc làm bất hoạt một gene không mong muốn là ứng dụng của công nghệ gene.",
         "cognitive_level": "nhan_biet"
       },
       {
@@ -10782,9 +10787,9 @@
           "Công nghệ gene",
           "Gây đột biến nhiễm sắc thể"
         ],
-        "correct_index": null,
-        "answer_key_ready": false,
-        "explanation": "",
+        "correct_index": 2,
+        "answer_key_ready": true,
+        "explanation": "Sản xuất insulin người bằng vi khuẩn E. coli chuyển gene (công nghệ gene) giúp hạ giá thành hàng vạn lần.",
         "cognitive_level": "nhan_biet"
       },
       {
@@ -10802,9 +10807,9 @@
           "Cắt thể truyền hai lần bằng restrictase B, rồi nối với đoạn DNA mang gene chịu hạn được cắt bằng restrictase A.",
           "Cắt lần thứ hai đoạn DNA băng restrictase B, rồi cài vào thể truyền sau khi đã cắt bằng cùng loại enzyme giới hạn này."
         ],
-        "correct_index": null,
-        "answer_key_ready": false,
-        "explanation": "",
+        "correct_index": 3,
+        "answer_key_ready": true,
+        "explanation": "Cắt lại đoạn gene ở hai đầu bằng restrictase B và cắt mở vòng plasmid bằng cùng restrictase B để tạo đầu dính bổ sung khớp nhau.",
         "cognitive_level": "nhan_biet"
       },
       {
@@ -10822,9 +10827,9 @@
           "Lai hữu tính",
           "Gây đột biến"
         ],
-        "correct_index": null,
-        "answer_key_ready": false,
-        "explanation": "",
+        "correct_index": 1,
+        "answer_key_ready": true,
+        "explanation": "Chủng E. coli sản xuất insulin người là thành tựu điển hình của công nghệ gene.",
         "cognitive_level": "nhan_biet"
       },
       {
@@ -10842,9 +10847,9 @@
           "(M): Virus, (N): cấu tạo đơn giản",
           "(M): Virus, (N): sinh sản rất nhanh"
         ],
-        "correct_index": null,
-        "answer_key_ready": false,
-        "explanation": "",
+        "correct_index": 1,
+        "answer_key_ready": true,
+        "explanation": "Tế bào nhận phổ biến là vi khuẩn E. coli nhờ tốc độ sinh sản rất nhanh (khoảng 20 phút/lần).",
         "cognitive_level": "nhan_biet"
       },
       {
@@ -10862,9 +10867,9 @@
           "Chuyển gene bằng plasmid",
           "Chuyển gene bằng súng bắn gene."
         ],
-        "correct_index": null,
-        "answer_key_ready": false,
-        "explanation": "",
+        "correct_index": 1,
+        "answer_key_ready": true,
+        "explanation": "Thực khuẩn thể không xâm nhiễm tế bào thực vật có thành cellulose.",
         "cognitive_level": "nhan_biet"
       },
       {
@@ -10882,9 +10887,9 @@
           "(1) sai, (2) đúng, (3)sai, (4) đúng.",
           "(1) sai, (2) đúng, (3)sai, (4) sai."
         ],
-        "correct_index": null,
-        "answer_key_ready": false,
-        "explanation": "",
+        "correct_index": 2,
+        "answer_key_ready": true,
+        "explanation": "(1) Sai (có thể khác loài xa nhau); (2) Đúng; (3) Sai (còn có virus, NST nhân tạo...); (4) Đúng.",
         "cognitive_level": "nhan_biet"
       },
       {
@@ -10902,9 +10907,9 @@
           "dùng kĩ thuật vi tiêm.",
           "dùng kĩ thuật chuyển gene nhờ vector là plasmid."
         ],
-        "correct_index": null,
-        "answer_key_ready": false,
-        "explanation": "",
+        "correct_index": 3,
+        "answer_key_ready": true,
+        "explanation": "Chủng E. coli sản xuất somatostatin được tạo bằng kĩ thuật chuyển gene nhờ vector plasmid.",
         "cognitive_level": "nhan_biet"
       },
       {
@@ -10922,9 +10927,9 @@
           "DNA tái tổ hợp này thường được đưa vào tế bào nhận là tế bào vi khuẩn",
           "DNA tái tổ hợp này có khả năng nhân đôi độc lập với AND NST của tể bào nhận"
         ],
-        "correct_index": null,
-        "answer_key_ready": false,
-        "explanation": "",
+        "correct_index": 1,
+        "answer_key_ready": true,
+        "explanation": "Plasmid tái tổ hợp được đưa vào vi khuẩn bằng phương pháp biến nạp (không phải tải nạp qua virus).",
         "cognitive_level": "nhan_biet"
       },
       {
@@ -10942,9 +10947,9 @@
           "Kĩ thuật cắt gene",
           "Kĩ thuật nối gene"
         ],
-        "correct_index": null,
-        "answer_key_ready": false,
-        "explanation": "",
+        "correct_index": 1,
+        "answer_key_ready": true,
+        "explanation": "Kĩ thuật DNA tái tổ hợp đóng vai trò trung tâm của công nghệ gene.",
         "cognitive_level": "nhan_biet"
       },
       {
@@ -11153,7 +11158,7 @@
         "lesson_id": "chu-de-1-bai-4",
         "lesson": "1.4",
         "level": "4. Phần bài tập",
-        "question": "Ở một sinh vật nhân sơ, đoạn đầu gene cấu trúc có trình tự các nucleotide trên mạch bổ sung là 5’... ATGTCCTACTCTATTCTAGCGGTCAAT.…3’ . Tác nhân gây đột biến làm cặp nucleotide thứ 16 G – C bị mất thì phân tử protein tương ứng được tổng hợp tử gene đột biến có số amino acid là",
+        "question": "Ở một sinh vật nhân sơ, đoạn đầu gene cấu trúc có trình tự các nucleotide trên mạch bổ sung là 5’... ATGTCCTACTCTATTCTAGCGGTCAAT.…3’. Tác nhân gây đột biến làm cặp nucleotide thứ 16 G – C bị mất thì phân tử protein tương ứng được tổng hợp tử gene đột biến có số amino acid là",
         "images": [],
         "tables": [],
         "options": [
@@ -11173,7 +11178,7 @@
         "lesson_id": "chu-de-1-bai-4",
         "lesson": "1.4",
         "level": "4. Phần bài tập",
-        "question": "Có đột biến như sau:\nGene ban đầu: ATGAAGTTT đột biến gene đột biến: ATGCAGTTT\nTACTTCAAA TACGTCAAA\nmRNA: AUGAAGUUU... mRNA: AUGCAGUUU...\nProtein: Met – liz – phe - ... Protein: Met – gln – phe - ...\nĐột biến trên thuộc dạng",
+        "question": "Có đột biến như sau:\nGene ban đầu: ATGAAGTTT đột biến gene đột biến: ATGCAGTTT\nTACTTCAAA TACGTCAAA\nmRNA: AUGAAGUUU... mRNA: AUGCAGUUU...\nProtein: Met – liz – phe -... Protein: Met – gln – phe -...\nĐột biến trên thuộc dạng",
         "images": [],
         "tables": [],
         "options": [
@@ -11214,7 +11219,7 @@
         "orig_num": 1,
         "lesson_id": "chu-de-1-bai-1",
         "lesson": "1.1",
-        "stem": "Một nhóm các nhà nghiên cứu đã tiến hành một loạt các thí nghiệm liên quan đền việc giải mã thành phần hóa học của DNA. Trong một thí nghiệm, kiểm tra mẫu DNA của các loài nhím biển khác nhau thu được kết quả ở bảng bên dưới:\nDựa vào kêt quả thí nghiệm trên, hãy cho biết mỗi kết luận sau đây là đúng hay sai?",
+        "stem": "Một nhóm các nhà nghiên cứu đã tiến hành một loạt các thí nghiệm liên quan đền việc giải mã thành phần hóa học của DNA. Trong một thí nghiệm, kiểm tra mẫu DNA của các loài nhím biển khác nhau thu được kết quả ở bảng bên dưới:\nDựa vào kết quả thí nghiệm trên, hãy cho biết mỗi kết luận sau đây là đúng hay sai?",
         "images": [],
         "tables": [
           [
@@ -11347,25 +11352,32 @@
         "statements": [
           {
             "key": "a",
-            "text": "Chuỗi polynueleotide I và II có trình tự nucleotide giông nhau.",
-            "answer": null,
+            "text": "Chuỗi polynucleotide I và II có trình tự nucleotide giống nhau.",
+            "answer": false,
             "explanation": ""
           },
           {
             "key": "b",
             "text": "Chuỗi polynucleotide I và III sẽ hình thành liên kết phosphodiester với nhau khi quá trình tái bản hoàn tất.",
-            "answer": null,
+            "answer": false,
             "explanation": ""
           },
           {
             "key": "c",
-            "text": "Chuỗi polynucleotide III và IV sẽ hình thành liên kết hydrogen với nhau khi quá trình tái bản hoàn tất. ....... d Chuỗi polynucleotide II và IV có hướng song song và ngược chiều nhau khi quá trình tái bản hoàn tất.",
-            "answer": null,
+            "text": "Chuỗi polynucleotide III và IV sẽ hình thành liên kết hydrogen với nhau khi quá trình tái bản hoàn tất.",
+            "answer": false,
+            "explanation": ""
+          },
+          {
+            "key": "d",
+            "text": "Chuỗi polynucleotide II và IV có hướng song song và ngược chiều nhau khi quá trình tái bản hoàn tất.",
+            "answer": true,
             "explanation": ""
           }
         ],
-        "answer_key_ready": false,
-        "cognitive_level": "thong_hieu"
+        "answer_key_ready": true,
+        "cognitive_level": "thong_hieu",
+        "explanation": "Đối chiếu ĐÁP ÁN 1.pdf (Bài 1, Câu 3): a. Sai, b. Sai, c. Sai, d. Đúng."
       },
       {
         "id": "chu-de-1-b1-tf-4",
@@ -11499,30 +11511,31 @@
           {
             "key": "a",
             "text": "Tổng số nucleotide của chủng I nhiều hơn chủng II.",
-            "answer": null,
+            "answer": false,
             "explanation": ""
           },
           {
             "key": "b",
             "text": "Chủng I và chủng IV có chiều dài phân tử bằng nhau.",
-            "answer": null,
+            "answer": true,
             "explanation": ""
           },
           {
             "key": "c",
             "text": "Phân tử DNA của Chủng II có số liên kết hidrogen ít hơn phân tử DNA của chủng IV.",
-            "answer": null,
+            "answer": true,
             "explanation": ""
           },
           {
             "key": "d",
             "text": "Phân tử DNA của chủng IV có nhiệt độ nóng chảy cao nhất.",
-            "answer": null,
+            "answer": false,
             "explanation": ""
           }
         ],
-        "answer_key_ready": false,
-        "cognitive_level": "thong_hieu"
+        "answer_key_ready": true,
+        "cognitive_level": "thong_hieu",
+        "explanation": "I và II cùng N=3000 (a Sai); I và IV cùng N=3000 nên L bằng nhau (b Đúng); H(II)=3600 < H(IV)=3800 (c Đúng); I có tỉ lệ G-C và H=3900 cao nhất (d Sai)."
       },
       {
         "id": "chu-de-1-b1-tf-7",
@@ -11587,37 +11600,38 @@
           {
             "key": "a",
             "text": "Vật chất di truyền ở loài III có cấu trúc DNA hai mạch vì A = T, G = C.",
-            "answer": null,
+            "answer": false,
             "explanation": ""
           },
           {
             "key": "b",
             "text": "Vật chất di truyền ở loài IV và loài V là RNA, nhưng ở loài IV RNA có 2 mạch, còn ở loài V RNA có 1 mạch.",
-            "answer": null,
+            "answer": true,
             "explanation": ""
           },
           {
             "key": "c",
             "text": "Xét theo mức độ tiến hóa về vật chất di truyền thì loài I >II > III > V",
-            "answer": null,
+            "answer": false,
             "explanation": ""
           },
           {
             "key": "d",
             "text": "Xét về tính bền của vật chất di truyền khi tăng dần nhiệt độ thì loài I> II> III",
-            "answer": null,
+            "answer": true,
             "explanation": ""
           }
         ],
-        "answer_key_ready": false,
-        "cognitive_level": "thong_hieu"
+        "answer_key_ready": true,
+        "cognitive_level": "thong_hieu",
+        "explanation": "Loài III có A≠T, G≠C là DNA 1 mạch (a Sai); Loài IV là RNA 2 mạch, V là RNA 1 mạch (b Đúng); không so sánh mức độ tiến hoá I>II chỉ qua %GC (c Sai); độ bền nhiệt I > II > III (d Đúng)."
       },
       {
         "id": "chu-de-1-b1-tf-8",
         "orig_num": 8,
         "lesson_id": "chu-de-1-bai-1",
         "lesson": "1.1",
-        "stem": "Một nhóm nghiên cứu thực hiện thí nghiệm để kiểm chứng mô hình nhân đôi DNA ở vùng nhân của tế bào nhân sơ. Họ đã nuôi một số vi khuẩn E. coli trong môi trường chỉ có nitơ đồng vị nặng (15N). Sau đó họ chuyển vi khuẩn sang nuôi tiếp năm thế hệ ở môi trường chỉ có nitơ đồng vị nhẹ (14N). Biết số lần nhân lên của vi khuẩn E. coli trong các ống nghiệm là như nhau. Tách DNA sau mỗi thế hệ và thu được kết quả như hình dưới đây. Cho biết X là vị trí của DNA chứa cả hai mạch 15N; Y là vị trí của DNA chứa cả mạch 14N và mạch 15N; Z là vị trí của DNA chứa cả hai mạch 14N.\nDựa vào kết quả trên hãy cho biết các nhận định dưới đây là đúng hay sai?",
+        "stem": "Một nhóm nghiên cứu thực hiện thí nghiệm để kiểm chứng mô hình nhân đôi DNA ở vùng nhân của tế bào nhân sơ. Họ đã nuôi một số vi khuẩn E. coli trong môi trường chỉ có nitrogen đồng vị nặng (15N). Sau đó họ chuyển vi khuẩn sang nuôi tiếp năm thế hệ ở môi trường chỉ có nitrogen đồng vị nhẹ (14N). Biết số lần nhân lên của vi khuẩn E. coli trong các ống nghiệm là như nhau. Tách DNA sau mỗi thế hệ và thu được kết quả như hình dưới đây. Cho biết X là vị trí của DNA chứa cả hai mạch 15N; Y là vị trí của DNA chứa cả mạch 14N và mạch 15N; Z là vị trí của DNA chứa cả hai mạch 14N.\nDựa vào kết quả trên hãy cho biết các nhận định dưới đây là đúng hay sai?",
         "images": [
           "/uploads/chu-de-1/img_c4c917410c.png"
         ],
@@ -11626,30 +11640,31 @@
           {
             "key": "a",
             "text": "Thí nghiệm trên đã kiểm chứng quá trình nhân đôi DNA theo nguyên tắc bán bảo toàn.",
-            "answer": null,
+            "answer": true,
             "explanation": ""
           },
           {
             "key": "b",
             "text": "Nếu một vi khuẩn E. coli được nuôi với các điều kiện thí nghiệm như trên thì luôn có hai mạch DNA chứa 15N ở mỗi thế hệ.",
-            "answer": null,
+            "answer": true,
             "explanation": ""
           },
           {
             "key": "c",
             "text": "Ở thế hệ thứ 4, tỉ lệ DNA ở vị trí Y không thay đổi so với thế hệ thứ 3.",
-            "answer": null,
+            "answer": false,
             "explanation": ""
           },
           {
             "key": "d",
-            "text": "Ở thế hệ thứ 5, tỉ lệ DNA ở vị trí Y so với DNA ở vị trí Z là 2/15 .",
-            "answer": null,
+            "text": "Ở thế hệ thứ 5, tỉ lệ DNA ở vị trí Y so với DNA ở vị trí Z là 2/15.",
+            "answer": false,
             "explanation": ""
           }
         ],
-        "answer_key_ready": false,
-        "cognitive_level": "thong_hieu"
+        "answer_key_ready": true,
+        "cognitive_level": "thong_hieu",
+        "explanation": "Kiểm chứng nguyên tắc bán bảo toàn (a Đúng); luôn bảo tồn 2 mạch 15N ban đầu (b Đúng); thế hệ 3 Y=2/8=25%, thế hệ 4 Y=2/16=12,5% giảm một nửa (c Sai); thế hệ 5 có Y=2, Z=30 → Y/Z = 1/15 ≠ 2/15 (d Sai)."
       },
       {
         "id": "chu-de-1-b1-tf-9",
@@ -11663,30 +11678,31 @@
           {
             "key": "a",
             "text": "Gene A có chiều dài lớn hơn gene a.",
-            "answer": null,
+            "answer": true,
             "explanation": ""
           },
           {
             "key": "b",
             "text": "Gene A có G = X = 538; A = T = 362.",
-            "answer": null,
+            "answer": true,
             "explanation": ""
           },
           {
             "key": "c",
             "text": "Gene a có A = T = 360; G = X = 540.",
-            "answer": null,
+            "answer": false,
             "explanation": ""
           },
           {
             "key": "d",
             "text": "Gene A có số liên kết hydrogen ít hơn hơn gene a",
-            "answer": null,
+            "answer": false,
             "explanation": ""
           }
         ],
-        "answer_key_ready": false,
-        "cognitive_level": "van_dung"
+        "answer_key_ready": true,
+        "cognitive_level": "van_dung",
+        "explanation": "Gene A: N=1800, G=C=538, A=T=362, H=2338; Gene a: A=T=361, G=C=538, N=1798, H=2336 (mất 1 cặp A-T) → a Đúng, b Đúng, c Sai, d Sai."
       },
       {
         "id": "chu-de-1-b1-tf-10",
@@ -11700,30 +11716,31 @@
           {
             "key": "a",
             "text": "Trên mạch 1 của gene D có G/C =2/3",
-            "answer": null,
+            "answer": false,
             "explanation": ""
           },
           {
             "key": "b",
             "text": "Số liên kết hydrogen của gene D là 3450.",
-            "answer": null,
+            "answer": false,
             "explanation": ""
           },
           {
             "key": "c",
             "text": "Trên mạch 2 của gene D có T = 2A.",
-            "answer": null,
+            "answer": true,
             "explanation": ""
           },
           {
             "key": "d",
             "text": "Gene D có chiều dài 510 nm.",
-            "answer": null,
+            "answer": true,
             "explanation": ""
           }
         ],
-        "answer_key_ready": false,
-        "cognitive_level": "van_dung"
+        "answer_key_ready": true,
+        "cognitive_level": "van_dung",
+        "explanation": "Mạch 1: G1/C1 = 450/600 = 3/4 (a Sai); H = 2×450 + 3×1050 = 4050 (b Sai); Mạch 2: T2 = A1 = 300 = 2×150 = 2A2 (c Đúng); L = 1500×0,34 = 510 nm (d Đúng)."
       },
       {
         "id": "chu-de-1-b2-tf-1",
@@ -12129,7 +12146,7 @@
         "orig_num": 8,
         "lesson_id": "chu-de-1-bai-2",
         "lesson": "1.2",
-        "stem": "Hình dưới đây là sơ đồ khái quát quá trình phiên mã. Dựa vào hình ảnh (bên dưới) hãy cho biết các nhận định sau đây là đúng hay sai ?",
+        "stem": "Hình dưới đây là sơ đồ khái quát quá trình phiên mã. Dựa vào hình ảnh (bên dưới) hãy cho biết các nhận định sau đây là đúng hay sai?",
         "images": [
           "/uploads/chu-de-1/img_a95e993756.png"
         ],
@@ -12138,67 +12155,69 @@
           {
             "key": "a",
             "text": "Một mRNA sơ khai được xử lý theo nhiều cách khác nhau để tạo ra nhiều loại mRNA khác nhau, kết quả là tạo ra nhiều loại protein khác nhau từ một trình tự DNA.",
-            "answer": null,
+            "answer": true,
             "explanation": ""
           },
           {
             "key": "b",
             "text": "Sự cắt bỏ intron, nối exon diễn ra trong tế bào chất.",
-            "answer": null,
+            "answer": false,
             "explanation": ""
           },
           {
             "key": "c",
             "text": "Số loại mRNA có thể tạo ra là 6.",
-            "answer": null,
+            "answer": false,
             "explanation": ""
           },
           {
             "key": "d",
             "text": "Quá trình phiên mã ở sinh vật nhân sơ thì ngược lại, mRNA sau phiên mã được trực tiếp dùng làm khuôn để tổng hợp protein.",
-            "answer": null,
+            "answer": true,
             "explanation": ""
           }
         ],
-        "answer_key_ready": false,
-        "cognitive_level": "thong_hieu"
+        "answer_key_ready": true,
+        "cognitive_level": "thong_hieu",
+        "explanation": "Một mRNA sơ khai có thể cắt nối thay thế tạo nhiều mRNA/protein (a Đúng); cắt intron, nối exon diễn ra trong nhân tế bào (b Sai); 3 exon giữ đúng trình tự 5'→3' không đảo vị trí nên không tạo 3!=6 loại theo hoán vị (c Sai); ở nhân sơ mRNA trực tiếp dịch mã (d Đúng)."
       },
       {
         "id": "chu-de-1-b2-tf-9",
         "orig_num": 9,
         "lesson_id": "chu-de-1-bai-2",
         "lesson": "1.2",
-        "stem": "Một gene rất ngắn của sinh vật nhân sơ được tổng hợp nhân tạo trong ống nghiệm có trình tự Nucleotide như sau:\nMạch I: (2) TAC ATG ATC ATT TCA ACT AAT TTC TAG CAT GTA (1).\nMạch II: (1) ATG TAC TAG TAA AGT TGA TTA AAG ATC GTA CAT (2).\nGene này dịch mã trong ống nghiệm cho ra một chuỗi polypeptit hoàn chỉnh.\nDựa vào những thông tin trên hãy cho biết các phát biểu dưới đây là đúng hay sai ?",
+        "stem": "Một gene rất ngắn của sinh vật nhân sơ được tổng hợp nhân tạo trong ống nghiệm có trình tự Nucleotide như sau:\nMạch I: (2) TAC ATG ATC ATT TCA ACT AAT TTC TAG CAT GTA (1).\nMạch II: (1) ATG TAC TAG TAA AGT TGA TTA AAG ATC GTA CAT (2).\nGene này dịch mã trong ống nghiệm cho ra một chuỗi polypeptit hoàn chỉnh.\nDựa vào những thông tin trên hãy cho biết các phát biểu dưới đây là đúng hay sai?",
         "images": [],
         "tables": [],
         "statements": [
           {
             "key": "a",
             "text": "Mạch I làm khuôn, chiều phiên mã từ (1) sang (2) sẽ cho một chuỗi polypeptide hoàn chỉnh dài 1 amino acid.",
-            "answer": null,
+            "answer": false,
             "explanation": ""
           },
           {
             "key": "b",
             "text": "Mạch I làm khuôn, chiều phiên mã từ (2) sang (1) thì trên 8 bộ ba trên mRNA không tham gia dịch mã.",
-            "answer": null,
+            "answer": true,
             "explanation": ""
           },
           {
             "key": "c",
             "text": "Để thu được chuỗi polypeptide dài 3 amino acid, thì mạch I là mạch bổ sung, đầu (1) trên mạch này là đầu 5’",
-            "answer": null,
+            "answer": false,
             "explanation": ""
           },
           {
             "key": "d",
             "text": "Để thu được chuỗi polypeptide dài nhất, thì mạch I là mạch bổ sung, chiều phiên mã trên mạch I là từ (1) sang (2).",
-            "answer": null,
+            "answer": true,
             "explanation": ""
           }
         ],
-        "answer_key_ready": false,
-        "cognitive_level": "van_dung"
+        "answer_key_ready": true,
+        "cognitive_level": "van_dung",
+        "explanation": "Mạch I (1)→(2) cho mRNA có 4 aa hoàn chỉnh (a Sai); Mạch I (2)→(1) cho AUG-UAC-UAG nên còn 8 bộ ba sau mã kết thúc + UAG = 9 bộ ba không mã hoá aa (b Đúng); chuỗi 3 aa hoàn chỉnh ứng với mạch II khuôn (2)→(1) tức đầu (1) trên mạch I là 3' (c Sai); chuỗi dài nhất (6 aa hoàn chỉnh) ứng với mạch I bổ sung, phiên mã theo chiều (1)→(2) (d Đúng)."
       },
       {
         "id": "chu-de-1-b2-tf-10",
@@ -12212,30 +12231,31 @@
           {
             "key": "a",
             "text": "DNA polymerase xúc tác kéo dài chuỗi polynucleotide theo cả hai chiều còn RNA polymerase chỉ xúc tác kéo dài chuỗi theo 1 chiều",
-            "answer": null,
+            "answer": false,
             "explanation": ""
           },
           {
             "key": "b",
             "text": "RNA polymerase vừa có khả năng tháo xoắn một đoạn DNA, vừa có khả năng xúc tác kéo dài chuỗi polynucleotide.",
-            "answer": null,
+            "answer": true,
             "explanation": ""
           },
           {
             "key": "c",
             "text": "RNA polymerase chỉ trượt dọc trên một mạch DNA làm khuôn theo chiều 3’→5’.",
-            "answer": null,
+            "answer": true,
             "explanation": ""
           },
           {
             "key": "d",
             "text": "DNA polymerase có khả năng bẻ gãy các liên kết hidro giữa hai mạch đơn còn RNA polymerase thì không.",
-            "answer": null,
+            "answer": false,
             "explanation": ""
           }
         ],
-        "answer_key_ready": false,
-        "cognitive_level": "nhan_biet"
+        "answer_key_ready": true,
+        "cognitive_level": "nhan_biet",
+        "explanation": "Cả hai enzyme chỉ tổng hợp mạch mới theo chiều 5'→3' (a Sai); RNA polymerase vừa tháo xoắn vừa kéo dài chuỗi (b Đúng) và trượt trên 1 mạch khuôn 3'→5' (c Đúng); RNA polymerase tự cắt liên kết H còn DNA polymerase không có khả năng này (d Sai)."
       },
       {
         "id": "chu-de-1-b3-tf-1",
@@ -12560,30 +12580,31 @@
           {
             "key": "a",
             "text": "I là gene điều hòa mã hóa protein ức chế.",
-            "answer": null,
+            "answer": true,
             "explanation": ""
           },
           {
             "key": "b",
             "text": "Plac trình tự vận hành có vị trí bám của protein ức chế.",
-            "answer": null,
+            "answer": false,
             "explanation": ""
           },
           {
             "key": "c",
             "text": "O là là trình tự khởi động phiên mã các gene cấu trúc.",
-            "answer": null,
+            "answer": false,
             "explanation": ""
           },
           {
             "key": "d",
             "text": "Z, Y, A là các gene cấu trúc tương ứng mã hóa cho các enzyme beta – galactosidase, permease, transacetylase.",
-            "answer": null,
+            "answer": true,
             "explanation": ""
           }
         ],
-        "answer_key_ready": false,
-        "cognitive_level": "thong_hieu"
+        "answer_key_ready": true,
+        "cognitive_level": "thong_hieu",
+        "explanation": "I là gene điều hoà (a Đúng); P_lac là vùng khởi động nơi bám của RNA polymerase (b Sai); O là vùng vận hành nơi bám của protein ức chế (c Sai); Z, Y, A mã hoá β-galactosidase, permease, transacetylase (d Đúng)."
       },
       {
         "id": "chu-de-1-b4-tf-1",
@@ -13066,30 +13087,31 @@
           {
             "key": "a",
             "text": "DNA tái tổ hợp được hình thành khi đầu dính của DNA cho và nhận khớp bổ sung với nhau.",
-            "answer": null,
+            "answer": true,
             "explanation": ""
           },
           {
             "key": "b",
             "text": "Để tách dòng tế bào DNA tái tổ hợp, không thể sử dụng các gene đánh dấu là các gene kháng kháng sinh.",
-            "answer": null,
+            "answer": false,
             "explanation": ""
           },
           {
             "key": "c",
             "text": "Enzyme DNA ligase có vai trò tạo cầu nối photphodieste để hình thành nên đoạn DNA tái tổ hợp.",
-            "answer": null,
+            "answer": true,
             "explanation": ""
           },
           {
             "key": "d",
             "text": "Trong môi trường tạo DNA tái tổ hợp, chỉ cần trong môi trường có ligase, DNA cho và plasmid thì luôn tạo thành DNA tái tổ hợp.",
-            "answer": null,
+            "answer": false,
             "explanation": ""
           }
         ],
-        "answer_key_ready": false,
-        "cognitive_level": "thong_hieu"
+        "answer_key_ready": true,
+        "cognitive_level": "thong_hieu",
+        "explanation": "Đầu dính bổ sung khớp nhau tạo DNA tái tổ hợp (a Đúng); gene kháng kháng sinh thường được dùng làm gene đánh dấu (b Sai); DNA ligase tạo liên kết phosphodiester (c Đúng); cần cắt mở bằng cùng enzyme giới hạn và không phải lúc nào cũng luôn tạo DNA tái tổ hợp (d Sai)."
       }
     ],
     "short_answer": [
@@ -13725,26 +13747,36 @@
         "images": [],
         "tables": [],
         "placeholder": "Nhập kết quả của bạn...",
-        "accepted_answers": [],
-        "answer_key_ready": false,
+        "accepted_answers": [
+          "4"
+        ],
+        "answer_key_ready": true,
         "unit": "",
-        "explanation": "",
-        "cognitive_level": "nhan_biet"
+        "explanation": "Đối chiếu ĐÁP ÁN 1.pdf (Bài 4, TLN Câu 1): Cả 4 loại đột biến điểm đều có thể làm xuất hiện bộ ba kết thúc sớm.",
+        "cognitive_level": "nhan_biet",
+        "accepted": [
+          "4"
+        ]
       },
       {
         "id": "chu-de-1-b4-sa-2",
         "orig_num": 2,
         "lesson_id": "chu-de-1-bai-4",
         "lesson": "1.4",
-        "question": "Cho 1 đoạn gene cấu trúc:\nMạch mã gốc: 3’TAC TTT CCG ACC TGC TCG TAT...5’\nMạch bổ sung: 5’ATG AAA GGC TGG ACG AGC ATA...3’\n11 14 16\nNếu đột biến mất 3 cặp nucleotide ở vị trí 11, 14, 16 thì chuỗi polypeptide tạo thành từ gene này có bao nhiêu số amino acid ?",
+        "question": "Cho 1 đoạn gene cấu trúc:\nMạch mã gốc: 3’TAC TTT CCG ACC TGC TCG TAT...5’\nMạch bổ sung: 5’ATG AAA GGC TGG ACG AGC ATA...3’\n11 14 16\nNếu đột biến mất 3 cặp nucleotide ở vị trí 11, 14, 16 thì chuỗi polypeptide tạo thành từ gene này có bao nhiêu số amino acid?",
         "images": [],
         "tables": [],
         "placeholder": "Nhập kết quả của bạn...",
-        "accepted_answers": [],
-        "answer_key_ready": false,
+        "accepted_answers": [
+          "3"
+        ],
+        "answer_key_ready": true,
         "unit": "",
-        "explanation": "",
-        "cognitive_level": "nhan_biet"
+        "explanation": "Đối chiếu ĐÁP ÁN 1.pdf (Bài 4, TLN Câu 2): Mất 3 cặp ở vị trí 11, 14, 16 tạo bộ ba thứ 4 là ACT trên mạch gốc (UGA trên mRNA là mã kết thúc) → 3 amino acid.",
+        "cognitive_level": "nhan_biet",
+        "accepted": [
+          "3"
+        ]
       },
       {
         "id": "chu-de-1-b4-sa-3",
@@ -13755,13 +13787,18 @@
         "images": [],
         "tables": [],
         "placeholder": "Nhập kết quả của bạn...",
-        "accepted_answers": [],
-        "answer_key_ready": false,
+        "accepted_answers": [
+          "3"
+        ],
+        "answer_key_ready": true,
         "unit": "",
-        "explanation": "",
-        "cognitive_level": "nhan_biet"
+        "explanation": "Đối chiếu ĐÁP ÁN 1.pdf (Bài 4, TLN Câu 3): Gồm mất 1 cặp, thêm 1 cặp, thay thế 1 cặp khác loại (thay thế cùng loại không đổi số liên kết H).",
+        "cognitive_level": "nhan_biet",
+        "accepted": [
+          "3"
+        ]
       }
     ]
   },
-  "bundled_version": "2026.11.26-spelling-clean-v7"
+  "bundled_version": "2026.11.28-topic1-complete-414-v9"
 }
