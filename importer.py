@@ -10,6 +10,7 @@ Hỗ trợ đầy đủ:
     3. Hệ thống ôn tập 3 phần (3.1 Trắc nghiệm 4 đáp án, 3.2 Đúng/Sai 4 ý, 3.3 Trả lời ngắn)
     4. Video tương tác thuyết minh tiếng Việt tự sinh bám sát từng Bài
 """
+import base64
 import hashlib
 import io
 import json
@@ -26,6 +27,11 @@ import zipfile
 import zlib
 from concurrent.futures import ThreadPoolExecutor
 from typing import Any, Dict, List, Optional, Tuple
+
+try:
+    from PIL import Image as _PILImage
+except ImportError:
+    _PILImage = None
 
 try:
     import docx
@@ -479,7 +485,9 @@ def _safe_zip_read(zf: zipfile.ZipFile, name: str) -> bytes:
 
 
 def _detect_image_ext(blob: bytes, fallback: str = ".png") -> str:
-    """Nhận diện định dạng ảnh thực tế qua magic bytes (hữu ích khi trình duyệt đã nén JPEG)."""
+    """Nhận diện định dạng ảnh thực tế qua magic bytes (phát hiện cả TIFF/BMP/EMF/WMF để chuyển sang chuẩn web)."""
+    if not blob:
+        return fallback
     if blob.startswith(b"\xff\xd8\xff"):
         return ".jpg"
     if blob.startswith(b"\x89PNG\r\n\x1a\n"):
@@ -488,7 +496,109 @@ def _detect_image_ext(blob: bytes, fallback: str = ".png") -> str:
         return ".gif"
     if len(blob) >= 12 and blob[:4] == b"RIFF" and blob[8:12] == b"WEBP":
         return ".webp"
+    if blob.startswith(b"BM"):
+        return ".bmp"
+    if blob.startswith(b"II*\x00") or blob.startswith(b"MM\x00*"):
+        return ".tif"
+    if len(blob) >= 44 and blob[40:44] == b" EMF":
+        return ".emf"
+    if blob.startswith(b"\xd7\xcd\xc6\x9a") or blob.startswith(b"\x01\x00\x09\x00"):
+        return ".wmf"
     return fallback
+
+
+def _crop_and_normalize_image_blob(
+    blob: bytes,
+    ext: str,
+    l: int = 0,
+    t: int = 0,
+    r: int = 0,
+    b: int = 0,
+    rot: int = 0,
+) -> Tuple[Optional[bytes], str, bool]:
+    """
+    Cắt đúng khung hiển thị Word (<a:srcRect l t r b> + <a:xfrm rot>) bằng Pillow (đa nền tảng)
+    và chuẩn hoá định dạng ảnh (BMP/TIFF -> JPEG/PNG) để hiển thị ổn định 100% trên mọi trình duyệt & điện thoại.
+    Trả về: (blob_đã_xử_lý_hoặc_None_nếu_không_hỗ_trợ, ext_chuẩn, đã_xử_lý_xong_bằng_pillow).
+    """
+    if not blob or len(blob) < 100:
+        return None, ext, False
+
+    real_ext = _detect_image_ext(blob, ext or ".png").lower()
+    cl = max(0, int(l or 0))
+    ct = max(0, int(t or 0))
+    cr = max(0, int(r or 0))
+    cb = max(0, int(b or 0))
+    crot = int(rot or 0) % 360
+    if cl + cr >= 98000 or ct + cb >= 98000:
+        cl = ct = cr = cb = 0
+    needs_crop_or_rot = (cl > 0 or ct > 0 or cr > 0 or cb > 0 or crot != 0)
+    needs_web_convert = real_ext not in (".png", ".jpg", ".jpeg", ".gif", ".webp")
+
+    # EMF/WMF không thể render trực tiếp trên trình duyệt/điện thoại
+    if real_ext in (".emf", ".wmf"):
+        if _PILImage is None:
+            return None, real_ext, False
+
+    if (needs_crop_or_rot or needs_web_convert) and _PILImage is not None:
+        try:
+            im = _PILImage.open(io.BytesIO(blob))
+            w, h = im.size
+            if w > 1 and h > 1:
+                if cl > 0 or ct > 0 or cr > 0 or cb > 0:
+                    left = max(0, min(w - 1, int(round(w * cl / 100000.0))))
+                    top = max(0, min(h - 1, int(round(h * ct / 100000.0))))
+                    right = max(left + 1, min(w, int(round(w * (1.0 - cr / 100000.0)))))
+                    bottom = max(top + 1, min(h, int(round(h * (1.0 - cb / 100000.0)))))
+                    if left > 0 or top > 0 or right < w or bottom < h:
+                        im = im.crop((left, top, right, bottom))
+                if crot != 0:
+                    im = im.rotate(-crot, expand=True)
+                # Chuyển sang JPEG gọn nhẹ (nền trắng nếu có kênh trong suốt) hoặc PNG nếu ảnh nhỏ sắc nét
+                out_buf = io.BytesIO()
+                use_png = real_ext == ".png" and im.size[0] * im.size[1] <= 900 * 900
+                if use_png:
+                    im.save(out_buf, format="PNG", optimize=True)
+                    out_ext = ".png"
+                else:
+                    if im.mode in ("RGBA", "LA", "P"):
+                        bg = _PILImage.new("RGB", im.size, (255, 255, 255))
+                        rgba = im.convert("RGBA")
+                        bg.paste(rgba, mask=rgba.split()[-1])
+                        im = bg
+                    elif im.mode != "RGB":
+                        im = im.convert("RGB")
+                    im.save(out_buf, format="JPEG", quality=86, optimize=True)
+                    out_ext = ".jpg"
+                out_bytes = out_buf.getvalue()
+                if out_bytes and len(out_bytes) >= 100:
+                    return out_bytes, out_ext, True
+        except Exception:
+            if real_ext in (".emf", ".wmf"):
+                return None, real_ext, False
+
+    if real_ext in (".emf", ".wmf"):
+        return None, real_ext, False
+    out_ext = ".jpg" if real_ext in (".jpg", ".jpeg") else (real_ext if real_ext in (".png", ".gif", ".webp") else ".png")
+    return blob, out_ext, (not needs_crop_or_rot and not needs_web_convert)
+
+
+def _blob_to_portable_data_url(blob: bytes, ext: str) -> Optional[str]:
+    """Mã hoá ảnh web chuẩn thành Data URL bền vững (không bao giờ mất ảnh trên trình duyệt khác / điện thoại / Wasmer)."""
+    if not blob or len(blob) < 100 or len(blob) > 650 * 1024:
+        return None
+    real_ext = _detect_image_ext(blob, ext).lower()
+    if real_ext not in (".png", ".jpg", ".jpeg", ".gif", ".webp"):
+        return None
+    mime_map = {
+        ".jpg": "image/jpeg",
+        ".jpeg": "image/jpeg",
+        ".png": "image/png",
+        ".gif": "image/gif",
+        ".webp": "image/webp",
+    }
+    b64 = base64.b64encode(blob).decode("ascii")
+    return f"data:{mime_map[real_ext]};base64,{b64}"
 
 
 def cleanup_topic_uploads(topic_id: str) -> bool:
@@ -593,14 +703,27 @@ def _extract_body_items_from_docx_stdlib(file_bytes: bytes, topic_id: str) -> Di
                     crop_cache[key] = None
                     return None
 
-                sample = blob if len(blob) <= 8192 else blob[:4096] + blob[-4096:]
-                blob_sig = hashlib.md5(f"{len(blob)}:".encode() + sample).hexdigest()[:8]
+                # Ưu tiên cắt chính xác <a:srcRect> & chuẩn hoá định dạng web bằng Pillow trên RAM
+                proc_blob, out_ext, handled_in_ram = _crop_and_normalize_image_blob(blob, ext, l, t, r, b, rot)
+                if proc_blob is None:
+                    crop_cache[key] = None
+                    return None
+
+                needs_transform = (any(v > 0 for v in (l, t, r, b)) or (rot % 360 != 0)) and (not handled_in_ram)
+                # Với chủ đề mới upload (không phải 7 chủ đề tĩnh đóng gói sẵn), nhúng Data URL bền vững
+                # để không bao giờ bị mất ảnh trên điện thoại / trình duyệt khác / Wasmer Edge MySQL
+                is_bundled_static = topic_id in ("chu-de-1", "chu-de-2", "chu-de-3", "chu-de-4", "chu-de-5", "chu-de-6", "chu-de-7")
+                if (not needs_transform) and (not is_bundled_static):
+                    durl = _blob_to_portable_data_url(proc_blob, out_ext)
+                    if durl:
+                        crop_cache[key] = durl
+                        if durl not in extracted_images:
+                            extracted_images.append(durl)
+                        return durl
+
+                sample = proc_blob if len(proc_blob) <= 8192 else proc_blob[:4096] + proc_blob[-4096:]
+                blob_sig = hashlib.md5(f"{len(proc_blob)}:".encode() + sample).hexdigest()[:8]
                 sig = hashlib.md5(f"{topic_id}:{blob_sig}:{l}:{t}:{r}:{b}:{rot}".encode()).hexdigest()[:10]
-                needs_transform = any(v > 0 for v in (l, t, r, b)) or (rot % 360 != 0)
-                if needs_transform and use_crop_bin:
-                    out_ext = ".png" if ext == ".png" else ".jpg"
-                else:
-                    out_ext = _detect_image_ext(blob, ".png" if ext == ".png" else ".jpg")
                 fname = f"img_{sig}{out_ext}"
                 dst_path = os.path.join(topic_upload_dir, fname)
                 url = f"/uploads/{topic_id}/{fname}"
@@ -613,7 +736,7 @@ def _extract_body_items_from_docx_stdlib(file_bytes: bytes, topic_id: str) -> Di
                     crop_jobs.append({"src": raw_path, "dst": dst_path, "l": l, "t": t, "r": r, "b": b, "rot": rot})
                 else:
                     if fname not in existing_files and dst_path not in pending_writes:
-                        pending_writes[dst_path] = blob
+                        pending_writes[dst_path] = proc_blob
                         existing_files.add(fname)
 
                 crop_cache[key] = url
@@ -954,6 +1077,7 @@ def extract_body_items_from_pdf(file_bytes: bytes, topic_id: str = "chu-de-new")
     for page_idx, page in enumerate(reader.pages):
         page_imgs = []
         try:
+            is_bundled_static = topic_id in ("chu-de-1", "chu-de-2", "chu-de-3", "chu-de-4", "chu-de-5", "chu-de-6", "chu-de-7")
             for img_obj in getattr(page, "images", []) or []:
                 img_bytes = getattr(img_obj, "data", None)
                 if not img_bytes or len(img_bytes) < 512:
@@ -963,13 +1087,20 @@ def extract_body_items_from_pdf(file_bytes: bytes, topic_id: str = "chu-de-new")
                     continue
                 seen_hashes.add(h)
                 raw_name = getattr(img_obj, "name", "") or f"pdf_p{page_idx + 1}.png"
-                ext = _detect_image_ext(img_bytes, os.path.splitext(raw_name)[1].lower() or ".png")
-                if ext not in (".png", ".jpg", ".jpeg", ".gif", ".webp"):
-                    ext = ".png"
+                raw_ext = os.path.splitext(raw_name)[1].lower() or ".png"
+                proc_bytes, ext, _ = _crop_and_normalize_image_blob(img_bytes, raw_ext)
+                if not proc_bytes:
+                    continue
+                if not is_bundled_static:
+                    durl = _blob_to_portable_data_url(proc_bytes, ext)
+                    if durl:
+                        page_imgs.append(durl)
+                        extracted_images.append(durl)
+                        continue
                 fname = f"img_{h}{ext}"
                 dst = os.path.join(topic_upload_dir, fname)
                 if fname not in existing_files and dst not in pending_writes:
-                    pending_writes[dst] = img_bytes
+                    pending_writes[dst] = proc_bytes
                     existing_files.add(fname)
                 url = f"/uploads/{topic_id}/{fname}"
                 page_imgs.append(url)
@@ -1678,8 +1809,46 @@ def _parse_sa_items(items: List[Dict], lesson_label: str, lesson_id: str, id_pre
     return _realign_question_images(questions)
 
 
+RE_YCCD_HEAD = re.compile(
+    r"^(?:[IVX]+\.\s*|\d+\.\s*|[*•\-–]\s*)?(?:YÊU\s*CẦU\s*CẦN\s*ĐẠT|MỤC\s*TIÊU(?:\s*BÀI\s*HỌC)?)(?:\s*\([^\)]*\))?\s*[:\-–.]?\s*(.*)$",
+    re.IGNORECASE,
+)
+
+
+def _auto_build_yccd_section(lesson_title: str, sections: List[Dict]) -> Dict:
+    """Tạo mục 'Yêu cầu cần đạt' chuẩn SGK đồng bộ khi tài liệu tải lên chưa ghi rõ khung Yêu cầu cần đạt."""
+    clean_title = re.sub(r"^(?:BÀI\s*\d+|Mục\s*\d+(?:\.\d+)?)\s*[:\.\-–]?\s*", "", (lesson_title or "").strip(), flags=re.IGNORECASE)
+    sec_heads = []
+    for s in sections or []:
+        h = re.sub(r"^(?:[IVX]+\.\s*|\d+(?:\.\d+)*\.?\s*)", "", (s.get("heading") or "").strip()).strip(" .:-–")
+        if h and h.lower() not in ("nội dung bài học", "kiến thức trọng tâm", "bảng tổng hợp", "tóm tắt nội dung lý thuyết", "yêu cầu cần đạt"):
+            if h not in sec_heads:
+                sec_heads.append(h)
+
+    pts: List[str] = []
+    if sec_heads:
+        pts.append(f"1. Trình bày được kiến thức trọng tâm về {sec_heads[0].lower()}.")
+        if len(sec_heads) >= 2:
+            pts.append(f"2. Phân tích, so sánh được {sec_heads[1].lower()}.")
+        if len(sec_heads) >= 3:
+            pts.append(f"3. Giải thích được {', '.join(h.lower() for h in sec_heads[2:4])}.")
+        pts.append(f"{len(pts) + 1}. Vận dụng kiến thức về {clean_title.lower() if clean_title else 'bài học'} để giải quyết các câu hỏi trắc nghiệm và tình huống thực tiễn.")
+    else:
+        pts = [
+            f"1. Trình bày được các khái niệm và kiến thức trọng tâm của bài {clean_title or 'học'}.",
+            f"2. Phân tích được cơ chế, mối quan hệ và ý nghĩa sinh học liên quan đến {clean_title.lower() if clean_title else 'nội dung bài học'}.",
+            "3. Vận dụng kiến thức đã học để trả lời câu hỏi ôn tập và liên hệ thực tiễn.",
+        ]
+
+    return {
+        "heading": "Yêu cầu cần đạt",
+        "points": pts,
+        "blocks": [{"type": "paragraph", "text": p, "is_bold": False} for p in pts],
+    }
+
+
 def _build_lesson_theory(raw_items: List[Dict], lesson_meta: Dict, lesson_idx: int, topic_id: str) -> Dict:
-    """Chuyển danh sách item Lý thuyết của 1 Bài thành cấu trúc chuẩn (giữ 100% text, ảnh đúng vị trí, bảng)."""
+    """Chuyển danh sách item Lý thuyết của 1 Bài thành cấu trúc chuẩn (giữ 100% text, ảnh đúng vị trí, bảng và mục Yêu cầu cần đạt)."""
     sections = []
     cur_sec = None
     first_image = ""
@@ -1694,8 +1863,27 @@ def _build_lesson_theory(raw_items: List[Dict], lesson_meta: Dict, lesson_idx: i
 
     for it in raw_items:
         if it["type"] == "table":
+            rows = it.get("rows") or []
+            # Nhận diện khung bảng 1-2 ô chứa mục "Yêu cầu cần đạt" chuẩn SGK/giáo án
+            flat_cells = [c.strip() for row in rows for c in row if (c or "").strip()]
+            if flat_cells and len(rows) <= 4 and max((len(r) for r in rows), default=0) <= 2 and RE_YCCD_HEAD.match(flat_cells[0]):
+                yccd_sec = {"heading": "Yêu cầu cần đạt", "blocks": [], "points": []}
+                m_first = RE_YCCD_HEAD.match(flat_cells[0])
+                first_tail = _clean(m_first.group(1) or "") if m_first else ""
+                raw_yccd_lines = ([first_tail] if first_tail else []) + flat_cells[1:]
+                for yl in raw_yccd_lines:
+                    for sub_ln in re.split(r"(?:\n|(?=\s*[-–•+]\s+)|(?=\s*\d+\.\s+))", yl):
+                        sub_clean = _clean(sub_ln)
+                        if sub_clean:
+                            yccd_sec["blocks"].append({"type": "paragraph", "text": sub_clean, "is_bold": False})
+                            yccd_sec["points"].append(sub_clean)
+                if yccd_sec["blocks"]:
+                    sections.append(yccd_sec)
+                    cur_sec = None
+                    continue
+
             ensure_sec("Bảng tổng hợp")
-            cur_sec["blocks"].append({"type": "table", "rows": it["rows"], "images": it["images"]})
+            cur_sec["blocks"].append({"type": "table", "rows": rows, "images": it["images"]})
             for im in it["images"]:
                 if not first_image:
                     first_image = im
@@ -1722,6 +1910,17 @@ def _build_lesson_theory(raw_items: List[Dict], lesson_meta: Dict, lesson_idx: i
                 first_caption = txt
             continue
 
+        # Nhận diện linh hoạt mục "Yêu cầu cần đạt" / "Mục tiêu bài học"
+        m_yccd = RE_YCCD_HEAD.match(txt)
+        if m_yccd and len(txt) < 260:
+            cur_sec = {"heading": "Yêu cầu cần đạt", "blocks": [], "points": []}
+            sections.append(cur_sec)
+            tail = _clean(m_yccd.group(1) or "")
+            if tail:
+                cur_sec["blocks"].append({"type": "paragraph", "text": tail, "is_bold": False})
+                cur_sec["points"].append(tail)
+            continue
+
         # Tiêu đề mục lớn trong bài (1. ..., 1.1. ..., Heading 2/3/4/5)
         is_sec_head = (
             (it["heading_level"] >= 2 and len(txt) < 150)
@@ -1740,6 +1939,17 @@ def _build_lesson_theory(raw_items: List[Dict], lesson_meta: Dict, lesson_idx: i
 
     # Làm gọn: bỏ các section hoàn toàn rỗng
     sections = [s for s in sections if s["blocks"]]
+
+    # Đảm bảo MỌI bài học đều có mục "Yêu cầu cần đạt" ở đầu bài đồng bộ như các Chủ đề 1-7
+    yccd_idx = next((i for i, s in enumerate(sections) if "yêu cầu cần đạt" in (s.get("heading") or "").lower()), -1)
+    if yccd_idx > 0:
+        yccd_obj = sections.pop(yccd_idx)
+        yccd_obj["heading"] = "Yêu cầu cần đạt"
+        sections.insert(0, yccd_obj)
+    elif yccd_idx == 0:
+        sections[0]["heading"] = "Yêu cầu cần đạt"
+    else:
+        sections.insert(0, _auto_build_yccd_section(lesson_meta.get("title", ""), sections))
 
     summary = all_points_flat[0][:240] if all_points_flat else lesson_meta["title"]
     takeaway = all_points_flat[-1][:260] if len(all_points_flat) > 1 else summary

@@ -116,7 +116,7 @@ export const BASE_PATH = window.location.pathname.startsWith("/sinhhoc12") ? "/s
 
 export function withBase(path) {
   if (!path) return "";
-  if (/^https?:\/\//i.test(path)) return path;
+  if (/^(?:https?:|data:|blob:)/i.test(path)) return path;
   if (BASE_PATH && path.startsWith(BASE_PATH + "/")) return path;
   if (path.startsWith("/")) return `${BASE_PATH}${path}`;
   return `${BASE_PATH}/${path}`;

@@ -2143,10 +2143,22 @@ class Bio12Handler(BaseHTTPRequestHandler):
                     return self.send_json(400, {"error": "Thiếu dữ liệu Chủ đề hoặc tệp PDF Đáp án."})
                 try:
                     pdf_bytes = base64.b64decode(pdf_b64)
-                    report = apply_answer_pdf_to_topic(topic_obj, pdf_bytes, pdf_name)
+                    overwrite = bool(body.get("overwrite", True))
+                    report = apply_answer_pdf_to_topic(topic_obj, pdf_bytes, pdf_name, overwrite=overwrite)
                 except Exception as e:
                     return self.send_json(400, {"error": f"Không thể đọc file PDF Đáp án: {e}"})
                 rev = topic_obj.get("review") or {}
+                if report.get("is_scanned_pdf") and report["total_matched"] == 0 and not report.get("ocr_used"):
+                    msg_txt = (
+                        f"File '{pdf_name}' là bản PDF scan/ảnh chụp (không có lớp văn bản) nên máy chủ trực tuyến không đọc chữ trực tiếp được. "
+                        "Thầy vui lòng xuất PDF có văn bản từ Word hoặc chạy đối chiếu trên máy cục bộ (có OCR tiếng Việt tích hợp)."
+                    )
+                else:
+                    ocr_note = " (tự động OCR bản scan)" if report.get("ocr_used") else ""
+                    msg_txt = (
+                        f"Đã đối chiếu '{pdf_name}'{ocr_note}: khớp {report['total_matched']} đáp án "
+                        f"(TN: {report['matched_mcq']}, Đ/S: {report['matched_tf']}, TLN: {report['matched_sa']})."
+                    )
                 return self.send_json(
                     200,
                     {
@@ -2158,7 +2170,7 @@ class Bio12Handler(BaseHTTPRequestHandler):
                             "true_false_keyed": sum(1 for q in (rev.get("true_false") or []) if q.get("answer_key_ready")),
                             "short_answer_keyed": sum(1 for q in (rev.get("short_answer") or []) if q.get("answer_key_ready")),
                         },
-                        "message": f"Đã đối chiếu '{pdf_name}': khớp thêm {report['total_matched']} đáp án (TN: {report['matched_mcq']}, Đ/S: {report['matched_tf']}, TLN: {report['matched_sa']}).",
+                        "message": msg_txt,
                     },
                 )
 
@@ -3002,6 +3014,16 @@ class Bio12Handler(BaseHTTPRequestHandler):
         try:
             raw, gz, etag, mime_out = _get_cached_static(safe_path, mime)
             is_upload_img = rel.startswith("uploads/")
+            if is_upload_img and raw:
+                # Khớp đúng Content-Type theo magic bytes thực tế (tránh lỗi ảnh .png chứa dữ liệu JPEG trên mobile/Chrome)
+                if raw[:3] == b"\xff\xd8\xff":
+                    mime_out = "image/jpeg"
+                elif raw[:8] == b"\x89PNG\r\n\x1a\n":
+                    mime_out = "image/png"
+                elif raw[:4] == b"GIF8":
+                    mime_out = "image/gif"
+                elif len(raw) >= 12 and raw[:4] == b"RIFF" and raw[8:12] == b"WEBP":
+                    mime_out = "image/webp"
             if is_upload_img:
                 cache_hdr = "public, max-age=604800, immutable"
             elif rel == "index.html" or rel.endswith(".js") or rel.endswith(".css"):
