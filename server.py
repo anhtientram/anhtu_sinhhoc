@@ -3153,7 +3153,13 @@ class Bio12Handler(BaseHTTPRequestHandler):
         else:
             rel = path.lstrip("/")
 
-        if rel.startswith("uploads/") and EXTRA_UPLOADS_DIR:
+        if rel == "uploads/chu-de-7/img_217a1f6879.png":
+            override_p = os.path.normpath(os.path.join(STATIC_DIR, "assets", "cd7_img_217a1f6879.jpg"))
+            if os.path.isfile(override_p):
+                safe_path = override_p
+            else:
+                safe_path = os.path.normpath(os.path.join(STATIC_DIR, rel))
+        elif rel.startswith("uploads/") and EXTRA_UPLOADS_DIR:
             static_cand = os.path.normpath(os.path.join(STATIC_DIR, rel))
             if os.path.isfile(static_cand):
                 # Ưu tiên bản ảnh chuẩn hoá trong gói phát hành (static/uploads/) để bản sửa từ Git
