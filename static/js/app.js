@@ -13,7 +13,7 @@ import {
   withBase,
 } from "./api.js";
 import { mountInteractiveDiagram } from "./diagrams.js";
-import { initContentGuard, setContentGuardAdmin } from "./content_guard.js";
+import { initContentGuard, setContentGuardAdmin } from "./content_guard.js?v=20261128-v13";
 import { escapeHtml, formatBioHtml } from "./format.js";
 import {
   bindInteractiveExerciseEvents,

@@ -44,8 +44,41 @@ function ensureDevtoolsOverlay(show) {
   document.body.appendChild(overlay);
 }
 
+function isMobileOrTouchDevice() {
+  if (typeof window === "undefined" || typeof navigator === "undefined") return false;
+  const ua = String(navigator.userAgent || "");
+  if (/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini|Mobile|Tablet/i.test(ua)) {
+    return true;
+  }
+  // iPadOS Safari giả dạng MacIntel nhưng có cảm ứng đa điểm
+  if (navigator.platform === "MacIntel" && (navigator.maxTouchPoints || 0) > 1) {
+    return true;
+  }
+  try {
+    if (window.matchMedia && window.matchMedia("(pointer: coarse)").matches) return true;
+    if (window.matchMedia && window.matchMedia("(hover: none)").matches) return true;
+  } catch {}
+  return false;
+}
+
 function checkDevtoolsOpen() {
   if (_isAdmin || typeof window === "undefined" || typeof document === "undefined") {
+    ensureDevtoolsOverlay(false);
+    return;
+  }
+  // Tuyệt đối không bật cảnh báo F12/DevTools trên điện thoại / máy tính bảng cảm ứng
+  // (bàn phím ảo hoặc thanh địa chỉ Safari iOS làm chênh lệch outerHeight/innerHeight)
+  if (isMobileOrTouchDevice()) {
+    ensureDevtoolsOverlay(false);
+    return;
+  }
+  // Không bao giờ chặn màn hình đăng nhập (tránh khoá chính Quản trị viên trước khi đăng nhập)
+  if (!document.querySelector(".app-shell") || document.querySelector(".login-page, .login-card, #login-form")) {
+    ensureDevtoolsOverlay(false);
+    return;
+  }
+  // Không chặn khi đang nhập liệu trên ô input/textarea
+  if (isEditableTarget(document.activeElement)) {
     ensureDevtoolsOverlay(false);
     return;
   }
@@ -58,8 +91,8 @@ function checkDevtoolsOpen() {
   const widthDiff = (window.outerWidth || 0) - (window.innerWidth || 0);
   const heightDiff = (window.outerHeight || 0) - (window.innerHeight || 0);
   const opened =
-    (widthDiff > 260 && (window.innerWidth || 0) > 320) ||
-    (heightDiff > 260 && (window.innerHeight || 0) > 320);
+    (widthDiff > 300 && (window.innerWidth || 0) > 480) ||
+    (heightDiff > 300 && (window.innerHeight || 0) > 480);
   ensureDevtoolsOverlay(opened);
 }
 

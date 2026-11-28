@@ -12,5 +12,5 @@ data/sinhhoc12.db-wal
 data/sinhhoc12.db-shm
 tools/crop_img_bin
 # Không bỏ qua static/uploads/ để Wasmer Edge đóng gói đủ toàn bộ ảnh chuẩn của Chủ đề 1..7
-static/uploads/draft-*
-uploads/
+/static/uploads/draft-*
+/uploads/
