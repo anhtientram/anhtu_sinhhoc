@@ -5,6 +5,7 @@ Backend Server (Python 3 stdlib + SQLite) — Không cần cài đặt thư vi�
 Chạy lệnh: python3 server.py
 """
 import base64
+import errno
 import gzip
 import hashlib
 import json
@@ -232,6 +233,20 @@ class Bio12Handler(BaseHTTPRequestHandler):
             self.request.settimeout(60.0)
         except Exception:
             pass
+
+    def handle_one_request(self):
+        try:
+            super().handle_one_request()
+        except OSError as exc:
+            if getattr(exc, "errno", None) in (
+                errno.EBADF,
+                errno.ECONNRESET,
+                errno.EPIPE,
+                errno.ENOTCONN,
+            ):
+                self.close_connection = True
+                return
+            raise
 
     def log_message(self, fmt, *args):
         sys.stdout.write(f"[{now_vn().strftime('%H:%M:%S')}] {self.address_string()} - {fmt % args}\n")
@@ -2989,6 +3004,16 @@ class Bio12Handler(BaseHTTPRequestHandler):
             if "." not in os.path.basename(rel):
                 safe_path = os.path.join(STATIC_DIR, "index.html")
                 rel = "index.html"
+            elif rel in (
+                "favicon.ico",
+                "apple-touch-icon.png",
+                "apple-touch-icon-precomposed.png",
+            ):
+                self.send_response(204)
+                self.send_header("Cache-Control", "public, max-age=86400")
+                self.send_header("Content-Length", "0")
+                self.end_headers()
+                return
             else:
                 self.send_error(404, "Not Found")
                 return
@@ -3094,7 +3119,11 @@ def prewarm_caches():
 
 def main():
     init_db()
-    prewarm_caches()
+    try:
+        prewarm_caches()
+    except Exception as exc:
+        sys.stderr.write(f"[prewarm_caches] Bỏ qua lỗi tạm thời khi nạp cache lúc khởi động: {exc}\n")
+        sys.stderr.flush()
     max_workers = int(os.environ.get("MAX_WORKERS", "24"))
     server = PooledHTTPServer(("0.0.0.0", PORT), Bio12Handler, max_workers=max_workers)
     port_suffix = "" if PORT == 80 else f":{PORT}"
