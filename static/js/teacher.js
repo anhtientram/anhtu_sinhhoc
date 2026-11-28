@@ -10,21 +10,157 @@ import { escapeHtml, formatBioHtml } from "./format.js";
 import { openTopicPreviewModal } from "./topic_preview.js";
 import { mountYoutubeLibrary } from "./youtube_videos.js";
 
+const AVATAR_PALETTE = ["#0f766e", "#0369a1", "#4f46e5", "#b45309", "#be123c", "#15803d"];
+
+const ADMIN_NAV_ICONS = {
+  members: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>`,
+  attendance: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>`,
+  exam_mixer: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 3 21 3 21 8"/><line x1="4" y1="20" x2="21" y2="3"/><polyline points="21 16 21 21 16 21"/><line x1="15" y1="15" x2="21" y2="21"/><line x1="4" y1="4" x2="9" y2="9"/></svg>`,
+  content: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/></svg>`,
+  scores: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>`,
+  pw_alerts: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>`,
+};
+
+function initialsOf(name = "") {
+  const parts = String(name || "").trim().split(/\s+/).filter(Boolean);
+  if (!parts.length) return "U";
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+}
+
+function compactDateVN(iso) {
+  const full = formatDateTimeVN(iso);
+  if (!full || full === "—" || full === "-") return "—";
+  const m = String(full).match(/(\d{2}:\d{2})(?::\d{2})?\s*[,·-]?\s*(\d{2}\/\d{2})/);
+  if (m) return `${m[2]} ${m[1]}`;
+  const m2 = String(full).match(/(\d{2}\/\d{2})(?:\/\d{4})?\s+(\d{2}:\d{2})/);
+  if (m2) return `${m2[1]} ${m2[2]}`;
+  return String(full).slice(0, 14);
+}
+
+function accBadgeClass(pct) {
+  if (pct === null || pct === undefined) return "is-slate";
+  if (pct >= 80) return "is-green";
+  if (pct >= 65) return "is-teal";
+  if (pct >= 50) return "is-amber";
+  return "is-red";
+}
+
+function kebabButtonHtml(dataAttrs) {
+  return `
+    <button type="button" class="rt-kebab-btn" aria-haspopup="menu" aria-expanded="false" title="Thao tác" ${dataAttrs}>
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+        <circle cx="12" cy="5" r="1.8"></circle>
+        <circle cx="12" cy="12" r="1.8"></circle>
+        <circle cx="12" cy="19" r="1.8"></circle>
+      </svg>
+    </button>
+  `;
+}
+
+let _activeMenuAnchor = null;
+let _menuGlobalBound = false;
+
+function closeRowActionMenu() {
+  const portal = document.getElementById("rt-action-menu-portal");
+  if (portal) portal.remove();
+  if (_activeMenuAnchor) {
+    _activeMenuAnchor.classList.remove("is-open");
+    _activeMenuAnchor.setAttribute("aria-expanded", "false");
+    _activeMenuAnchor = null;
+  }
+}
+
+function _ensureMenuGlobalListeners() {
+  if (_menuGlobalBound || typeof document === "undefined") return;
+  _menuGlobalBound = true;
+  document.addEventListener("click", (e) => {
+    const portal = document.getElementById("rt-action-menu-portal");
+    if (!portal) return;
+    if (portal.contains(e.target)) return;
+    if (_activeMenuAnchor && _activeMenuAnchor.contains(e.target)) return;
+    closeRowActionMenu();
+  });
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape") closeRowActionMenu();
+  });
+  window.addEventListener("scroll", closeRowActionMenu, true);
+  window.addEventListener("resize", closeRowActionMenu);
+}
+
+function openRowActionMenu(anchorBtn, items = []) {
+  _ensureMenuGlobalListeners();
+  if (_activeMenuAnchor === anchorBtn && document.getElementById("rt-action-menu-portal")) {
+    closeRowActionMenu();
+    return;
+  }
+  closeRowActionMenu();
+
+  const portal = document.createElement("div");
+  portal.id = "rt-action-menu-portal";
+  portal.className = "rt-action-menu";
+  portal.setAttribute("role", "menu");
+
+  items.forEach((item) => {
+    if (!item) return;
+    if (item.divider) {
+      const div = document.createElement("div");
+      div.className = "rt-action-divider";
+      portal.appendChild(div);
+      return;
+    }
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = `rt-action-item${item.danger ? " is-danger" : ""}`;
+    btn.setAttribute("role", "menuitem");
+    btn.textContent = item.label;
+    btn.addEventListener("click", (ev) => {
+      ev.stopPropagation();
+      closeRowActionMenu();
+      item.onClick?.();
+    });
+    portal.appendChild(btn);
+  });
+
+  document.body.appendChild(portal);
+  _activeMenuAnchor = anchorBtn;
+  anchorBtn.classList.add("is-open");
+  anchorBtn.setAttribute("aria-expanded", "true");
+
+  const rect = anchorBtn.getBoundingClientRect();
+  const menuRect = portal.getBoundingClientRect();
+  const pad = 8;
+  let left = rect.right - menuRect.width;
+  if (left < pad) left = pad;
+  if (left + menuRect.width > window.innerWidth - pad) {
+    left = Math.max(pad, window.innerWidth - menuRect.width - pad);
+  }
+  let top = rect.bottom + 4;
+  if (top + menuRect.height > window.innerHeight - pad) {
+    top = Math.max(pad, rect.top - menuRect.height - 4);
+  }
+  portal.style.left = `${Math.round(left)}px`;
+  portal.style.top = `${Math.round(top)}px`;
+}
+
 export function mountTeacherDashboard(container, activeTopic, onTopicUpdated, showToast, opts = {}) {
-  const onTopicsReload = opts.onTopicsReload || (async () => {});
+  const onTopicsReload = opts.onTopicsReload || (async () => { });
   const onSelectTopic = opts.onSelectTopic || null;
+  const onSubRouteChange = opts.onSubRouteChange || null;
   const topicsList = Array.isArray(opts.topicsList) ? opts.topicsList : [];
   const currentUser = opts.currentUser || { role: "teacher" };
   const isAdmin = currentUser.role === "admin";
   const cachedTeacher = clientCache.getTeacherData();
 
-  let subtab = cachedTeacher.subtab || "members"; // 'members' | 'attendance' | 'exam_mixer' | 'content' | 'scores' | 'pw_alerts'
+  let subtab = opts.initialSubtab || cachedTeacher.subtab || "members"; // 'members' | 'attendance' | 'exam_mixer' | 'content' | 'scores' | 'pw_alerts'
   if (!isAdmin && (subtab === "content" || subtab === "pw_alerts")) {
     subtab = "members";
   }
   let overview = cachedTeacher.overview || null;
   let classFilter = "";
   let searchFilter = "";
+  let memberClassFilter = "";
+  let memberSearchFilter = "";
   let reportTopicFilter = "";
   let reportStudentFilter = "";
   let reportModal = null; // null | { kind: 'student'|'attempt', loading, error, data, tab, prevStudentId }
@@ -32,7 +168,7 @@ export function mountTeacherDashboard(container, activeTopic, onTopicUpdated, sh
   let studentExcelLoading = false;
 
   // Trạng thái Trộn đề Kiểm tra (Chế độ 1: Từ file Word .docx | Chế độ 2: Từ Ngân hàng Ma trận 3x3)
-  let examMixerMode = "word"; // 'word' | 'matrix'
+  let examMixerMode = opts.initialExamMixerMode || "word"; // 'word' | 'matrix'
   let examPool = cachedTeacher.examPool || null; // [{id, title, lessons: [{id, number, title, counts}]}]
   let selectedLessonIds = new Set();
   let matrix = {
@@ -101,7 +237,7 @@ export function mountTeacherDashboard(container, activeTopic, onTopicUpdated, sh
   }
 
   // Trạng thái Chỉnh sửa / Thêm nội dung
-  let contentSubMode = cachedTeacher.contentSubMode || "add_topic"; // 'add_topic' | 'add_question' | 'edit_lesson' | 'youtube' | 'import'
+  let contentSubMode = opts.initialContentSubMode || cachedTeacher.contentSubMode || "add_topic"; // 'add_topic' | 'add_question' | 'edit_lesson' | 'youtube' | 'import'
   let newQuestionType = "mcq";
   let editLessonId = (activeTopic?.lessons || [])[0]?.id || "__new__";
 
@@ -127,6 +263,8 @@ export function mountTeacherDashboard(container, activeTopic, onTopicUpdated, sh
   let editingTopicTitle = "";
   let editingTopicSubtitle = "";
   let savingTopicMetaId = "";
+  let uploadingBannerTopicId = "";
+  let pendingBannerTopicId = "";
 
   let importState = {
     file: null,
@@ -218,6 +356,7 @@ export function mountTeacherDashboard(container, activeTopic, onTopicUpdated, sh
   }
 
   function render() {
+    closeRowActionMenu();
     if (!overview) {
       container.innerHTML = `<div class="card" style="text-align:center;padding:40px;"><div class="spinner" style="margin:0 auto 12px;"></div>Đang tải dữ liệu quản trị...</div>`;
       return;
@@ -231,11 +370,10 @@ export function mountTeacherDashboard(container, activeTopic, onTopicUpdated, sh
       <div class="page-header">
         <div>
           <h1>${isAdmin ? "Quản trị hệ thống &amp; Quản lý lớp học" : "Quản lý lớp học (Giáo viên)"}</h1>
-          <p>${
-            isAdmin
-              ? "Toàn quyền quản trị: thêm/xoá giáo viên, thêm học sinh (Excel/thủ công), nhận báo cáo đổi mật khẩu, trộn đề Ma trận 3×3 và biên soạn nội dung"
-              : "Quản lý lớp học: thêm học sinh (Excel/thủ công), theo dõi truy cập, xem kết quả ôn tập và trộn đề Ma trận 3×3"
-          }</p>
+          <p>${isAdmin
+        ? "Toàn quyền quản trị: thêm/xoá giáo viên, thêm học sinh (Excel/thủ công), nhận báo cáo đổi mật khẩu, trộn đề Ma trận 3×3 và biên soạn nội dung"
+        : "Quản lý lớp học: thêm học sinh (Excel/thủ công), theo dõi truy cập, xem kết quả ôn tập và trộn đề Ma trận 3×3"
+      }</p>
         </div>
         <button class="btn btn-secondary btn-sm" id="teacher-refresh-btn">Làm mới dữ liệu</button>
       </div>
@@ -265,41 +403,71 @@ export function mountTeacherDashboard(container, activeTopic, onTopicUpdated, sh
         </div>
       </div>
 
-      <div style="margin-bottom:18px;overflow-x:auto;">
-        <div class="segmented" style="flex-wrap:wrap;">
-          <button class="seg-btn ${subtab === "members" ? "active" : ""}" data-tsub="members">Quản lý thành viên</button>
-          <button class="seg-btn ${subtab === "attendance" ? "active" : ""}" data-tsub="attendance">Nhật ký &amp; Lượt truy cập</button>
-          <button class="seg-btn ${subtab === "exam_mixer" ? "active" : ""}" data-tsub="exam_mixer">Trộn đề kiểm tra</button>
-          ${
-            isAdmin
-              ? `<button class="seg-btn ${subtab === "content" ? "active" : ""}" data-tsub="content">Chỉnh sửa &amp; Thêm nội dung</button>`
-              : ""
-          }
-          <button class="seg-btn ${subtab === "scores" ? "active" : ""}" data-tsub="scores">Báo cáo học tập &amp; Ôn tập</button>
-          ${
-            isAdmin
-              ? `<button class="seg-btn ${subtab === "pw_alerts" ? "active" : ""}" data-tsub="pw_alerts">
-                   Báo cáo đổi mật khẩu${unreadPw > 0 ? ` (${unreadPw})` : ""}
-                 </button>`
-              : ""
-          }
-        </div>
-      </div>
+      <nav class="admin-nav-grid ${isAdmin ? "cols-3" : "cols-4"}" aria-label="Danh mục quản trị">
+        <button type="button" class="admin-nav-tab ${subtab === "members" ? "active" : ""}" data-tsub="members">
+          <span class="admin-nav-icon">${ADMIN_NAV_ICONS.members}</span>
+          <span class="admin-nav-text">
+            <span class="admin-nav-title">Quản lý thành viên</span>
+            <span class="admin-nav-sub">Giáo viên &amp; Học sinh</span>
+          </span>
+        </button>
+        <button type="button" class="admin-nav-tab ${subtab === "attendance" ? "active" : ""}" data-tsub="attendance">
+          <span class="admin-nav-icon">${ADMIN_NAV_ICONS.attendance}</span>
+          <span class="admin-nav-text">
+            <span class="admin-nav-title">Nhật ký &amp; Truy cập</span>
+            <span class="admin-nav-sub">Phiên vào lớp &amp; Đăng nhập</span>
+          </span>
+        </button>
+        <button type="button" class="admin-nav-tab ${subtab === "exam_mixer" ? "active" : ""}" data-tsub="exam_mixer">
+          <span class="admin-nav-icon">${ADMIN_NAV_ICONS.exam_mixer}</span>
+          <span class="admin-nav-text">
+            <span class="admin-nav-title">Trộn đề kiểm tra</span>
+            <span class="admin-nav-sub">File Word &amp; Ma trận 3×3</span>
+          </span>
+        </button>
+        ${isAdmin
+        ? `<button type="button" class="admin-nav-tab ${subtab === "content" ? "active" : ""}" data-tsub="content">
+                 <span class="admin-nav-icon">${ADMIN_NAV_ICONS.content}</span>
+                 <span class="admin-nav-text">
+                   <span class="admin-nav-title">Biên soạn nội dung</span>
+                   <span class="admin-nav-sub">Chủ đề, Bài học &amp; Video</span>
+                 </span>
+               </button>`
+        : ""
+      }
+        <button type="button" class="admin-nav-tab ${subtab === "scores" ? "active" : ""}" data-tsub="scores">
+          <span class="admin-nav-icon">${ADMIN_NAV_ICONS.scores}</span>
+          <span class="admin-nav-text">
+            <span class="admin-nav-title">Báo cáo học tập</span>
+            <span class="admin-nav-sub">Tỉ lệ % &amp; Đợt ôn tập</span>
+          </span>
+        </button>
+        ${isAdmin
+        ? `<button type="button" class="admin-nav-tab ${unreadPw > 0 ? "has-alert" : ""} ${subtab === "pw_alerts" ? "active" : ""}" data-tsub="pw_alerts">
+                 <span class="admin-nav-icon">${ADMIN_NAV_ICONS.pw_alerts}</span>
+                 <span class="admin-nav-text">
+                   <span class="admin-nav-title">Báo cáo đổi mật khẩu</span>
+                   <span class="admin-nav-sub">${unreadPw > 0 ? `${unreadPw} thông báo mới` : "Theo dõi bảo mật"}</span>
+                 </span>
+                 ${unreadPw > 0 ? `<span class="admin-nav-badge">${unreadPw}</span>` : ""}
+               </button>`
+        : ""
+      }
+      </nav>
 
       <div id="teacher-subview">
-        ${
-          subtab === "attendance"
-            ? renderAttendanceView(classes)
-            : subtab === "exam_mixer"
-            ? renderExamMixerView()
-            : subtab === "content" && isAdmin
+        ${subtab === "attendance"
+        ? renderAttendanceView(classes)
+        : subtab === "exam_mixer"
+          ? renderExamMixerView()
+          : subtab === "content" && isAdmin
             ? renderContentStudio()
             : subtab === "scores"
-            ? renderScoresView(classes)
-            : subtab === "pw_alerts" && isAdmin
-            ? renderPasswordAlertsView()
-            : renderMembersView()
-        }
+              ? renderScoresView(classes)
+              : subtab === "pw_alerts" && isAdmin
+                ? renderPasswordAlertsView()
+                : renderMembersView()
+      }
       </div>
       ${renderAnalyticsModal()}
     `;
@@ -308,6 +476,7 @@ export function mountTeacherDashboard(container, activeTopic, onTopicUpdated, sh
       btn.addEventListener("click", () => {
         subtab = btn.dataset.tsub;
         clientCache.setTeacherData({ subtab });
+        onSubRouteChange?.({ subtab, contentSubMode, examMixerMode });
         if (subtab === "exam_mixer" && examMixerMode === "matrix" && !examPool) {
           render();
           ensureExamPoolLoaded();
@@ -370,11 +539,10 @@ export function mountTeacherDashboard(container, activeTopic, onTopicUpdated, sh
                 <tr><th>Học sinh</th><th>Lớp</th><th>Vào học</th><th>Rời lớp</th><th>Thời lượng</th><th>Mục gần nhất</th><th>Trạng thái</th></tr>
               </thead>
               <tbody>
-                ${
-                  sessions.length
-                    ? sessions
-                        .map(
-                          (s) => `
+                ${sessions.length
+        ? sessions
+          .map(
+            (s) => `
                           <tr>
                             <td><strong>${escapeHtml(s.full_name)}</strong><br/><small style="color:var(--text-muted)">@${escapeHtml(s.username)}</small></td>
                             <td>${escapeHtml(s.class_name || "—")}</td>
@@ -385,10 +553,10 @@ export function mountTeacherDashboard(container, activeTopic, onTopicUpdated, sh
                             <td>${s.status === "active" ? `<span class="pill pill-green">Đang học</span>` : `<span class="pill pill-muted">Đã rời lớp</span>`}</td>
                           </tr>
                         `
-                        )
-                        .join("")
-                    : `<tr><td colspan="7" style="text-align:center;color:var(--text-muted);padding:22px;">Không có dữ liệu phù hợp.</td></tr>`
-                }
+          )
+          .join("")
+        : `<tr><td colspan="7" style="text-align:center;color:var(--text-muted);padding:22px;">Không có dữ liệu phù hợp.</td></tr>`
+      }
               </tbody>
             </table>
           </div>
@@ -402,12 +570,11 @@ export function mountTeacherDashboard(container, activeTopic, onTopicUpdated, sh
                 <tr><th>Họ và tên</th><th>Tên đăng nhập</th><th>Trường</th><th>Lớp</th><th>Số điện thoại</th><th>Thời điểm đăng nhập</th></tr>
               </thead>
               <tbody>
-                ${
-                  loginLogs.length
-                    ? loginLogs
-                        .slice(0, 60)
-                        .map(
-                          (l) => `
+                ${loginLogs.length
+        ? loginLogs
+          .slice(0, 60)
+          .map(
+            (l) => `
                           <tr>
                             <td><strong>${escapeHtml(l.full_name)}</strong></td>
                             <td>@${escapeHtml(l.username)}</td>
@@ -417,10 +584,10 @@ export function mountTeacherDashboard(container, activeTopic, onTopicUpdated, sh
                             <td>${formatDateTimeVN(l.login_time)}</td>
                           </tr>
                         `
-                        )
-                        .join("")
-                    : `<tr><td colspan="6" style="text-align:center;color:var(--text-muted);padding:20px;">Chưa có lịch sử đăng nhập mới.</td></tr>`
-                }
+          )
+          .join("")
+        : `<tr><td colspan="6" style="text-align:center;color:var(--text-muted);padding:20px;">Chưa có lịch sử đăng nhập mới.</td></tr>`
+      }
               </tbody>
             </table>
           </div>
@@ -504,18 +671,17 @@ export function mountTeacherDashboard(container, activeTopic, onTopicUpdated, sh
                 </div>
               </div>
 
-              ${
-                Array.isArray(wordMixer.sampleFiles) && wordMixer.sampleFiles.length
-                  ? `
+              ${Array.isArray(wordMixer.sampleFiles) && wordMixer.sampleFiles.length
+          ? `
                     <div style="margin-bottom:14px;padding:12px 14px;border-radius:10px;border:1px solid var(--border);background:#fff;">
                       <div style="font-size:0.82rem;font-weight:700;color:var(--text);margin-bottom:8px;">
                         📁 Kho tệp trong thư mục <code>FILE ĐỀ MẪU</code> (${wordMixer.sampleFiles.length} tệp — bấm Nạp thử để trộn ngay hoặc Tải về tham khảo):
                       </div>
                       <div style="display:flex;flex-wrap:wrap;gap:8px;">
                         ${wordMixer.sampleFiles
-                          .map((sf) => {
-                            const isLoadingThis = wordMixer.loadingSampleName === sf.filename;
-                            return `
+            .map((sf) => {
+              const isLoadingThis = wordMixer.loadingSampleName === sf.filename;
+              return `
                               <div style="display:inline-flex;align-items:center;gap:6px;padding:6px 10px;border-radius:8px;border:1px solid var(--border);background:var(--surface-subtle);font-size:0.8rem;">
                                 <span style="font-weight:600;">📄 ${escapeHtml(sf.filename)}</span>
                                 <small style="color:var(--text-muted);">(${sf.size_kb} KB)</small>
@@ -525,13 +691,13 @@ export function mountTeacherDashboard(container, activeTopic, onTopicUpdated, sh
                                 <a class="btn btn-secondary btn-sm" style="padding:3px 8px;font-size:0.75rem;" href="${api.downloadExamMixerSampleUrl(sf.filename)}" target="_blank">⬇ Tải mẫu</a>
                               </div>
                             `;
-                          })
-                          .join("")}
+            })
+            .join("")}
                       </div>
                     </div>
                   `
-                  : ""
-              }
+          : ""
+        }
 
               <div style="padding:16px;border:1.5px dashed var(--primary-border);border-radius:12px;background:var(--surface-tint);display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
                 <label class="btn btn-primary" style="cursor:pointer;">
@@ -539,19 +705,17 @@ export function mountTeacherDashboard(container, activeTopic, onTopicUpdated, sh
                   <input type="file" id="word-mixer-file-input" accept=".docx" style="display:none;" ${wordMixer.loading ? "disabled" : ""} />
                 </label>
                 <span id="word-mixer-upload-text" style="font-size:0.85rem;color:var(--text-secondary);">
-                  ${
-                    wordMixer.loading
-                      ? "Đang tải lên và nhận diện câu hỏi, hình ảnh & đáp án..."
-                      : wp
-                      ? `Đã phân tích xong: <strong>${escapeHtml(wp.source_filename || wordMixer.file?.name || "đề-gốc.docx")}</strong>`
-                      : "Chọn tệp Word (.docx) đề kiểm tra gốc của Thầy/Cô"
-                  }
+                  ${wordMixer.loading
+          ? "Đang tải lên và nhận diện câu hỏi, hình ảnh & đáp án..."
+          : wp
+            ? `Đã phân tích xong: <strong>${escapeHtml(wp.source_filename || wordMixer.file?.name || "đề-gốc.docx")}</strong>`
+            : "Chọn tệp Word (.docx) đề kiểm tra gốc của Thầy/Cô"
+        }
                 </span>
               </div>
 
-              ${
-                wp && ws
-                  ? `
+              ${wp && ws
+          ? `
                     <div style="margin-top:14px;padding:14px 16px;border-radius:12px;border:1px solid var(--primary-border);background:#fff;">
                       <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:10px;">
                         <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
@@ -568,33 +732,30 @@ export function mountTeacherDashboard(container, activeTopic, onTopicUpdated, sh
                           ${wordMixer.showPreview ? "Ẩn danh sách câu hỏi" : "👁 Xem trước câu hỏi & đáp án đã nhận diện"}
                         </button>
                       </div>
-                      ${
-                        Array.isArray(ws.groups_summary) && ws.groups_summary.length > 0
-                          ? `
+                      ${Array.isArray(ws.groups_summary) && ws.groups_summary.length > 0
+            ? `
                             <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-bottom:8px;font-size:0.78rem;">
                               <strong style="color:var(--text-secondary);">Nhóm trộn đã nhận diện:</strong>
                               ${ws.groups_summary
-                                .map(
-                                  (g) =>
-                                    `<span class="pill pill-muted">${escapeHtml(g.part)} · <code>${escapeHtml(g.tag)}</code> (${g.count} câu)</span>`
-                                )
-                                .join("")}
+              .map(
+                (g) =>
+                  `<span class="pill pill-muted">${escapeHtml(g.part)} · <code>${escapeHtml(g.tag)}</code> (${g.count} câu)</span>`
+              )
+              .join("")}
                             </div>
                           `
-                          : ""
-                      }
+            : ""
+          }
 
-                      ${
-                        (wp.warnings || []).length
-                          ? `<div class="mock-warning-box" style="margin-top:0;margin-bottom:8px;">
+                      ${(wp.warnings || []).length
+            ? `<div class="mock-warning-box" style="margin-top:0;margin-bottom:8px;">
                                ${wp.warnings.map((w) => `<div>⚠️ ${escapeHtml(w)}</div>`).join("")}
                              </div>`
-                          : ""
-                      }
+            : ""
+          }
 
-                      ${
-                        wordMixer.showPreview
-                          ? `
+                      ${wordMixer.showPreview
+            ? `
                             <div class="data-table-wrap" style="margin-top:10px;max-height:360px;overflow-y:auto;">
                               <table class="data-table">
                                 <thead>
@@ -602,11 +763,11 @@ export function mountTeacherDashboard(container, activeTopic, onTopicUpdated, sh
                                 </thead>
                                 <tbody>
                                   ${(wc.mcq || [])
-                                    .map((q, idx) => {
-                                      const fixedBadge = (q.fixed_options || []).length
-                                        ? `<span class="pill pill-amber" style="margin-left:4px;font-size:0.7rem;">Cố định ${(q.fixed_options || []).map((i) => `#${letters[i]}`).join(",")}</span>`
-                                        : "";
-                                      return `
+              .map((q, idx) => {
+                const fixedBadge = (q.fixed_options || []).length
+                  ? `<span class="pill pill-amber" style="margin-left:4px;font-size:0.7rem;">Cố định ${(q.fixed_options || []).map((i) => `#${letters[i]}`).join(",")}</span>`
+                  : "";
+                return `
                                       <tr>
                                         <td>
                                           <strong>${ws.exam_format === "format_1part_mcq" ? `Câu ${idx + 1}` : `Phần I · C${idx + 1}`}</strong>
@@ -614,23 +775,22 @@ export function mountTeacherDashboard(container, activeTopic, onTopicUpdated, sh
                                         </td>
                                         <td style="font-size:0.82rem;">${formatBioHtml((q.question || "").slice(0, 180))}</td>
                                         <td>
-                                          ${
-                                            q.correct_index !== null && q.correct_index !== undefined
-                                              ? `<span class="pill pill-green">Đáp án ${letters[q.correct_index] || "?"}</span>`
-                                              : `<span class="pill pill-red">Chưa nhận diện</span>`
-                                          }${fixedBadge}
+                                          ${q.correct_index !== null && q.correct_index !== undefined
+                    ? `<span class="pill pill-green">Đáp án ${letters[q.correct_index] || "?"}</span>`
+                    : `<span class="pill pill-red">Chưa nhận diện</span>`
+                  }${fixedBadge}
                                         </td>
                                       </tr>
                                     `;
-                                    })
-                                    .join("")}
+              })
+              .join("")}
                                   ${(wc.true_false || [])
-                                    .map((q, idx) => {
-                                      const stSummary = (q.statements || [])
-                                        .map((s) => `${s.fixed ? "#" : ""}${s.key}-${s.answer === true ? "Đ" : s.answer === false ? "S" : "?"}`)
-                                        .join(" · ");
-                                      const allReady = (q.statements || []).every((s) => s.answer !== null && s.answer !== undefined);
-                                      return `
+              .map((q, idx) => {
+                const stSummary = (q.statements || [])
+                  .map((s) => `${s.fixed ? "#" : ""}${s.key}-${s.answer === true ? "Đ" : s.answer === false ? "S" : "?"}`)
+                  .join(" · ");
+                const allReady = (q.statements || []).every((s) => s.answer !== null && s.answer !== undefined);
+                return `
                                         <tr>
                                           <td>
                                             <strong>Phần II · C${idx + 1}</strong>
@@ -640,11 +800,11 @@ export function mountTeacherDashboard(container, activeTopic, onTopicUpdated, sh
                                           <td><span class="pill ${allReady ? "pill-green" : "pill-amber"}">${escapeHtml(stSummary)}</span></td>
                                         </tr>
                                       `;
-                                    })
-                                    .join("")}
+              })
+              .join("")}
                                   ${(wc.short_answer || [])
-                                    .map(
-                                      (q, idx) => `
+              .map(
+                (q, idx) => `
                                       <tr>
                                         <td>
                                           <strong>Phần III · C${idx + 1}</strong>
@@ -652,26 +812,25 @@ export function mountTeacherDashboard(container, activeTopic, onTopicUpdated, sh
                                         </td>
                                         <td style="font-size:0.82rem;">${formatBioHtml((q.question || "").slice(0, 180))}</td>
                                         <td>
-                                          ${
-                                            (q.accepted_answers || []).length
-                                              ? `<span class="pill pill-green">A. ${escapeHtml(q.accepted_answers[0])}</span>`
-                                              : `<span class="pill pill-red">Chưa nhận diện</span>`
-                                          }
+                                          ${(q.accepted_answers || []).length
+                    ? `<span class="pill pill-green">A. ${escapeHtml(q.accepted_answers[0])}</span>`
+                    : `<span class="pill pill-red">Chưa nhận diện</span>`
+                  }
                                         </td>
                                       </tr>
                                     `
-                                    )
-                                    .join("")}
+              )
+              .join("")}
                                 </tbody>
                               </table>
                             </div>
                           `
-                          : ""
-                      }
+            : ""
+          }
                     </div>
                   `
-                  : ""
-              }
+          : ""
+        }
             </div>
 
             <!-- Bước 2: Tiêu đề đề kiểm tra + Số lượng đề + Mã đề 4 số -->
@@ -716,9 +875,9 @@ export function mountTeacherDashboard(container, activeTopic, onTopicUpdated, sh
                 <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px;">
                   <span class="pill pill-muted">Đề gốc: 0000</span>
                   ${codePreviewList
-                    .slice(0, examConfig.exam_count)
-                    .map((c) => `<span class="pill pill-primary">Mã đề ${escapeHtml(c)}</span>`)
-                    .join("")}
+          .slice(0, examConfig.exam_count)
+          .map((c) => `<span class="pill pill-primary">Mã đề ${escapeHtml(c)}</span>`)
+          .join("")}
                 </div>
               </div>
 
@@ -729,19 +888,18 @@ export function mountTeacherDashboard(container, activeTopic, onTopicUpdated, sh
                 ${!wp ? `<span style="font-size:0.82rem;color:var(--text-muted);">Hãy tải lên file Word (.docx) ở Bước 1 trước khi bấm trộn đề.</span>` : ""}
               </div>
 
-              ${
-                wordMixer.result
-                  ? (() => {
-                      const rs = wordMixer.result.summary || {};
-                      const metaParts = [
-                        rs.school_name || "",
-                        rs.exam_period || "",
-                        rs.school_year ? `Năm học ${rs.school_year}` : "",
-                        rs.subject ? `Môn ${rs.subject}` : "",
-                        `${rs.duration_minutes || 45} phút`,
-                      ].filter(Boolean);
-                      const filesInZip = Array.isArray(rs.files_in_zip) ? rs.files_in_zip : [];
-                      return `
+              ${wordMixer.result
+          ? (() => {
+            const rs = wordMixer.result.summary || {};
+            const metaParts = [
+              rs.school_name || "",
+              rs.exam_period || "",
+              rs.school_year ? `Năm học ${rs.school_year}` : "",
+              rs.subject ? `Môn ${rs.subject}` : "",
+              `${rs.duration_minutes || 45} phút`,
+            ].filter(Boolean);
+            const filesInZip = Array.isArray(rs.files_in_zip) ? rs.files_in_zip : [];
+            return `
                         <div style="margin-top:16px;padding:16px;border-radius:10px;border:1px solid var(--primary-border);background:var(--surface-tint);">
                           <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:14px;flex-wrap:wrap;">
                             <div>
@@ -768,33 +926,32 @@ export function mountTeacherDashboard(container, activeTopic, onTopicUpdated, sh
                               </a>
                             </div>
                           </div>
-                          ${
-                            filesInZip.length
-                              ? `
+                          ${filesInZip.length
+                ? `
                                 <div style="margin-top:12px;padding-top:10px;border-top:1px dashed var(--primary-border);">
                                   <div style="font-size:0.8rem;font-weight:700;color:var(--text-secondary);margin-bottom:6px;">
                                     📂 Các tệp đã tách riêng trong gói nén (${filesInZip.length} tệp — bấm vào từng tệp để tải lẻ):
                                   </div>
                                   <div style="display:flex;gap:6px;flex-wrap:wrap;">
                                     ${filesInZip
-                                      .map((fname) => {
-                                        const isOrig = fname === "Ma_de_0000.docx";
-                                        const isXlsx = fname.toLowerCase().endsWith(".xlsx");
-                                        const icon = isXlsx ? "📊" : "📄";
-                                        const tag = isOrig ? " (Đề gốc)" : "";
-                                        return `<a class="btn btn-secondary btn-sm" style="padding:4px 9px;font-size:0.78rem;" href="${api.adminExamIndividualFileUrl(wordMixer.result.job_id, fname)}" target="_blank">${icon} ${escapeHtml(fname)}${tag}</a>`;
-                                      })
-                                      .join("")}
+                  .map((fname) => {
+                    const isOrig = fname === "Ma_de_0000.docx";
+                    const isXlsx = fname.toLowerCase().endsWith(".xlsx");
+                    const icon = isXlsx ? "📊" : "📄";
+                    const tag = isOrig ? " (Đề gốc)" : "";
+                    return `<a class="btn btn-secondary btn-sm" style="padding:4px 9px;font-size:0.78rem;" href="${api.adminExamIndividualFileUrl(wordMixer.result.job_id, fname)}" target="_blank">${icon} ${escapeHtml(fname)}${tag}</a>`;
+                  })
+                  .join("")}
                                   </div>
                                 </div>
                               `
-                              : ""
-                          }
+                : ""
+              }
                         </div>
                       `;
-                    })()
-                  : ""
-              }
+          })()
+          : ""
+        }
             </div>
           </div>
         </div>
@@ -847,10 +1004,10 @@ export function mountTeacherDashboard(container, activeTopic, onTopicUpdated, sh
 
           <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(290px,1fr));gap:12px;">
             ${examPool
-              .map((tp) => {
-                const tpIds = (tp.lessons || []).map((l) => l.id);
-                const allChecked = tpIds.length > 0 && tpIds.every((id) => selectedLessonIds.has(id));
-                return `
+        .map((tp) => {
+          const tpIds = (tp.lessons || []).map((l) => l.id);
+          const allChecked = tpIds.length > 0 && tpIds.every((id) => selectedLessonIds.has(id));
+          return `
                   <div style="border:1px solid var(--border);border-radius:10px;padding:12px;background:var(--surface);">
                     <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:8px;padding-bottom:8px;border-bottom:1px solid var(--border);">
                       <label style="display:flex;align-items:center;gap:8px;font-weight:700;font-size:0.88rem;cursor:pointer;">
@@ -860,11 +1017,11 @@ export function mountTeacherDashboard(container, activeTopic, onTopicUpdated, sh
                     </div>
                     <div style="display:flex;flex-direction:column;gap:6px;">
                       ${(tp.lessons || [])
-                        .map((ls) => {
-                          const cMcq = (ls.counts?.mcq?.nhan_biet || 0) + (ls.counts?.mcq?.thong_hieu || 0) + (ls.counts?.mcq?.van_dung || 0);
-                          const cTf = (ls.counts?.true_false?.nhan_biet || 0) + (ls.counts?.true_false?.thong_hieu || 0) + (ls.counts?.true_false?.van_dung || 0);
-                          const cSa = (ls.counts?.short_answer?.nhan_biet || 0) + (ls.counts?.short_answer?.thong_hieu || 0) + (ls.counts?.short_answer?.van_dung || 0);
-                          return `
+              .map((ls) => {
+                const cMcq = (ls.counts?.mcq?.nhan_biet || 0) + (ls.counts?.mcq?.thong_hieu || 0) + (ls.counts?.mcq?.van_dung || 0);
+                const cTf = (ls.counts?.true_false?.nhan_biet || 0) + (ls.counts?.true_false?.thong_hieu || 0) + (ls.counts?.true_false?.van_dung || 0);
+                const cSa = (ls.counts?.short_answer?.nhan_biet || 0) + (ls.counts?.short_answer?.thong_hieu || 0) + (ls.counts?.short_answer?.van_dung || 0);
+                return `
                             <label style="display:flex;align-items:flex-start;gap:8px;font-size:0.83rem;cursor:pointer;line-height:1.35;">
                               <input type="checkbox" data-ex-lesson="${ls.id}" ${selectedLessonIds.has(ls.id) ? "checked" : ""} style="margin-top:3px;" />
                               <span>
@@ -873,13 +1030,13 @@ export function mountTeacherDashboard(container, activeTopic, onTopicUpdated, sh
                               </span>
                             </label>
                           `;
-                        })
-                        .join("")}
+              })
+              .join("")}
                     </div>
                   </div>
                 `;
-              })
-              .join("")}
+        })
+        .join("")}
           </div>
         </div>
 
@@ -908,13 +1065,13 @@ export function mountTeacherDashboard(container, activeTopic, onTopicUpdated, sh
               </thead>
               <tbody>
                 ${levels
-                  .map((lv) => {
-                    const cells = ["mcq", "true_false", "short_answer"]
-                      .map((kind) => {
-                        const val = matrix[kind][lv.key] || 0;
-                        const maxA = avail[kind][lv.key] || 0;
-                        const over = val > maxA;
-                        return `
+        .map((lv) => {
+          const cells = ["mcq", "true_false", "short_answer"]
+            .map((kind) => {
+              const val = matrix[kind][lv.key] || 0;
+              const maxA = avail[kind][lv.key] || 0;
+              const over = val > maxA;
+              return `
                           <td>
                             <div style="display:flex;align-items:center;gap:6px;">
                               <input type="number" min="0" max="200"
@@ -927,17 +1084,17 @@ export function mountTeacherDashboard(container, activeTopic, onTopicUpdated, sh
                             </div>
                           </td>
                         `;
-                      })
-                      .join("");
-                    return `
+            })
+            .join("");
+          return `
                       <tr>
                         <td><strong>${lv.label}</strong></td>
                         ${cells}
                         <td><strong>${sumRow(lv.key)}</strong></td>
                       </tr>
                     `;
-                  })
-                  .join("")}
+        })
+        .join("")}
                 <tr style="background:var(--surface-tint);">
                   <td><strong>Tổng số câu</strong></td>
                   <td><strong>${mcqTotal} câu</strong></td>
@@ -997,11 +1154,10 @@ export function mountTeacherDashboard(container, activeTopic, onTopicUpdated, sh
             </button>
           </div>
 
-          ${
-            examResult
-              ? (() => {
-                  const filesInZip = Array.isArray(examResult.summary?.files_in_zip) ? examResult.summary.files_in_zip : [];
-                  return `
+          ${examResult
+        ? (() => {
+          const filesInZip = Array.isArray(examResult.summary?.files_in_zip) ? examResult.summary.files_in_zip : [];
+          return `
                     <div style="margin-top:16px;padding:16px;border-radius:10px;border:1px solid var(--primary-border);background:var(--surface-tint);">
                       <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:14px;flex-wrap:wrap;">
                         <div>
@@ -1025,26 +1181,25 @@ export function mountTeacherDashboard(container, activeTopic, onTopicUpdated, sh
                           </a>
                         </div>
                       </div>
-                      ${
-                        filesInZip.length
-                          ? `
+                      ${filesInZip.length
+              ? `
                             <div style="margin-top:12px;padding-top:10px;border-top:1px dashed var(--primary-border);display:flex;gap:6px;flex-wrap:wrap;">
                               ${filesInZip
-                                .map((fname) => {
-                                  const isOrig = fname === "Ma_de_0000.docx";
-                                  const icon = fname.toLowerCase().endsWith(".xlsx") ? "📊" : "📄";
-                                  return `<a class="btn btn-secondary btn-sm" style="padding:4px 9px;font-size:0.78rem;" href="${api.adminExamIndividualFileUrl(examResult.job_id, fname)}" target="_blank">${icon} ${escapeHtml(fname)}${isOrig ? " (Đề gốc)" : ""}</a>`;
-                                })
-                                .join("")}
+                .map((fname) => {
+                  const isOrig = fname === "Ma_de_0000.docx";
+                  const icon = fname.toLowerCase().endsWith(".xlsx") ? "📊" : "📄";
+                  return `<a class="btn btn-secondary btn-sm" style="padding:4px 9px;font-size:0.78rem;" href="${api.adminExamIndividualFileUrl(examResult.job_id, fname)}" target="_blank">${icon} ${escapeHtml(fname)}${isOrig ? " (Đề gốc)" : ""}</a>`;
+                })
+                .join("")}
                             </div>
                           `
-                          : ""
-                      }
+              : ""
+            }
                     </div>
                   `;
-                })()
-              : ""
-          }
+        })()
+        : ""
+      }
         </div>
       </div>
       </div>
@@ -1061,29 +1216,28 @@ export function mountTeacherDashboard(container, activeTopic, onTopicUpdated, sh
     const editingLesson = lessons.find((l) => l.id === editLessonId) || null;
     const lessonPlainText = editingLesson
       ? (editingLesson.sections || [])
-          .map((sec) => {
-            const body = (sec.blocks || [])
-              .filter((b) => b.type === "paragraph" || b.text)
-              .map((b) => b.text)
-              .join("\n");
-            return `## ${sec.heading}\n${body}`;
-          })
-          .join("\n\n")
+        .map((sec) => {
+          const body = (sec.blocks || [])
+            .filter((b) => b.type === "paragraph" || b.text)
+            .map((b) => b.text)
+            .join("\n");
+          return `## ${sec.heading}\n${body}`;
+        })
+        .join("\n\n")
       : "";
 
     return `
       <div style="display:flex;flex-direction:column;gap:16px;">
-        <div class="segmented" style="flex-wrap:wrap;">
-          <button class="seg-btn ${contentSubMode === "add_topic" ? "active" : ""}" data-csub="add_topic">Thêm Chủ đề mới (Word/PDF)</button>
-          <button class="seg-btn ${contentSubMode === "add_question" ? "active" : ""}" data-csub="add_question">Thêm câu hỏi mới</button>
-          <button class="seg-btn ${contentSubMode === "edit_lesson" ? "active" : ""}" data-csub="edit_lesson">Sửa / Thêm bài Lý thuyết</button>
-          <button class="seg-btn ${contentSubMode === "youtube" ? "active" : ""}" data-csub="youtube">Video YouTube</button>
-          <button class="seg-btn ${contentSubMode === "import" ? "active" : ""}" data-csub="import">Cập nhật Chủ đề hiện tại</button>
+        <div class="admin-subpills" role="tablist" aria-label="Công cụ biên soạn nội dung">
+          <button type="button" class="admin-subpill ${contentSubMode === "add_topic" ? "active" : ""}" data-csub="add_topic">Thêm Chủ đề mới (Word/PDF)</button>
+          <button type="button" class="admin-subpill ${contentSubMode === "add_question" ? "active" : ""}" data-csub="add_question">Thêm câu hỏi mới</button>
+          <button type="button" class="admin-subpill ${contentSubMode === "edit_lesson" ? "active" : ""}" data-csub="edit_lesson">Sửa / Thêm bài Lý thuyết</button>
+          <button type="button" class="admin-subpill ${contentSubMode === "youtube" ? "active" : ""}" data-csub="youtube">Video YouTube</button>
+          <button type="button" class="admin-subpill ${contentSubMode === "import" ? "active" : ""}" data-csub="import">Cập nhật Chủ đề hiện tại</button>
         </div>
 
-        ${
-          cacheInfo
-            ? `
+        ${cacheInfo
+        ? `
               <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;padding:11px 16px;border-radius:10px;border:1px solid var(--border);background:var(--surface);font-size:0.82rem;">
                 <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
                   <span class="pill ${cacheInfo.redis_connected ? "pill-green" : "pill-primary"}">Cache: ${escapeHtml(cacheInfo.backend)}</span>
@@ -1096,12 +1250,11 @@ export function mountTeacherDashboard(container, activeTopic, onTopicUpdated, sh
                 </button>
               </div>
             `
-            : ""
-        }
+        : ""
+      }
 
-        ${
-          contentSubMode === "add_question"
-            ? `
+        ${contentSubMode === "add_question"
+        ? `
               <div class="card">
                 <h3 class="card-title">Thêm câu hỏi ôn tập mới vào ${escapeHtml(t.title)}</h3>
                 <form id="admin-add-question-form">
@@ -1135,9 +1288,8 @@ export function mountTeacherDashboard(container, activeTopic, onTopicUpdated, sh
                     <textarea class="form-control" name="question" rows="3" required placeholder="Nhập nội dung câu hỏi Sinh học 12..."></textarea>
                   </div>
 
-                  ${
-                    newQuestionType === "mcq"
-                      ? `
+                  ${newQuestionType === "mcq"
+          ? `
                         <div class="form-row-2">
                           <div class="form-group"><label>Phương án A *</label><input class="form-control" name="opt_a" required /></div>
                           <div class="form-group"><label>Phương án B *</label><input class="form-control" name="opt_b" required /></div>
@@ -1151,11 +1303,11 @@ export function mountTeacherDashboard(container, activeTopic, onTopicUpdated, sh
                           </select>
                         </div>
                       `
-                      : newQuestionType === "true_false"
-                      ? `
+          : newQuestionType === "true_false"
+            ? `
                         ${["a", "b", "c", "d"]
-                          .map(
-                            (k) => `
+              .map(
+                (k) => `
                             <div style="display:grid;grid-template-columns:1fr 130px;gap:10px;align-items:end;margin-bottom:8px;">
                               <div class="form-group" style="margin:0;">
                                 <label>Ý ${k}) *</label>
@@ -1170,16 +1322,16 @@ export function mountTeacherDashboard(container, activeTopic, onTopicUpdated, sh
                               </div>
                             </div>
                           `
-                          )
-                          .join("")}
+              )
+              .join("")}
                       `
-                      : `
+            : `
                         <div class="form-group" style="max-width:300px;">
                           <label>Đáp án chuẩn (giá trị số tối đa 4 ký tự: số, -, ,) *</label>
                           <input class="form-control" name="sa_answer" maxlength="4" required placeholder="VD: 12,5 hoặc -2" />
                         </div>
                       `
-                  }
+        }
 
                   <div class="form-group">
                     <label>Giải thích (tuỳ chọn)</label>
@@ -1190,8 +1342,8 @@ export function mountTeacherDashboard(container, activeTopic, onTopicUpdated, sh
                 </form>
               </div>
             `
-            : contentSubMode === "edit_lesson"
-            ? `
+        : contentSubMode === "edit_lesson"
+          ? `
               <div class="card">
                 <h3 class="card-title">Chỉnh sửa hoặc Thêm bài Lý thuyết — ${escapeHtml(t.title)}</h3>
                 <div class="form-group" style="max-width:380px;">
@@ -1199,10 +1351,10 @@ export function mountTeacherDashboard(container, activeTopic, onTopicUpdated, sh
                   <select class="form-control" id="admin-edit-lesson-select">
                     <option value="__new__" ${editLessonId === "__new__" ? "selected" : ""}>+ Thêm bài học mới vào chủ đề này</option>
                     ${lessons
-                      .map(
-                        (l) => `<option value="${l.id}" ${editLessonId === l.id ? "selected" : ""}>${escapeHtml(l.number)}: ${escapeHtml(l.title)}</option>`
-                      )
-                      .join("")}
+            .map(
+              (l) => `<option value="${l.id}" ${editLessonId === l.id ? "selected" : ""}>${escapeHtml(l.number)}: ${escapeHtml(l.title)}</option>`
+            )
+            .join("")}
                   </select>
                 </div>
 
@@ -1225,12 +1377,12 @@ export function mountTeacherDashboard(container, activeTopic, onTopicUpdated, sh
                 </form>
               </div>
             `
-            : contentSubMode === "add_topic"
+          : contentSubMode === "add_topic"
             ? (() => {
-                const dp = newTopicDraft.preview;
-                const ds = dp?.stats;
-                const ord = newTopicDraft.order_index || 5;
-                return `
+              const dp = newTopicDraft.preview;
+              const ds = dp?.stats;
+              const ord = newTopicDraft.order_index || 5;
+              return `
                   <div class="card">
                     <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap;margin-bottom:14px;">
                       <div>
@@ -1276,27 +1428,24 @@ export function mountTeacherDashboard(container, activeTopic, onTopicUpdated, sh
                           <input type="file" id="new-topic-file-input" accept=".docx,.pdf,.txt,.md" style="display:none;" ${newTopicDraft.loading ? "disabled" : ""} />
                         </label>
                         <span id="new-topic-upload-text" style="font-size:0.85rem;color:var(--text-secondary);">
-                          ${
-                            newTopicDraft.loading
-                              ? "Đang chuẩn bị tải file lên..."
-                              : newTopicDraft.file
-                              ? `Đã đọc xong: <strong>${escapeHtml(newTopicDraft.file.name)}</strong>`
-                              : "Hỗ trợ tệp Word (.docx) và PDF (.pdf) chuẩn cấu trúc giảng dạy"
-                          }
+                          ${newTopicDraft.loading
+                  ? "Đang chuẩn bị tải file lên..."
+                  : newTopicDraft.file
+                    ? `Đã đọc xong: <strong>${escapeHtml(newTopicDraft.file.name)}</strong>`
+                    : "Hỗ trợ tệp Word (.docx) và PDF (.pdf) chuẩn cấu trúc giảng dạy"
+                }
                         </span>
                       </div>
-                      ${
-                        newTopicDraft.loading
-                          ? `<div style="margin-top:10px;height:6px;border-radius:999px;background:rgba(15,118,110,0.14);overflow:hidden;">
+                      ${newTopicDraft.loading
+                  ? `<div style="margin-top:10px;height:6px;border-radius:999px;background:rgba(15,118,110,0.14);overflow:hidden;">
                                <div id="new-topic-upload-bar" style="height:100%;width:8%;background:var(--primary);transition:width 0.15s ease;"></div>
                              </div>`
-                          : ""
-                      }
+                  : ""
+                }
                     </div>
 
-                    ${
-                      dp && ds
-                        ? `
+                    ${dp && ds
+                  ? `
                           <div style="padding:16px;border-radius:12px;border:1px solid var(--primary-border);background:#fff;margin-bottom:16px;">
                             <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:12px;">
                               <div>
@@ -1313,34 +1462,30 @@ export function mountTeacherDashboard(container, activeTopic, onTopicUpdated, sh
                                   <strong>${ds.true_false_count}</strong> câu Đúng/Sai (${ds.true_false_keyed || 0} có ĐA) ·
                                   <strong>${ds.short_answer_count}</strong> câu Trả lời ngắn (${ds.short_answer_keyed || 0} có ĐA)
                                 </div>
-                                ${
-                                  dp.spelling_report
-                                    ? `
+                                ${dp.spelling_report
+                    ? `
                                       <div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap;align-items:center;font-size:0.8rem;">
                                         <span class="pill ${dp.spelling_report.auto_fixed_count > 0 ? "pill-amber" : "pill-green"}">
                                           ✓ Kiểm tra chính tả: đã tự chuẩn hoá ${dp.spelling_report.auto_fixed_count || 0} mục (thuật ngữ/dấu/kiểu gene)
                                         </span>
-                                        ${
-                                          dp.spelling_report.sgk_reference?.available
-                                            ? `<span class="pill pill-primary">📘 Đối chiếu SGK: ${escapeHtml(dp.spelling_report.sgk_reference.source_name)}</span>`
-                                            : `<span class="pill pill-muted">📘 Chuẩn SGK Sinh học 12 GDPT 2018</span>`
-                                        }
-                                        ${
-                                          (dp.spelling_report.suspect_words || []).length
-                                            ? `<span class="pill pill-red">⚠️ Từ cần kiểm tra lại: ${escapeHtml(dp.spelling_report.suspect_words.slice(0, 6).join(", "))}</span>`
-                                            : ""
-                                        }
+                                        ${dp.spelling_report.sgk_reference?.available
+                      ? `<span class="pill pill-primary">📘 Đối chiếu SGK: ${escapeHtml(dp.spelling_report.sgk_reference.source_name)}</span>`
+                      : `<span class="pill pill-muted">📘 Chuẩn SGK Sinh học 12 GDPT 2018</span>`
+                    }
+                                        ${(dp.spelling_report.suspect_words || []).length
+                      ? `<span class="pill pill-red">⚠️ Từ cần kiểm tra lại: ${escapeHtml(dp.spelling_report.suspect_words.slice(0, 6).join(", "))}</span>`
+                      : ""
+                    }
                                       </div>
                                     `
-                                    : ""
-                                }
-                                ${
-                                  answerPdfReport
-                                    ? `<div style="margin-top:6px;font-size:0.8rem;color:var(--green);font-weight:600;">
+                    : ""
+                  }
+                                ${answerPdfReport
+                    ? `<div style="margin-top:6px;font-size:0.8rem;color:var(--green);font-weight:600;">
                                          ✓ Đã đối chiếu PDF Đáp án (${escapeHtml(answerPdfReport.source_name || "")}): khớp thêm ${answerPdfReport.total_matched || 0} câu (TN: ${answerPdfReport.matched_mcq || 0}, Đ/S: ${answerPdfReport.matched_tf || 0}, TLN: ${answerPdfReport.matched_sa || 0}).
                                        </div>`
-                                    : ""
-                                }
+                    : ""
+                  }
                               </div>
                             </div>
 
@@ -1359,106 +1504,111 @@ export function mountTeacherDashboard(container, activeTopic, onTopicUpdated, sh
                             </div>
                           </div>
                         `
-                        : `
+                  : `
                           <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
                             <button type="button" class="btn btn-secondary btn-sm" id="btn-create-empty-topic">
                               Hoặc tạo Chủ đề trống (nhập bài thủ công sau)
                             </button>
                           </div>
                         `
-                    }
+                }
                   </div>
 
                   <div class="card">
-                    <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:12px;">
+                    <div class="rt-card-head">
                       <div>
                         <h3 class="card-title" style="margin:0 0 2px;">Danh sách Chủ đề hiện có (${topicsList.length})</h3>
-                        <p style="margin:0;font-size:0.83rem;color:var(--text-muted);">
-                          Mở xem nhanh hoặc xoá bớt Chủ đề không còn sử dụng (luôn giữ lại ít nhất 1 Chủ đề).
+                        <p style="margin:0;font-size:0.82rem;color:var(--text-muted);">
+                          Bấm trực tiếp ô ảnh banner để tải/đổi ảnh nền (mỗi Chủ đề tối đa 1 ảnh) hoặc bấm <strong>⋯</strong> để mở xem, sửa tên, xoá ảnh/xoá chủ đề.
                         </p>
                       </div>
                     </div>
-                    <div class="data-table-wrap">
-                      <table class="data-table">
+                    <input type="file" id="topic-banner-file-input" accept="image/png,image/jpeg,image/webp,image/gif" style="display:none;" />
+                    <div class="rt-table-wrap">
+                      <table class="rt-table">
                         <thead>
                           <tr>
-                            <th style="width:90px;">Thứ tự</th>
+                            <th>Thứ tự</th>
+                            <th>Ảnh banner (1 ảnh)</th>
                             <th>Tên Chủ đề</th>
-                            <th style="width:120px;">Trạng thái</th>
-                            <th style="width:200px;">Thao tác</th>
+                            <th>Trạng thái</th>
+                            <th class="rt-th-actions"></th>
                           </tr>
                         </thead>
                         <tbody>
-                          ${
-                            topicsList.length
-                              ? topicsList
-                                  .map((tp) => {
-                                    const isCur = tp.id === activeTopic?.id;
-                                    const isDel = deletingTopicId === tp.id;
-                                    const isEditing = editingTopicId === tp.id;
-                                    const isSavingMeta = savingTopicMetaId === tp.id;
-                                    const disableDel = topicsList.length <= 1 || Boolean(deletingTopicId);
-                                    return `
+                          ${topicsList.length
+                  ? topicsList
+                    .map((tp) => {
+                      const isCur = tp.id === activeTopic?.id;
+                      const isEditing = editingTopicId === tp.id;
+                      const isSavingMeta = savingTopicMetaId === tp.id;
+                      const isUploadingBanner = uploadingBannerTopicId === tp.id;
+                      return `
                                       <tr>
-                                        <td><span class="pill pill-primary">Chủ đề ${escapeHtml(String(tp.order_index || ""))}</span></td>
-                                        <td>
+                                        <td class="rt-nowrap"><span class="rt-num-badge is-teal">Chủ đề ${escapeHtml(String(tp.order_index || ""))}</span></td>
+                                        <td class="rt-nowrap">
                                           ${
-                                            isEditing
-                                              ? `
-                                                <div style="display:flex;flex-direction:column;gap:6px;">
+                                            isUploadingBanner
+                                              ? `<span class="rt-num-badge is-amber">Đang tải ảnh...</span>`
+                                              : tp.banner_image
+                                              ? `<button type="button" class="rt-banner-thumb" data-pick-topic-banner="${escapeHtml(tp.id)}" title="Bấm để đổi ảnh banner (tối đa 1 ảnh)">
+                                                   <img src="${escapeHtml(withBase(tp.banner_image))}" alt="Banner ${escapeHtml(tp.title)}" loading="lazy" />
+                                                 </button>`
+                                              : `<button type="button" class="rt-banner-empty" data-pick-topic-banner="${escapeHtml(tp.id)}" title="Bấm để chọn ảnh banner cho Chủ đề này">+ Thêm ảnh</button>`
+                                          }
+                                        </td>
+                                        <td>
+                                          ${isEditing
+                          ? `
+                                                <div style="display:flex;flex-direction:column;gap:6px;min-width:220px;">
                                                   <input type="text" class="form-control form-control-sm" id="edit-topic-title-input" value="${escapeHtml(editingTopicTitle)}" placeholder="Nhập tên Chủ đề mới..." />
                                                   <input type="text" class="form-control form-control-sm" id="edit-topic-subtitle-input" value="${escapeHtml(editingTopicSubtitle)}" placeholder="Mô tả ngắn (không bắt buộc)" />
                                                 </div>
                                               `
-                                              : `
-                                                <strong>${escapeHtml(tp.title)}</strong>
-                                                ${tp.subtitle ? `<div style="font-size:0.78rem;color:var(--text-muted);margin-top:2px;">${escapeHtml(tp.subtitle)}</div>` : ""}
+                          : `
+                                                <div class="rt-stack">
+                                                  <button type="button" class="rt-primary-link" data-open-topic="${escapeHtml(tp.id)}" title="${escapeHtml(tp.title)}" style="max-width:360px;">${escapeHtml(tp.title)}</button>
+                                                  ${tp.subtitle ? `<span class="rt-sub" title="${escapeHtml(tp.subtitle)}" style="max-width:360px;">${escapeHtml(tp.subtitle)}</span>` : ""}
+                                                </div>
                                               `
-                                          }
+                        }
                                         </td>
-                                        <td>
-                                          ${isCur ? `<span class="pill pill-green">Đang mở</span>` : `<span class="pill pill-muted">Đã xuất bản</span>`}
+                                        <td class="rt-nowrap">
+                                          ${isCur ? `<span class="rt-status is-online"><span class="rt-status-dot"></span>Đang mở</span>` : `<span class="rt-status is-offline"><span class="rt-status-dot"></span>Đã xuất bản</span>`}
                                         </td>
-                                        <td>
-                                          <div style="display:flex;gap:8px;flex-wrap:wrap;">
-                                            ${
-                                              isEditing
-                                                ? `
+                                        <td class="rt-td-actions">
+                                          ${isEditing
+                          ? `
+                                                <div style="display:inline-flex;gap:6px;white-space:nowrap;">
                                                   <button type="button" class="btn btn-primary btn-sm" data-save-topic-meta="${escapeHtml(tp.id)}" ${isSavingMeta ? "disabled" : ""}>
-                                                    ${isSavingMeta ? "Đang lưu..." : "Lưu tên"}
+                                                    ${isSavingMeta ? "Đang lưu..." : "Lưu"}
                                                   </button>
                                                   <button type="button" class="btn btn-ghost btn-sm" data-cancel-topic-meta="1" ${isSavingMeta ? "disabled" : ""}>Huỷ</button>
-                                                `
-                                                : `
-                                                  <button type="button" class="btn btn-secondary btn-sm" data-open-topic="${escapeHtml(tp.id)}">Mở xem</button>
-                                                  <button type="button" class="btn btn-soft btn-sm" data-edit-topic-meta="${escapeHtml(tp.id)}" data-edit-topic-title="${escapeHtml(tp.title)}" data-edit-topic-subtitle="${escapeHtml(tp.subtitle || "")}">Sửa tên</button>
-                                                  <button type="button" class="btn btn-danger btn-sm" data-delete-topic="${escapeHtml(tp.id)}" data-delete-topic-title="${escapeHtml(tp.title)}" ${disableDel ? "disabled" : ""}>
-                                                    ${isDel ? "Đang xoá..." : "Xoá chủ đề"}
-                                                  </button>
-                                                `
-                                            }
-                                          </div>
+                                                </div>
+                                              `
+                          : kebabButtonHtml(`data-topic-menu="${escapeHtml(tp.id)}"`)
+                        }
                                         </td>
                                       </tr>
                                     `;
-                                  })
-                                  .join("")
-                              : `<tr><td colspan="4" style="text-align:center;color:var(--text-muted);padding:18px;">Chưa có Chủ đề nào.</td></tr>`
-                          }
+                    })
+                    .join("")
+                  : `<tr><td colspan="5" style="text-align:center;color:var(--text-muted);padding:20px;">Chưa có Chủ đề nào.</td></tr>`
+                }
                         </tbody>
                       </table>
                     </div>
                   </div>
                 `;
-              })()
+            })()
             : contentSubMode === "youtube"
-            ? `
+              ? `
               <div class="card">
                 <h3 class="card-title">Thư viện Video YouTube — ${escapeHtml(t.title)}</h3>
                 <div id="teacher-yt-mount"></div>
               </div>
             `
-            : `
+              : `
               <div class="card">
                 <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap;margin-bottom:12px;">
                   <div>
@@ -1476,22 +1626,20 @@ export function mountTeacherDashboard(container, activeTopic, onTopicUpdated, sh
                     <input type="file" id="doc-import-input" accept=".docx,.pdf,.txt,.md" style="display:none;" />
                   </label>
                   <span id="doc-import-upload-text" style="font-size:0.84rem;color:var(--text-secondary);">
-                    ${
-                      importState.loading
-                        ? "Đang đọc tài liệu..."
-                        : importState.file
-                        ? `Đã chọn: <strong>${escapeHtml(importState.file.name)}</strong>`
-                        : "Hỗ trợ .docx, .pdf, .txt"
-                    }
+                    ${importState.loading
+                ? "Đang đọc tài liệu..."
+                : importState.file
+                  ? `Đã chọn: <strong>${escapeHtml(importState.file.name)}</strong>`
+                  : "Hỗ trợ .docx, .pdf, .txt"
+              }
                   </span>
                 </div>
-                ${
-                  importState.loading
-                    ? `<div style="margin-bottom:12px;height:6px;border-radius:999px;background:rgba(15,118,110,0.14);overflow:hidden;">
+                ${importState.loading
+                ? `<div style="margin-bottom:12px;height:6px;border-radius:999px;background:rgba(15,118,110,0.14);overflow:hidden;">
                          <div id="doc-import-upload-bar" style="height:100%;width:8%;background:var(--primary);transition:width 0.15s ease;"></div>
                        </div>`
-                    : ""
-                }
+                : ""
+              }
 
                 <div style="display:flex;gap:14px;flex-wrap:wrap;font-size:0.84rem;color:var(--text-secondary);">
                   <label><input type="checkbox" data-imp-sec="theory" ${importState.sections.theory ? "checked" : ""}/> Lý thuyết &amp; Hình ảnh</label>
@@ -1500,9 +1648,8 @@ export function mountTeacherDashboard(container, activeTopic, onTopicUpdated, sh
                   <label><input type="checkbox" id="imp-replace-review" ${importState.replaceReview ? "checked" : ""}/> Thay thế câu hỏi cũ</label>
                 </div>
 
-                ${
-                  prev && st
-                    ? `
+                ${prev && st
+                ? `
                       <div style="margin-top:14px;padding:14px;border:1px solid var(--primary-border);background:var(--surface-tint);border-radius:10px;display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;">
                         <div style="font-size:0.85rem;">
                           <strong>${escapeHtml(prev.detected_title)}</strong><br/>
@@ -1514,11 +1661,11 @@ export function mountTeacherDashboard(container, activeTopic, onTopicUpdated, sh
                         </div>
                       </div>
                     `
-                    : ""
-                }
+                : ""
+              }
               </div>
             `
-        }
+      }
       </div>
     `;
   }
@@ -1600,6 +1747,12 @@ export function mountTeacherDashboard(container, activeTopic, onTopicUpdated, sh
       short_answer: "3.3 Trả lời ngắn",
       combined: "Đề tổng hợp 3 phần",
     };
+    const shortTypeLabel = {
+      mcq: "TN 4 ĐA",
+      true_false: "Đúng / Sai",
+      short_answer: "TL ngắn",
+      combined: "Tổng hợp 3 phần",
+    };
 
     return `
       <div style="display:flex;flex-direction:column;gap:18px;">
@@ -1614,11 +1767,11 @@ export function mountTeacherDashboard(container, activeTopic, onTopicUpdated, sh
               <select id="rep-topic-filter" class="form-control form-control-sm" style="width:auto;max-width:250px;">
                 <option value="">Tất cả Chủ đề (${curSum.total_topics || 0})</option>
                 ${(curSum.topics || [])
-                  .map(
-                    (tp) =>
-                      `<option value="${escapeHtml(tp.id)}" ${reportTopicFilter === tp.id ? "selected" : ""}>${escapeHtml(tp.title)}</option>`
-                  )
-                  .join("")}
+        .map(
+          (tp) =>
+            `<option value="${escapeHtml(tp.id)}" ${reportTopicFilter === tp.id ? "selected" : ""}>${escapeHtml(tp.title)}</option>`
+        )
+        .join("")}
               </select>
               <input id="rep-student-search" class="form-control form-control-sm" style="width:210px;" placeholder="Tìm học sinh, @tài khoản..." value="${escapeHtml(reportStudentFilter)}" />
             </div>
@@ -1657,81 +1810,97 @@ export function mountTeacherDashboard(container, activeTopic, onTopicUpdated, sh
 
         <!-- Bảng 1: Tiến độ & Tỉ lệ % học được / làm được theo từng Học sinh -->
         <div class="card">
-          <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap;margin-bottom:14px;">
+          <div class="rt-card-head">
             <div>
               <h3 class="card-title" style="margin:0 0 2px;">1. Thống kê tỉ lệ % học được &amp; làm được theo từng Học sinh (${filteredStudents.length})</h3>
-              <p style="margin:0;font-size:0.83rem;color:var(--text-muted);">
-                Nhấn <strong>📊 Chi tiết HS</strong> để xem chính xác từng mục Lý thuyết đã học, bài tập vận dụng đã làm và lịch sử các đợt ôn tập của học sinh đó.
+              <p style="margin:0;font-size:0.82rem;color:var(--text-muted);">
+                Nhấn vào tên học sinh hoặc nút <strong>⋯</strong> để mở hồ sơ học tập chi tiết từng mục.
               </p>
             </div>
           </div>
 
-          <div class="data-table-wrap">
-            <table class="data-table">
+          <div class="rt-table-wrap">
+            <table class="rt-table">
               <thead>
                 <tr>
                   <th>Học sinh</th>
                   <th>Lớp</th>
                   <th>Phiên học</th>
-                  <th style="min-width:170px;">% Lý thuyết đã học</th>
-                  <th style="min-width:170px;">Bài tập LT &amp; HTKT</th>
-                  <th style="min-width:165px;">Hệ thống ôn tập</th>
-                  <th>Chi tiết</th>
+                  <th>Lý thuyết</th>
+                  <th>Bài tập LT &amp; HTKT</th>
+                  <th>Hệ thống ôn tập</th>
+                  <th class="rt-th-actions"></th>
                 </tr>
               </thead>
               <tbody>
-                ${
-                  filteredStudents.length
-                    ? filteredStudents
-                        .map(
-                          (s) => `
+                ${filteredStudents.length
+        ? filteredStudents
+          .map((s, idx) => {
+            const avColor = s.avatar_color || AVATAR_PALETTE[idx % AVATAR_PALETTE.length];
+            const exAccStr =
+              s.exercise_accuracy_pct !== null && s.exercise_accuracy_pct !== undefined
+                ? `Đúng ${s.exercise_accuracy_pct}%`
+                : "Chưa làm";
+            const revAccStr =
+              s.review_accuracy_pct !== null && s.review_accuracy_pct !== undefined
+                ? `${s.review_accuracy_pct}%`
+                : "Chưa nộp";
+            return `
                           <tr>
                             <td>
-                              <strong>${escapeHtml(s.full_name)}</strong><br/>
-                              <small style="color:var(--text-muted);">@${escapeHtml(s.username)}</small>
+                              <div class="rt-user-cell">
+                                <span class="rt-avatar" style="background:${escapeHtml(avColor)};">${escapeHtml(initialsOf(s.full_name || s.username))}</span>
+                                <div class="rt-stack">
+                                  <button type="button" class="rt-primary-link" data-open-student-report="${s.id}" title="${escapeHtml(s.full_name)}">${escapeHtml(s.full_name)}</button>
+                                  <span class="rt-sub">@${escapeHtml(s.username)}</span>
+                                </div>
+                              </div>
                             </td>
-                            <td style="white-space:nowrap;">${escapeHtml(s.class_name || "—")}</td>
-                            <td style="white-space:nowrap;">
-                              <strong>${s.session_count || 0} phiên</strong><br/>
-                              <small style="color:var(--text-muted);">${formatDuration(s.total_seconds || 0)}</small>
+                            <td class="rt-nowrap"><span class="rt-num-badge is-slate">${escapeHtml(s.class_name || "—")}</span></td>
+                            <td class="rt-nowrap">
+                              <div class="rt-stack">
+                                <span class="rt-primary">${s.session_count || 0} phiên</span>
+                                <span class="rt-sub">${formatDuration(s.total_seconds || 0)}</span>
+                              </div>
                             </td>
                             <td>
-                              <div style="display:flex;justify-content:space-between;font-size:0.8rem;margin-bottom:3px;gap:6px;">
-                                <strong>${s.theory_pct || 0}%</strong>
-                                <span style="color:var(--text-muted);white-space:nowrap;">${s.studied_lessons || 0}/${s.total_lessons || curSum.total_lessons} bài</span>
+                              <div class="rt-metric">
+                                <div class="rt-metric-head">
+                                  <span class="rt-metric-pct">${s.theory_pct || 0}%</span>
+                                  <span class="rt-metric-meta">${s.studied_lessons || 0}/${s.total_lessons || curSum.total_lessons} bài</span>
+                                </div>
+                                <div class="rt-bar"><div class="rt-bar-fill" style="width:${Math.min(100, s.theory_pct || 0)}%;"></div></div>
+                                <span class="rt-metric-meta">${s.studied_sections || 0}/${s.total_sections || curSum.total_sections} mục đã học</span>
                               </div>
-                              <div class="progress-bar-track"><div class="progress-bar-fill" style="width:${Math.min(100, s.theory_pct || 0)}%;"></div></div>
-                              <small style="color:var(--text-muted);">${s.studied_sections || 0}/${s.total_sections || curSum.total_sections} mục lý thuyết</small>
                             </td>
                             <td>
-                              <div style="display:flex;justify-content:space-between;align-items:center;gap:6px;margin-bottom:3px;flex-wrap:wrap;">
-                                <span style="font-size:0.8rem;white-space:nowrap;"><strong>${s.exercises_done || 0}</strong>/${s.exercises_total || curSum.total_exercise_units} bài (${s.exercise_completion_pct || 0}%)</span>
-                                <span class="pill ${accPillClass(s.exercise_accuracy_pct)}" style="font-size:0.72rem;padding:2px 7px;white-space:nowrap;">
-                                  ${s.exercise_accuracy_pct !== null && s.exercise_accuracy_pct !== undefined ? `Đúng ${s.exercise_accuracy_pct}%` : "Chưa làm"}
-                                </span>
+                              <div class="rt-metric">
+                                <div class="rt-metric-head">
+                                  <span class="rt-metric-pct">${s.exercise_completion_pct || 0}%</span>
+                                  <span class="rt-num-badge ${accBadgeClass(s.exercise_accuracy_pct)}">${exAccStr}</span>
+                                </div>
+                                <div class="rt-bar"><div class="rt-bar-fill is-blue" style="width:${Math.min(100, s.exercise_completion_pct || 0)}%;"></div></div>
+                                <span class="rt-metric-meta">${s.exercises_done || 0}/${s.exercises_total || curSum.total_exercise_units} bài đã làm</span>
                               </div>
-                              <div class="progress-bar-track"><div class="progress-bar-fill fill-blue" style="width:${Math.min(100, s.exercise_completion_pct || 0)}%;"></div></div>
                             </td>
                             <td>
-                              <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:3px;">
-                                <strong style="font-size:0.82rem;white-space:nowrap;">${s.review_rounds_count || 0} đợt</strong>
-                                <span class="pill ${accPillClass(s.review_accuracy_pct)}" style="font-size:0.72rem;padding:2px 7px;white-space:nowrap;">
-                                  ${s.review_accuracy_pct !== null && s.review_accuracy_pct !== undefined ? `Đúng ${s.review_accuracy_pct}%` : "Chưa nộp"}
-                                </span>
+                              <div class="rt-metric">
+                                <div class="rt-metric-head">
+                                  <span class="rt-num-badge ${accBadgeClass(s.review_accuracy_pct)}">${revAccStr}</span>
+                                  <span class="rt-metric-meta">${s.review_rounds_count || 0} đợt</span>
+                                </div>
+                                <span class="rt-metric-meta">${s.review_questions_total ? `Đúng ${s.review_correct_total}/${s.review_questions_total} câu/ý` : "Chưa có lượt"}</span>
                               </div>
-                              <small style="color:var(--text-muted);">
-                                ${s.review_questions_total ? `Đúng ${s.review_correct_total}/${s.review_questions_total} câu/ý` : "Chưa có lượt ôn tập"}
-                              </small>
                             </td>
-                            <td style="white-space:nowrap;">
-                              <button type="button" class="btn btn-soft btn-sm" data-open-student-report="${s.id}">📊 Chi tiết HS</button>
+                            <td class="rt-td-actions">
+                              ${kebabButtonHtml(`data-score-student-menu="${s.id}"`)}
                             </td>
                           </tr>
-                        `
-                        )
-                        .join("")
-                    : `<tr><td colspan="7" style="text-align:center;color:var(--text-muted);padding:22px;">Không có học sinh phù hợp bộ lọc.</td></tr>`
-                }
+                        `;
+          })
+          .join("")
+        : `<tr><td colspan="7" style="text-align:center;color:var(--text-muted);padding:24px;">Không có học sinh phù hợp bộ lọc.</td></tr>`
+      }
               </tbody>
             </table>
           </div>
@@ -1739,61 +1908,73 @@ export function mountTeacherDashboard(container, activeTopic, onTopicUpdated, sh
 
         <!-- Bảng 2: Báo cáo chi tiết từng Đợt làm bài tại Hệ thống ôn tập -->
         <div class="card">
-          <div style="margin-bottom:14px;">
-            <h3 class="card-title" style="margin:0 0 2px;">2. Báo cáo chi tiết từng Đợt làm bài tại Hệ thống ôn tập (${filteredAttempts.length} đợt)</h3>
-            <p style="margin:0;font-size:0.83rem;color:var(--text-muted);">
-              Ghi nhận chính xác từng đợt tham gia (Đợt #1, Đợt #2...) kèm phạm vi Chủ đề/Bài, số câu đúng, tỉ lệ đúng %, điểm số và cho phép xem đối chiếu từng câu trả lời.
-            </p>
+          <div class="rt-card-head">
+            <div>
+              <h3 class="card-title" style="margin:0 0 2px;">2. Báo cáo chi tiết từng Đợt làm bài tại Hệ thống ôn tập (${filteredAttempts.length} đợt)</h3>
+              <p style="margin:0;font-size:0.82rem;color:var(--text-muted);">
+                Ghi nhận từng đợt làm bài (Đợt #1, Đợt #2...) theo Chủ đề/Bài. Bấm nút <strong>⋯</strong> ở cuối dòng để xem đối chiếu từng câu.
+              </p>
+            </div>
           </div>
-          <div class="data-table-wrap">
-            <table class="data-table">
+          <div class="rt-table-wrap">
+            <table class="rt-table">
               <thead>
                 <tr>
                   <th>Đợt</th>
                   <th>Học sinh</th>
-                  <th>Chủ đề &amp; Phạm vi</th>
-                  <th>Dạng ôn tập</th>
-                  <th>Đúng / Tổng</th>
-                  <th>Tỉ lệ đúng</th>
-                  <th>Điểm</th>
-                  <th>Thời gian &amp; Nộp lúc</th>
-                  <th>Chi tiết</th>
+                  <th>Chủ đề / Phạm vi</th>
+                  <th>Dạng</th>
+                  <th>Kết quả</th>
+                  <th>Tỉ lệ</th>
+                  <th>Thời gian</th>
+                  <th class="rt-th-actions"></th>
                 </tr>
               </thead>
               <tbody>
-                ${
-                  filteredAttempts.length
-                    ? filteredAttempts
-                        .map((a) => {
-                          const acc = a.accuracy_pct ?? (a.total_questions > 0 ? Math.round((a.correct_count * 1000) / a.total_questions) / 10 : 0);
-                          return `
+                ${filteredAttempts.length
+        ? filteredAttempts
+          .map((a) => {
+            const acc = a.accuracy_pct ?? (a.total_questions > 0 ? Math.round((a.correct_count * 1000) / a.total_questions) / 10 : 0);
+            return `
                             <tr>
-                              <td><span class="pill pill-primary">Đợt #${a.round_number || 1}</span></td>
+                              <td class="rt-nowrap"><span class="rt-num-badge is-teal">#${a.round_number || 1}</span></td>
                               <td>
-                                <strong>${escapeHtml(a.full_name)}</strong><br/>
-                                <small style="color:var(--text-muted);">${escapeHtml(a.class_name || "—")} · @${escapeHtml(a.username)}</small>
+                                <div class="rt-stack">
+                                  <span class="rt-primary" title="${escapeHtml(a.full_name)}">${escapeHtml(a.full_name)}</span>
+                                  <span class="rt-sub">${escapeHtml(a.class_name || "—")} · @${escapeHtml(a.username)}</span>
+                                </div>
                               </td>
                               <td>
-                                <div style="font-weight:600;font-size:0.83rem;">${escapeHtml(a.topic_title || a.topic_id)}</div>
-                                <small style="color:var(--primary);font-weight:600;">${escapeHtml(a.lesson_filter_label || "Toàn chủ đề")}</small>
+                                <div class="rt-stack">
+                                  <span class="rt-truncate" style="font-weight:600;color:#0f172a;" title="${escapeHtml(a.topic_title || a.topic_id)}">${escapeHtml(a.topic_title || a.topic_id)}</span>
+                                  <span class="rt-sub" style="color:var(--primary);" title="${escapeHtml(a.lesson_filter_label || "Toàn chủ đề")}">${escapeHtml(a.lesson_filter_label || "Toàn chủ đề")}</span>
+                                </div>
                               </td>
-                              <td style="font-size:0.82rem;">${typeLabel[a.quiz_type] || escapeHtml(a.quiz_type)}</td>
-                              <td><strong>${a.correct_count} / ${a.total_questions}</strong></td>
-                              <td><span class="pill ${accPillClass(acc)}">${acc}%</span></td>
-                              <td><strong>${a.score} / ${a.max_score}</strong></td>
-                              <td style="font-size:0.8rem;">
-                                <div>${formatDuration(a.duration_seconds)}</div>
-                                <small style="color:var(--text-muted);">${formatDateTimeVN(a.submitted_at)}</small>
+                              <td class="rt-nowrap">
+                                <span class="rt-num-badge is-slate" title="${escapeHtml(typeLabel[a.quiz_type] || a.quiz_type)}">${escapeHtml(shortTypeLabel[a.quiz_type] || a.quiz_type)}</span>
                               </td>
-                              <td style="white-space:nowrap;">
-                                <button type="button" class="btn btn-secondary btn-sm" data-open-attempt-detail="${a.id}">🔍 Xem từng câu</button>
+                              <td class="rt-nowrap">
+                                <div class="rt-stack">
+                                  <span class="rt-primary">${a.score} / ${a.max_score} đ</span>
+                                  <span class="rt-sub">Đúng ${a.correct_count}/${a.total_questions}</span>
+                                </div>
+                              </td>
+                              <td class="rt-nowrap"><span class="rt-num-badge ${accBadgeClass(acc)}">${acc}%</span></td>
+                              <td class="rt-nowrap" title="${escapeHtml(formatDateTimeVN(a.submitted_at))}">
+                                <div class="rt-stack">
+                                  <span class="rt-primary">${formatDuration(a.duration_seconds)}</span>
+                                  <span class="rt-sub">${compactDateVN(a.submitted_at)}</span>
+                                </div>
+                              </td>
+                              <td class="rt-td-actions">
+                                ${kebabButtonHtml(`data-attempt-menu="${a.id}" data-user-id="${a.user_id || ""}"`)}
                               </td>
                             </tr>
                           `;
-                        })
-                        .join("")
-                    : `<tr><td colspan="9" style="text-align:center;color:var(--text-muted);padding:22px;">Chưa có đợt làm bài ôn tập nào phù hợp.</td></tr>`
-                }
+          })
+          .join("")
+        : `<tr><td colspan="8" style="text-align:center;color:var(--text-muted);padding:24px;">Chưa có đợt làm bài ôn tập nào phù hợp.</td></tr>`
+      }
               </tbody>
             </table>
           </div>
@@ -1825,22 +2006,20 @@ export function mountTeacherDashboard(container, activeTopic, onTopicUpdated, sh
                 <h3 style="margin:0 0 3px;font-size:1.1rem;">
                   📊 Hồ sơ học tập chi tiết${st ? ` — ${escapeHtml(st.full_name)}` : ""}
                 </h3>
-                ${
-                  st
-                    ? `<div style="font-size:0.82rem;color:var(--text-muted);">@${escapeHtml(st.username)} · Lớp ${escapeHtml(st.class_name || "—")} · ${escapeHtml(st.school_name || "Chưa cập nhật trường")}</div>`
-                    : ""
-                }
+                ${st
+          ? `<div style="font-size:0.82rem;color:var(--text-muted);">@${escapeHtml(st.username)} · Lớp ${escapeHtml(st.class_name || "—")} · ${escapeHtml(st.school_name || "Chưa cập nhật trường")}</div>`
+          : ""
+        }
               </div>
               <button type="button" class="btn btn-secondary btn-sm" id="btn-close-analytics-modal">✕ Đóng</button>
             </div>
 
             <div class="analytics-modal-body">
-              ${
-                reportModal.loading
-                  ? `<div style="text-align:center;padding:40px;"><div class="spinner" style="margin:0 auto 10px;"></div>Đang tổng hợp dữ liệu học tập chi tiết...</div>`
-                  : reportModal.error
-                  ? `<div class="card" style="border-color:#fecaca;color:var(--red);">${escapeHtml(reportModal.error)}</div>`
-                  : `
+              ${reportModal.loading
+          ? `<div style="text-align:center;padding:40px;"><div class="spinner" style="margin:0 auto 10px;"></div>Đang tổng hợp dữ liệu học tập chi tiết...</div>`
+          : reportModal.error
+            ? `<div class="card" style="border-color:#fecaca;color:var(--red);">${escapeHtml(reportModal.error)}</div>`
+            : `
                     <div class="stats-grid" style="margin-bottom:16px;">
                       <div class="stat-card">
                         <div class="stat-label">Lý thuyết đã học</div>
@@ -1882,13 +2061,12 @@ export function mountTeacherDashboard(container, activeTopic, onTopicUpdated, sh
                       </button>
                     </div>
 
-                    ${
-                      activeTab === "theory"
-                        ? `
+                    ${activeTab === "theory"
+              ? `
                           <div style="display:flex;flex-direction:column;gap:12px;">
                             ${(rep.topics || [])
-                              .map(
-                                (tp) => `
+                .map(
+                  (tp) => `
                                 <div class="analytics-topic-box">
                                   <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:8px;">
                                     <div style="font-weight:700;font-size:0.92rem;">${escapeHtml(tp.title)}</div>
@@ -1907,8 +2085,8 @@ export function mountTeacherDashboard(container, activeTopic, onTopicUpdated, sh
                                   <div class="progress-bar-track" style="margin-bottom:10px;"><div class="progress-bar-fill" style="width:${Math.min(100, tp.theory_pct)}%;"></div></div>
                                   <div style="display:flex;flex-direction:column;gap:8px;">
                                     ${(tp.lessons || [])
-                                      .map(
-                                        (ls) => `
+                      .map(
+                        (ls) => `
                                         <div class="analytics-lesson-row">
                                           <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:6px;">
                                             <div style="font-size:0.84rem;">
@@ -1920,29 +2098,29 @@ export function mountTeacherDashboard(container, activeTopic, onTopicUpdated, sh
                                           </div>
                                           <div class="analytics-sec-chips">
                                             ${(ls.sections || [])
-                                              .map(
-                                                (sc) => `
+                            .map(
+                              (sc) => `
                                                 <span class="sec-status-chip ${sc.studied ? "is-studied" : ""}" title="${sc.last_viewed_at ? `Học lúc: ${formatDateTimeVN(sc.last_viewed_at)}` : "Chưa học mục này"}">
                                                   <span>${sc.studied ? "✓" : "○"}</span>
                                                   <span>${escapeHtml(sc.heading)}</span>
                                                 </span>
                                               `
-                                              )
-                                              .join("")}
+                            )
+                            .join("")}
                                           </div>
                                         </div>
                                       `
-                                      )
-                                      .join("")}
+                      )
+                      .join("")}
                                   </div>
                                 </div>
                               `
-                              )
-                              .join("")}
+                )
+                .join("")}
                           </div>
                         `
-                        : activeTab === "exercises"
-                        ? `
+              : activeTab === "exercises"
+                ? `
                           <div class="data-table-wrap">
                             <table class="data-table">
                               <thead>
@@ -1958,11 +2136,10 @@ export function mountTeacherDashboard(container, activeTopic, onTopicUpdated, sh
                                 </tr>
                               </thead>
                               <tbody>
-                                ${
-                                  (rep.exercises || []).length
-                                    ? rep.exercises
-                                        .map(
-                                          (ex) => `
+                                ${(rep.exercises || []).length
+                  ? rep.exercises
+                    .map(
+                      (ex) => `
                                           <tr>
                                             <td><span class="pill ${ex.source_tab === "theory" ? "pill-primary" : "pill-amber"}">${ex.source_tab === "theory" ? "Lý thuyết" : "HTKT"}</span></td>
                                             <td style="font-size:0.82rem;"><strong>${escapeHtml(ex.lesson_label || ex.topic_id)}</strong></td>
@@ -1974,16 +2151,16 @@ export function mountTeacherDashboard(container, activeTopic, onTopicUpdated, sh
                                             <td style="font-size:0.78rem;">${formatDateTimeVN(ex.updated_at)}</td>
                                           </tr>
                                         `
-                                        )
-                                        .join("")
-                                    : `<tr><td colspan="8" style="text-align:center;color:var(--text-muted);padding:20px;">Học sinh chưa kiểm tra bài tập vận dụng nào trong mục Lý thuyết / Hệ thống kiến thức.</td></tr>`
-                                }
+                    )
+                    .join("")
+                  : `<tr><td colspan="8" style="text-align:center;color:var(--text-muted);padding:20px;">Học sinh chưa kiểm tra bài tập vận dụng nào trong mục Lý thuyết / Hệ thống kiến thức.</td></tr>`
+                }
                               </tbody>
                             </table>
                           </div>
                         `
-                        : activeTab === "reviews"
-                        ? `
+                : activeTab === "reviews"
+                  ? `
                           <div class="data-table-wrap">
                             <table class="data-table">
                               <thead>
@@ -2000,11 +2177,10 @@ export function mountTeacherDashboard(container, activeTopic, onTopicUpdated, sh
                                 </tr>
                               </thead>
                               <tbody>
-                                ${
-                                  (rep.review_rounds || []).length
-                                    ? rep.review_rounds
-                                        .map(
-                                          (rd) => `
+                                ${(rep.review_rounds || []).length
+                    ? rep.review_rounds
+                      .map(
+                        (rd) => `
                                           <tr>
                                             <td><span class="pill pill-primary">Đợt #${rd.round_number}</span></td>
                                             <td>
@@ -2016,16 +2192,15 @@ export function mountTeacherDashboard(container, activeTopic, onTopicUpdated, sh
                                             <td><span class="pill ${accPillClass(rd.accuracy_pct)}">${rd.accuracy_pct}%</span></td>
                                             <td><strong>${rd.score} / ${rd.max_score}</strong></td>
                                             <td style="font-size:0.76rem;">
-                                              ${
-                                                (rd.by_lesson || []).length
-                                                  ? rd.by_lesson
-                                                      .map(
-                                                        (bl) =>
-                                                          `<span class="pill pill-muted" style="margin:2px;font-size:0.72rem;">${escapeHtml(bl.lesson)}: ${bl.correct}/${bl.total} (${bl.accuracy_pct}%)</span>`
-                                                      )
-                                                      .join("")
-                                                  : "—"
-                                              }
+                                              ${(rd.by_lesson || []).length
+                            ? rd.by_lesson
+                              .map(
+                                (bl) =>
+                                  `<span class="pill pill-muted" style="margin:2px;font-size:0.72rem;">${escapeHtml(bl.lesson)}: ${bl.correct}/${bl.total} (${bl.accuracy_pct}%)</span>`
+                              )
+                              .join("")
+                            : "—"
+                          }
                                             </td>
                                             <td style="font-size:0.78rem;">${formatDateTimeVN(rd.submitted_at)}</td>
                                             <td>
@@ -2033,26 +2208,25 @@ export function mountTeacherDashboard(container, activeTopic, onTopicUpdated, sh
                                             </td>
                                           </tr>
                                         `
-                                        )
-                                        .join("")
-                                    : `<tr><td colspan="9" style="text-align:center;color:var(--text-muted);padding:20px;">Học sinh chưa có đợt làm bài nào tại Hệ thống ôn tập.</td></tr>`
-                                }
+                      )
+                      .join("")
+                    : `<tr><td colspan="9" style="text-align:center;color:var(--text-muted);padding:20px;">Học sinh chưa có đợt làm bài nào tại Hệ thống ôn tập.</td></tr>`
+                  }
                               </tbody>
                             </table>
                           </div>
                         `
-                        : `
+                  : `
                           <div class="data-table-wrap">
                             <table class="data-table">
                               <thead>
                                 <tr><th>Đề thi</th><th>Điểm tổng</th><th>Phần I / II / III</th><th>Đúng / Tổng</th><th>Thời gian</th><th>Nộp lúc</th></tr>
                               </thead>
                               <tbody>
-                                ${
-                                  (rep.mock_attempts || []).length
-                                    ? rep.mock_attempts
-                                        .map(
-                                          (ma) => `
+                                ${(rep.mock_attempts || []).length
+                    ? rep.mock_attempts
+                      .map(
+                        (ma) => `
                                           <tr>
                                             <td><strong>Đề ${ma.order_number}: ${escapeHtml(ma.exam_title)}</strong></td>
                                             <td><span class="pill pill-primary">${ma.score} / ${ma.max_score}</span></td>
@@ -2062,17 +2236,17 @@ export function mountTeacherDashboard(container, activeTopic, onTopicUpdated, sh
                                             <td>${formatDateTimeVN(ma.submitted_at)}</td>
                                           </tr>
                                         `
-                                        )
-                                        .join("")
-                                    : `<tr><td colspan="6" style="text-align:center;color:var(--text-muted);padding:20px;">Học sinh chưa có lượt thi thử THPT nào.</td></tr>`
-                                }
+                      )
+                      .join("")
+                    : `<tr><td colspan="6" style="text-align:center;color:var(--text-muted);padding:20px;">Học sinh chưa có lượt thi thử THPT nào.</td></tr>`
+                  }
                               </tbody>
                             </table>
                           </div>
                         `
-                    }
+            }
                   `
-              }
+        }
             </div>
           </div>
         </div>
@@ -2098,31 +2272,28 @@ export function mountTeacherDashboard(container, activeTopic, onTopicUpdated, sh
               <h3 style="margin:0 0 3px;font-size:1.08rem;">
                 🔍 Chi tiết bài làm${att ? ` — Đợt #${att.round_number} · ${escapeHtml(att.full_name)}` : ""}
               </h3>
-              ${
-                att
-                  ? `<div style="font-size:0.82rem;color:var(--text-muted);">
+              ${att
+        ? `<div style="font-size:0.82rem;color:var(--text-muted);">
                        ${escapeHtml(att.topic_title)} · ${escapeHtml(att.lesson_filter_label)} · ${partNames[att.quiz_type] || escapeHtml(att.quiz_type)} · Nộp lúc ${formatDateTimeVN(att.submitted_at)}
                      </div>`
-                  : ""
-              }
+        : ""
+      }
             </div>
             <div style="display:flex;gap:8px;">
-              ${
-                reportModal.prevStudentId
-                  ? `<button type="button" class="btn btn-soft btn-sm" id="btn-back-to-student-modal" data-student-id="${reportModal.prevStudentId}">← Về hồ sơ HS</button>`
-                  : ""
-              }
+              ${reportModal.prevStudentId
+        ? `<button type="button" class="btn btn-soft btn-sm" id="btn-back-to-student-modal" data-student-id="${reportModal.prevStudentId}">← Về hồ sơ HS</button>`
+        : ""
+      }
               <button type="button" class="btn btn-secondary btn-sm" id="btn-close-analytics-modal">✕ Đóng</button>
             </div>
           </div>
 
           <div class="analytics-modal-body">
-            ${
-              reportModal.loading
-                ? `<div style="text-align:center;padding:40px;"><div class="spinner" style="margin:0 auto 10px;"></div>Đang tải chi tiết từng câu hỏi...</div>`
-                : reportModal.error
-                ? `<div class="card" style="border-color:#fecaca;color:var(--red);">${escapeHtml(reportModal.error)}</div>`
-                : `
+            ${reportModal.loading
+        ? `<div style="text-align:center;padding:40px;"><div class="spinner" style="margin:0 auto 10px;"></div>Đang tải chi tiết từng câu hỏi...</div>`
+        : reportModal.error
+          ? `<div class="card" style="border-color:#fecaca;color:var(--red);">${escapeHtml(reportModal.error)}</div>`
+          : `
                   <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;padding:12px 14px;border-radius:10px;background:var(--surface-tint);border:1px solid var(--primary-border);margin-bottom:14px;">
                     <span class="pill pill-primary">Điểm: ${att.score} / ${att.max_score}</span>
                     <span class="pill ${accPillClass(att.accuracy_pct)}">Tỉ lệ đúng: ${att.accuracy_pct}% (${att.correct_count}/${att.total_questions} câu/ý)</span>
@@ -2130,27 +2301,25 @@ export function mountTeacherDashboard(container, activeTopic, onTopicUpdated, sh
                     <span class="pill pill-muted">Lớp: ${escapeHtml(att.class_name || "—")}</span>
                   </div>
 
-                  ${
-                    (att.by_lesson || []).length
-                      ? `
+                  ${(att.by_lesson || []).length
+            ? `
                         <div style="margin-bottom:14px;">
                           <div style="font-size:0.82rem;font-weight:700;margin-bottom:6px;color:var(--text-secondary);">Kết quả chính xác theo từng bài trong đợt này:</div>
                           <div style="display:flex;gap:6px;flex-wrap:wrap;">
                             ${att.by_lesson
-                              .map(
-                                (bl) =>
-                                  `<span class="pill ${accPillClass(bl.accuracy_pct)}">${escapeHtml(bl.lesson)}: đúng ${bl.correct}/${bl.total} (${bl.accuracy_pct}%)</span>`
-                              )
-                              .join("")}
+              .map(
+                (bl) =>
+                  `<span class="pill ${accPillClass(bl.accuracy_pct)}">${escapeHtml(bl.lesson)}: đúng ${bl.correct}/${bl.total} (${bl.accuracy_pct}%)</span>`
+              )
+              .join("")}
                           </div>
                         </div>
                       `
-                      : ""
-                  }
+            : ""
+          }
 
-                  ${
-                    items.length
-                      ? `
+                  ${items.length
+            ? `
                         <div class="data-table-wrap">
                           <table class="data-table">
                             <thead>
@@ -2164,9 +2333,9 @@ export function mountTeacherDashboard(container, activeTopic, onTopicUpdated, sh
                             </thead>
                             <tbody>
                               ${items
-                                .map((it) => {
-                                  const partTag = it.part === "mcq" ? "TN" : it.part === "true_false" ? "Đ/S" : "TLN";
-                                  return `
+              .map((it) => {
+                const partTag = it.part === "mcq" ? "TN" : it.part === "true_false" ? "Đ/S" : "TLN";
+                return `
                                     <tr style="background:${it.is_correct ? "rgba(22,163,74,0.04)" : "rgba(220,38,38,0.04)"};">
                                       <td>
                                         <strong>${partTag} ${it.num}</strong><br/>
@@ -2174,20 +2343,19 @@ export function mountTeacherDashboard(container, activeTopic, onTopicUpdated, sh
                                       </td>
                                       <td style="font-size:0.82rem;line-height:1.45;">
                                         ${formatBioHtml(it.question || "")}
-                                        ${
-                                          Array.isArray(it.statements) && it.statements.length
-                                            ? `<div style="margin-top:6px;display:flex;flex-direction:column;gap:3px;">
+                                        ${Array.isArray(it.statements) && it.statements.length
+                    ? `<div style="margin-top:6px;display:flex;flex-direction:column;gap:3px;">
                                                 ${it.statements
-                                                  .map(
-                                                    (st) =>
-                                                      `<div style="font-size:0.78rem;color:${st.is_correct ? "#15803d" : "#b91c1c"};">
+                      .map(
+                        (st) =>
+                          `<div style="font-size:0.78rem;color:${st.is_correct ? "#15803d" : "#b91c1c"};">
                                                          <strong>${escapeHtml(st.key)})</strong> ${formatBioHtml(st.text)} — HS: <strong>${escapeHtml(st.user)}</strong> · ĐA: <strong>${escapeHtml(st.correct)}</strong>
                                                        </div>`
-                                                  )
-                                                  .join("")}
+                      )
+                      .join("")}
                                                </div>`
-                                            : ""
-                                        }
+                    : ""
+                  }
                                       </td>
                                       <td style="font-size:0.82rem;font-weight:600;color:${it.is_correct ? "#15803d" : "#b91c1c"};">${formatBioHtml(it.user_answer || "Bỏ trống")}</td>
                                       <td style="font-size:0.82rem;color:#0f766e;font-weight:600;">${formatBioHtml(it.correct_answer || "")}</td>
@@ -2199,16 +2367,16 @@ export function mountTeacherDashboard(container, activeTopic, onTopicUpdated, sh
                                       </td>
                                     </tr>
                                   `;
-                                })
-                                .join("")}
+              })
+              .join("")}
                             </tbody>
                           </table>
                         </div>
                       `
-                      : `<div class="card" style="background:var(--surface-tint);font-size:0.85rem;color:var(--text-secondary);">Đợt làm bài này được nộp trước đợt nâng cấp ghi chi tiết từng câu, nên chỉ có thống kê tổng hợp điểm và tỉ lệ đúng (${att.correct_count}/${att.total_questions} — ${att.accuracy_pct}%). Các đợt mới nộp từ bây giờ sẽ hiển thị đầy đủ đối chiếu từng câu.</div>`
-                  }
+            : `<div class="card" style="background:var(--surface-tint);font-size:0.85rem;color:var(--text-secondary);">Đợt làm bài này được nộp trước đợt nâng cấp ghi chi tiết từng câu, nên chỉ có thống kê tổng hợp điểm và tỉ lệ đúng (${att.correct_count}/${att.total_questions} — ${att.accuracy_pct}%). Các đợt mới nộp từ bây giờ sẽ hiển thị đầy đủ đối chiếu từng câu.</div>`
+          }
                 `
-            }
+      }
           </div>
         </div>
       </div>
@@ -2219,18 +2387,32 @@ export function mountTeacherDashboard(container, activeTopic, onTopicUpdated, sh
   function renderMembersView() {
     const students = overview.students || [];
     const teachers = overview.teachers || [];
+    const memberClasses = getUniqueClasses();
+    const mq = memberSearchFilter.trim().toLowerCase();
+    const filteredStudents = students.filter((s) => {
+      if (memberClassFilter && s.class_name !== memberClassFilter) return false;
+      if (
+        mq &&
+        !`${s.full_name} ${s.username} ${s.class_name || ""} ${s.school_name || ""}`
+          .toLowerCase()
+          .includes(mq)
+      ) {
+        return false;
+      }
+      return true;
+    });
+
     return `
       <div style="display:flex;flex-direction:column;gap:18px;">
-        ${
-          isAdmin
-            ? `
+        ${isAdmin
+        ? `
               <!-- CHỈ QUẢN TRỊ VIÊN: RESET MẬT KHẨU NHANH VỀ MẶC ĐỊNH 123456@ -->
               <div class="card" style="border:1.5px solid #fcd34d;background:linear-gradient(135deg,#fffbeb 0%,#ffffff 100%);">
                 <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap;margin-bottom:10px;">
                   <div>
                     <h3 class="card-title" style="margin:0 0 2px;color:#92400e;">🔑 Reset mật khẩu thành viên về mặc định (123456@)</h3>
                     <p style="margin:0;font-size:0.83rem;color:var(--text-secondary);">
-                      Dành riêng cho Quản trị viên: chọn thành viên (Giáo viên hoặc Học sinh) bên dưới hoặc bấm trực tiếp nút <strong>Reset MK</strong> ở từng dòng trong bảng để đưa mật khẩu về <code>123456@</code>.
+                      Dành riêng cho Quản trị viên: chọn thành viên bên dưới hoặc bấm nút <strong>⋯</strong> ở từng dòng trong bảng để reset mật khẩu về <code>123456@</code>.
                     </p>
                   </div>
                 </div>
@@ -2240,11 +2422,11 @@ export function mountTeacherDashboard(container, activeTopic, onTopicUpdated, sh
                     <input class="form-control form-control-sm" name="username" list="all-members-datalist" required placeholder="Chọn từ danh sách hoặc nhập @username (VD: gv_an, hs_binh)..." />
                     <datalist id="all-members-datalist">
                       ${[...teachers, ...students]
-                        .map(
-                          (m) =>
-                            `<option value="${escapeHtml(m.username)}">${escapeHtml(m.full_name)} (${m.role === "teacher" ? "Giáo viên" : `HS ${m.class_name || ""}`})</option>`
-                        )
-                        .join("")}
+          .map(
+            (m) =>
+              `<option value="${escapeHtml(m.username)}">${escapeHtml(m.full_name)} (${m.role === "teacher" ? "Giáo viên" : `HS ${m.class_name || ""}`})</option>`
+          )
+          .join("")}
                     </datalist>
                   </div>
                   <div class="form-group" style="margin:0;width:155px;">
@@ -2257,11 +2439,11 @@ export function mountTeacherDashboard(container, activeTopic, onTopicUpdated, sh
 
               <!-- CHỈ QUẢN TRỊ VIÊN: THÊM, RESET MK & XOÁ GIÁO VIÊN -->
               <div class="card">
-                <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap;margin-bottom:12px;">
+                <div class="rt-card-head">
                   <div>
                     <h3 class="card-title" style="margin:0 0 2px;">Quản lý Giáo viên sử dụng (${teachers.length})</h3>
-                    <p style="margin:0;font-size:0.83rem;color:var(--text-muted);">
-                      Chỉ Quản trị viên có quyền thêm, reset mật khẩu về mặc định (<code>123456@</code>) hoặc xoá Giáo viên. Giáo viên sẽ bắt buộc cập nhật thông tin và đổi mật khẩu mới khi đăng nhập.
+                    <p style="margin:0;font-size:0.82rem;color:var(--text-muted);">
+                      Chỉ Quản trị viên có quyền thêm giáo viên hoặc thao tác qua nút <strong>⋯</strong> (Reset mật khẩu <code>123456@</code>, Xoá tài khoản).
                     </p>
                   </div>
                 </div>
@@ -2278,55 +2460,57 @@ export function mountTeacherDashboard(container, activeTopic, onTopicUpdated, sh
                   <button type="submit" class="btn btn-primary btn-sm">Thêm Giáo viên</button>
                 </form>
 
-                <div class="data-table-wrap">
-                  <table class="data-table">
+                <div class="rt-table-wrap">
+                  <table class="rt-table">
                     <thead>
                       <tr>
-                        <th>Họ và tên GV</th>
-                        <th>Tên đăng nhập</th>
+                        <th>Giáo viên</th>
                         <th>Trường</th>
-                        <th>Số điện thoại</th>
-                        <th>Trạng thái kích hoạt</th>
-                        <th>Thao tác</th>
+                        <th>SĐT</th>
+                        <th>Trạng thái</th>
+                        <th class="rt-th-actions"></th>
                       </tr>
                     </thead>
                     <tbody>
-                      ${
-                        teachers.length
-                          ? teachers
-                              .map(
-                                (t) => `
+                      ${teachers.length
+          ? teachers
+            .map((t, idx) => {
+              const avColor = t.avatar_color || AVATAR_PALETTE[(idx + 1) % AVATAR_PALETTE.length];
+              return `
                                 <tr>
-                                  <td><strong>${escapeHtml(t.full_name)}</strong></td>
-                                  <td>@${escapeHtml(t.username)}</td>
-                                  <td>${escapeHtml(t.school_name || "Chưa cập nhật")}</td>
-                                  <td>${escapeHtml(t.phone || "Chưa cập nhật")}</td>
                                   <td>
-                                    ${
-                                      t.must_change_password
-                                        ? `<span class="pill pill-amber">Chờ đổi MK lần đầu</span>`
-                                        : `<span class="pill pill-green">Đã kích hoạt</span>`
-                                    }
-                                  </td>
-                                  <td style="white-space:nowrap;">
-                                    <div style="display:flex;gap:6px;flex-wrap:wrap;">
-                                      <button type="button" class="btn btn-soft btn-sm" data-reset-user="${t.id}" data-reset-name="${escapeHtml(t.full_name || t.username)}" data-reset-uname="${escapeHtml(t.username)}" title="Đặt lại mật khẩu về mặc định 123456@">🔑 Reset MK</button>
-                                      <button type="button" class="btn btn-danger btn-sm" data-delete-user="${t.id}" data-delete-name="${escapeHtml(t.username)}">Xoá GV</button>
+                                    <div class="rt-user-cell">
+                                      <span class="rt-avatar" style="background:${escapeHtml(avColor)};">${escapeHtml(initialsOf(t.full_name || t.username))}</span>
+                                      <div class="rt-stack">
+                                        <span class="rt-primary" title="${escapeHtml(t.full_name)}">${escapeHtml(t.full_name)}</span>
+                                        <span class="rt-sub">@${escapeHtml(t.username)}</span>
+                                      </div>
                                     </div>
                                   </td>
+                                  <td><span class="rt-truncate" title="${escapeHtml(t.school_name || "Chưa cập nhật")}">${escapeHtml(t.school_name || "—")}</span></td>
+                                  <td class="rt-nowrap">${escapeHtml(t.phone || "—")}</td>
+                                  <td class="rt-nowrap">
+                                    ${t.must_change_password
+                  ? `<span class="rt-status is-pending"><span class="rt-status-dot"></span>Chờ đổi MK</span>`
+                  : `<span class="rt-status is-online"><span class="rt-status-dot"></span>Đã kích hoạt</span>`
+                }
+                                  </td>
+                                  <td class="rt-td-actions">
+                                    ${kebabButtonHtml(`data-teacher-menu="${t.id}"`)}
+                                  </td>
                                 </tr>
-                              `
-                              )
-                              .join("")
-                          : `<tr><td colspan="6" style="text-align:center;color:var(--text-muted);padding:18px;">Chưa có Giáo viên nào được thêm.</td></tr>`
-                      }
+                              `;
+            })
+            .join("")
+          : `<tr><td colspan="5" style="text-align:center;color:var(--text-muted);padding:20px;">Chưa có Giáo viên nào được thêm.</td></tr>`
+        }
                     </tbody>
                   </table>
                 </div>
               </div>
             `
-            : ""
-        }
+        : ""
+      }
 
         <!-- QUẢN TRỊ VIÊN & GIÁO VIÊN: THÊM HỌC SINH (THỦ CÔNG HOẶC FILE EXCEL) -->
         <div class="card">
@@ -2369,88 +2553,109 @@ export function mountTeacherDashboard(container, activeTopic, onTopicUpdated, sh
                   <input type="file" id="student-excel-input" accept=".xlsx,.csv" style="display:none;" ${studentExcelLoading ? "disabled" : ""} />
                 </label>
               </div>
-              ${
-                studentExcelResult
-                  ? `
+              ${studentExcelResult
+        ? `
                     <div style="margin-top:12px;padding:10px 12px;border-radius:8px;background:#fff;border:1px solid var(--primary-border);font-size:0.82rem;">
                       <strong style="color:var(--green);">${escapeHtml(studentExcelResult.message || "")}</strong>
-                      ${
-                        (studentExcelResult.skipped || []).length
-                          ? `<div style="color:var(--amber);margin-top:4px;">Đã tồn tại (bỏ qua): ${escapeHtml(studentExcelResult.skipped.join(", "))}</div>`
-                          : ""
-                      }
-                      ${
-                        (studentExcelResult.errors || []).length
-                          ? `<div style="color:var(--red);margin-top:4px;">Lỗi: ${escapeHtml(studentExcelResult.errors.slice(0, 5).join(" | "))}</div>`
-                          : ""
-                      }
+                      ${(studentExcelResult.skipped || []).length
+          ? `<div style="color:var(--amber);margin-top:4px;">Đã tồn tại (bỏ qua): ${escapeHtml(studentExcelResult.skipped.join(", "))}</div>`
+          : ""
+        }
+                      ${(studentExcelResult.errors || []).length
+          ? `<div style="color:var(--red);margin-top:4px;">Lỗi: ${escapeHtml(studentExcelResult.errors.slice(0, 5).join(" | "))}</div>`
+          : ""
+        }
                     </div>
                   `
-                  : ""
-              }
+        : ""
+      }
             </div>
           </div>
         </div>
 
         <!-- DANH SÁCH HỌC SINH & SỐ LẦN TRUY CẬP -->
         <div class="card">
-          <h3 class="card-title">Danh sách Học sinh &amp; Thống kê số lần truy cập (${students.length})</h3>
-          <div class="data-table-wrap">
-            <table class="data-table">
+          <div class="rt-card-head">
+            <div>
+              <h3 class="card-title" style="margin:0 0 2px;">Danh sách Học sinh (${filteredStudents.length}${filteredStudents.length !== students.length ? ` / ${students.length}` : ""})</h3>
+              <p style="margin:0;font-size:0.82rem;color:var(--text-muted);">
+                Nhấn tên học sinh để xem báo cáo học tập hoặc bấm <strong>⋯</strong> ở cuối dòng để thao tác.
+              </p>
+            </div>
+            <div class="rt-toolbar">
+              <select id="members-class-filter" class="form-control form-control-sm" style="width:auto;">
+                <option value="">Tất cả lớp</option>
+                ${memberClasses.map((c) => `<option value="${escapeHtml(c)}" ${memberClassFilter === c ? "selected" : ""}>Lớp ${escapeHtml(c)}</option>`).join("")}
+              </select>
+              <input id="members-search" class="form-control form-control-sm" style="width:190px;" placeholder="Tìm tên, @username..." value="${escapeHtml(memberSearchFilter)}" />
+            </div>
+          </div>
+          <div class="rt-table-wrap">
+            <table class="rt-table">
               <thead>
                 <tr>
-                  <th>Họ và tên / Đăng nhập</th>
-                  <th>Trường / Lớp</th>
-                  <th>Số điện thoại</th>
-                  <th>Số lần truy cập</th>
-                  <th>Đăng nhập gần nhất</th>
-                  <th>Thời lượng học</th>
+                  <th>Học sinh</th>
+                  <th>Lớp / Trường</th>
+                  <th>SĐT</th>
+                  <th>Truy cập</th>
+                  <th>Học tập</th>
                   <th>Trạng thái</th>
-                  <th>Thao tác</th>
+                  <th class="rt-th-actions"></th>
                 </tr>
               </thead>
               <tbody>
-                ${
-                  students.length
-                    ? students
-                        .map(
-                          (s) => `
+                ${filteredStudents.length
+        ? filteredStudents
+          .map((s, idx) => {
+            const avColor = s.avatar_color || AVATAR_PALETTE[idx % AVATAR_PALETTE.length];
+            const lastLoginFull = formatDateTimeVN(s.last_login);
+            return `
                           <tr>
-                            <td><strong>${escapeHtml(s.full_name)}</strong><br/><small style="color:var(--text-muted)">@${escapeHtml(s.username)}</small></td>
-                            <td>${escapeHtml(s.school_name || "Chưa cập nhật")}<br/><small style="color:var(--text-muted)">${s.class_name ? `Lớp ${escapeHtml(s.class_name)}` : "Chưa nhập lớp"}</small></td>
-                            <td>${escapeHtml(s.phone || "—")}</td>
-                            <td><span class="pill pill-primary">${s.login_count || 0} lần</span></td>
-                            <td>${formatDateTimeVN(s.last_login)}</td>
                             <td>
-                              <strong>${formatDuration(s.total_seconds)}</strong><br/>
-                              <small style="color:var(--text-muted);">${s.session_count} phiên · LT ${s.theory_pct || 0}%</small>
-                            </td>
-                            <td>
-                              ${
-                                s.must_change_password
-                                  ? `<span class="pill pill-amber">Chờ đổi MK lần đầu</span>`
-                                  : s.is_online
-                                  ? `<span class="pill pill-green">Đang học</span>`
-                                  : `<span class="pill pill-muted">Ngoại tuyến</span>`
-                              }
-                            </td>
-                            <td style="white-space:nowrap;">
-                              <div style="display:flex;gap:6px;flex-wrap:wrap;">
-                                <button type="button" class="btn btn-secondary btn-sm" data-open-student-report="${s.id}" title="Xem báo cáo % học tập & kết quả ôn tập">📊 Báo cáo</button>
-                                ${
-                                  isAdmin
-                                    ? `<button type="button" class="btn btn-soft btn-sm" data-reset-user="${s.id}" data-reset-name="${escapeHtml(s.full_name || s.username)}" data-reset-uname="${escapeHtml(s.username)}" title="Đặt lại mật khẩu về mặc định 123456@">🔑 Reset MK</button>
-                                       <button type="button" class="btn btn-ghost btn-sm" style="color:var(--red);" data-delete-user="${s.id}" data-delete-name="${escapeHtml(s.username)}">Xoá</button>`
-                                    : ""
-                                }
+                              <div class="rt-user-cell">
+                                <span class="rt-avatar" style="background:${escapeHtml(avColor)};">${escapeHtml(initialsOf(s.full_name || s.username))}</span>
+                                <div class="rt-stack">
+                                  <button type="button" class="rt-primary-link" data-open-student-report="${s.id}" title="${escapeHtml(s.full_name)}">${escapeHtml(s.full_name)}</button>
+                                  <span class="rt-sub">@${escapeHtml(s.username)}</span>
+                                </div>
                               </div>
                             </td>
+                            <td>
+                              <div class="rt-stack">
+                                <span class="rt-primary">${s.class_name ? `Lớp ${escapeHtml(s.class_name)}` : "Chưa nhập lớp"}</span>
+                                <span class="rt-sub" title="${escapeHtml(s.school_name || "Chưa cập nhật")}">${escapeHtml(s.school_name || "—")}</span>
+                              </div>
+                            </td>
+                            <td class="rt-nowrap">${escapeHtml(s.phone || "—")}</td>
+                            <td class="rt-nowrap" title="${escapeHtml(lastLoginFull)}">
+                              <div class="rt-stack">
+                                <span class="rt-num-badge is-teal" style="width:fit-content;">${s.login_count || 0} lần</span>
+                                <span class="rt-sub">${compactDateVN(s.last_login)}</span>
+                              </div>
+                            </td>
+                            <td class="rt-nowrap">
+                              <div class="rt-stack">
+                                <span class="rt-primary">${formatDuration(s.total_seconds)}</span>
+                                <span class="rt-sub">${s.session_count || 0} phiên · LT ${s.theory_pct || 0}%</span>
+                              </div>
+                            </td>
+                            <td class="rt-nowrap">
+                              ${s.must_change_password
+                ? `<span class="rt-status is-pending"><span class="rt-status-dot"></span>Chờ đổi MK</span>`
+                : s.is_online
+                  ? `<span class="rt-status is-online"><span class="rt-status-dot"></span>Đang học</span>`
+                  : `<span class="rt-status is-offline"><span class="rt-status-dot"></span>Ngoại tuyến</span>`
+              }
+                            </td>
+                            <td class="rt-td-actions">
+                              ${kebabButtonHtml(`data-student-menu="${s.id}"`)}
+                            </td>
                           </tr>
-                        `
-                        )
-                        .join("")
-                    : `<tr><td colspan="${isAdmin ? 8 : 7}" style="text-align:center;color:var(--text-muted);padding:20px;">Chưa có tài khoản Học sinh nào. Hãy thêm bằng thủ công hoặc file Excel ở trên.</td></tr>`
-                }
+                        `;
+          })
+          .join("")
+        : `<tr><td colspan="7" style="text-align:center;color:var(--text-muted);padding:22px;">${students.length ? "Không có học sinh phù hợp bộ lọc." : "Chưa có tài khoản Học sinh nào. Hãy thêm bằng thủ công hoặc file Excel ở trên."}</td></tr>`
+      }
               </tbody>
             </table>
           </div>
@@ -2468,56 +2673,90 @@ export function mountTeacherDashboard(container, activeTopic, onTopicUpdated, sh
       profile_change: "Đổi mật khẩu trong Hồ sơ",
       admin_reset: "Admin reset về mặc định (123456@)",
     };
+    const reasonMeta = {
+      first_login_setup: { label: "Kích hoạt lần đầu", cls: "is-teal" },
+      profile_change: { label: "Đổi trong Hồ sơ", cls: "is-blue" },
+      admin_reset: { label: "Admin reset MK", cls: "is-amber" },
+    };
 
     return `
       <div class="card">
-        <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:14px;">
+        <div class="rt-card-head">
           <div>
             <h3 class="card-title" style="margin:0 0 2px;">Báo cáo đổi mật khẩu từ Giáo viên &amp; Học sinh (${logs.length})</h3>
-            <p style="margin:0;font-size:0.83rem;color:var(--text-muted);">
-              Mọi lượt cập nhật mật khẩu mới của Giáo viên và Học sinh đều được tự động ghi nhận và gửi về Quản trị viên.
+            <p style="margin:0;font-size:0.82rem;color:var(--text-muted);">
+              Mọi lượt cập nhật mật khẩu mới của Giáo viên và Học sinh đều được tự động ghi nhận gửi về Quản trị viên.
             </p>
           </div>
-          ${
-            unreadCount > 0
-              ? `<button type="button" class="btn btn-primary btn-sm" id="btn-mark-pw-read">Đánh dấu đã xem tất cả (${unreadCount})</button>`
-              : ""
-          }
+          ${unreadCount > 0
+        ? `<button type="button" class="btn btn-primary btn-sm" id="btn-mark-pw-read">✓ Đánh dấu đã xem tất cả (${unreadCount})</button>`
+        : ""
+      }
         </div>
 
-        <div class="data-table-wrap">
-          <table class="data-table">
+        <div class="rt-table-wrap">
+          <table class="rt-table">
             <thead>
               <tr>
-                <th>Trạng thái</th>
+                <th>Thành viên</th>
                 <th>Vai trò</th>
-                <th>Họ và tên / Tài khoản</th>
                 <th>Trường / Lớp</th>
-                <th>Số điện thoại</th>
+                <th>SĐT</th>
                 <th>Loại cập nhật</th>
-                <th>Thời điểm đổi</th>
+                <th>Thời điểm</th>
+                <th>Trạng thái</th>
               </tr>
             </thead>
             <tbody>
-              ${
-                logs.length
-                  ? logs
-                      .map(
-                        (l) => `
-                        <tr style="${!l.is_read ? "background:var(--surface-tint);" : ""}">
-                          <td>${!l.is_read ? `<span class="pill pill-red">Mới</span>` : `<span class="pill pill-muted">Đã xem</span>`}</td>
-                          <td><span class="pill ${l.role === "teacher" ? "pill-primary" : "pill-green"}">${l.role === "teacher" ? "Giáo viên" : "Học sinh"}</span></td>
-                          <td><strong>${escapeHtml(l.full_name)}</strong><br/><small style="color:var(--text-muted)">@${escapeHtml(l.username)}</small></td>
-                          <td>${escapeHtml(l.school_name || "—")}${l.class_name ? `<br/><small style="color:var(--text-muted)">${escapeHtml(l.class_name)}</small>` : ""}</td>
-                          <td>${escapeHtml(l.phone || "—")}</td>
-                          <td>${escapeHtml(reasonText[l.reason] || l.reason)}</td>
-                          <td><strong>${formatDateTimeVN(l.changed_at)}</strong></td>
-                        </tr>
-                      `
-                      )
-                      .join("")
-                  : `<tr><td colspan="7" style="text-align:center;color:var(--text-muted);padding:22px;">Chưa có dữ liệu đổi mật khẩu nào.</td></tr>`
+              ${logs.length
+        ? logs
+          .map((l, idx) => {
+            const avColor = AVATAR_PALETTE[(idx + (l.role === "teacher" ? 1 : 0)) % AVATAR_PALETTE.length];
+            const rMeta = reasonMeta[l.reason] || { label: l.reason || "Cập nhật MK", cls: "is-slate" };
+            const fullTime = formatDateTimeVN(l.changed_at);
+            return `
+                        <tr style="${!l.is_read ? "background:#fffbeb;" : ""}">
+                          <td>
+                            <div class="rt-user-cell">
+                              <span class="rt-avatar" style="background:${avColor};">${escapeHtml(initialsOf(l.full_name || l.username))}</span>
+                              <div class="rt-stack">
+                                <span class="rt-primary" title="${escapeHtml(l.full_name)}">${escapeHtml(l.full_name)}</span>
+                                <span class="rt-sub">@${escapeHtml(l.username)}</span>
+                              </div>
+                            </div>
+                          </td>
+                          <td class="rt-nowrap">
+                            <span class="rt-num-badge ${l.role === "teacher" ? "is-teal" : "is-blue"}">
+                              ${l.role === "teacher" ? "Giáo viên" : "Học sinh"}
+                            </span>
+                          </td>
+                          <td>
+                            <div class="rt-stack">
+                              <span class="rt-truncate" title="${escapeHtml(l.school_name || "Chưa cập nhật")}">${escapeHtml(l.school_name || "—")}</span>
+                              ${l.class_name ? `<span class="rt-sub">${escapeHtml(l.class_name)}</span>` : ""}
+                            </div>
+                          </td>
+                          <td class="rt-nowrap">${escapeHtml(l.phone || "—")}</td>
+                          <td class="rt-nowrap">
+                            <span class="rt-num-badge ${rMeta.cls}" title="${escapeHtml(reasonText[l.reason] || l.reason)}">
+                              ${escapeHtml(rMeta.label)}
+                            </span>
+                          </td>
+                          <td class="rt-nowrap" title="${escapeHtml(fullTime)}">
+                            <span class="rt-primary">${compactDateVN(l.changed_at)}</span>
+                          </td>
+                          <td class="rt-nowrap">
+                            ${!l.is_read
+                ? `<span class="rt-status is-pending"><span class="rt-status-dot"></span>Mới</span>`
+                : `<span class="rt-status is-offline"><span class="rt-status-dot"></span>Đã xem</span>`
               }
+                          </td>
+                        </tr>
+                      `;
+          })
+          .join("")
+        : `<tr><td colspan="7" style="text-align:center;color:var(--text-muted);padding:24px;">Chưa có dữ liệu đổi mật khẩu nào.</td></tr>`
+      }
             </tbody>
           </table>
         </div>
@@ -2526,6 +2765,34 @@ export function mountTeacherDashboard(container, activeTopic, onTopicUpdated, sh
   }
 
   // ================== EVENT BINDINGS ==================
+  async function resetUserById(userId, displayName, uname) {
+    if (
+      !window.confirm(
+        `Xác nhận đặt lại mật khẩu của "${displayName}" (@${uname}) về mật khẩu mặc định 123456@?\nThành viên này sẽ cần đăng nhập lại bằng mật khẩu 123456@ và đổi mật khẩu mới.`
+      )
+    ) {
+      return;
+    }
+    try {
+      const res = await api.adminResetUserPassword(userId);
+      showToast(res.message || "Đã đặt lại mật khẩu về 123456@.", "success");
+      await loadOverview(true);
+    } catch (err) {
+      showToast(err.message, "error");
+    }
+  }
+
+  async function deleteUserById(userId, uname) {
+    if (!window.confirm(`Xác nhận xoá tài khoản "${uname}" khỏi hệ thống?`)) return;
+    try {
+      const res = await api.adminDeleteUser(userId);
+      showToast(res.message || "Đã xoá tài khoản.", "success");
+      await loadOverview(true);
+    } catch (err) {
+      showToast(err.message, "error");
+    }
+  }
+
   function bindSubviewEvents() {
     // ---- MEMBERS & PASSWORD ALERTS EVENTS ----
     if (subtab === "members") {
@@ -2567,38 +2834,69 @@ export function mountTeacherDashboard(container, activeTopic, onTopicUpdated, sh
         }
       });
 
-      container.querySelectorAll("[data-reset-user]").forEach((btn) => {
-        btn.addEventListener("click", async () => {
-          const displayName = btn.dataset.resetName || btn.dataset.resetUname;
-          const uname = btn.dataset.resetUname;
-          if (
-            !window.confirm(
-              `Xác nhận đặt lại mật khẩu của "${displayName}" (@${uname}) về mật khẩu mặc định 123456@?\nThành viên này sẽ cần đăng nhập lại bằng mật khẩu 123456@ và đổi mật khẩu mới.`
-            )
-          ) {
-            return;
-          }
-          try {
-            const res = await api.adminResetUserPassword(btn.dataset.resetUser);
-            showToast(res.message || "Đã đặt lại mật khẩu về 123456@.", "success");
-            await loadOverview(true);
-          } catch (err) {
-            showToast(err.message, "error");
-          }
+      container.querySelector("#members-class-filter")?.addEventListener("change", (e) => {
+        memberClassFilter = e.target.value;
+        render();
+      });
+
+      container.querySelector("#members-search")?.addEventListener("input", (e) => {
+        memberSearchFilter = e.target.value;
+        render();
+        const el = container.querySelector("#members-search");
+        if (el) {
+          el.focus();
+          el.setSelectionRange(el.value.length, el.value.length);
+        }
+      });
+
+      container.querySelectorAll("[data-teacher-menu]").forEach((btn) => {
+        btn.addEventListener("click", (e) => {
+          e.stopPropagation();
+          const tid = btn.dataset.teacherMenu;
+          const t = (overview.teachers || []).find((x) => String(x.id) === String(tid));
+          if (!t) return;
+          openRowActionMenu(btn, [
+            {
+              label: "🔑 Reset mật khẩu (123456@)",
+              onClick: () => resetUserById(t.id, t.full_name || t.username, t.username),
+            },
+            { divider: true },
+            {
+              label: "🗑 Xoá giáo viên",
+              danger: true,
+              onClick: () => deleteUserById(t.id, t.username),
+            },
+          ]);
         });
       });
 
-      container.querySelectorAll("[data-delete-user]").forEach((btn) => {
-        btn.addEventListener("click", async () => {
-          const uname = btn.dataset.deleteName;
-          if (!window.confirm(`Xác nhận xoá tài khoản "${uname}" khỏi hệ thống?`)) return;
-          try {
-            const res = await api.adminDeleteUser(btn.dataset.deleteUser);
-            showToast(res.message || "Đã xoá tài khoản.", "success");
-            await loadOverview(true);
-          } catch (err) {
-            showToast(err.message, "error");
+      container.querySelectorAll("[data-student-menu]").forEach((btn) => {
+        btn.addEventListener("click", (e) => {
+          e.stopPropagation();
+          const sid = btn.dataset.studentMenu;
+          const s = (overview.students || []).find((x) => String(x.id) === String(sid));
+          if (!s) return;
+          const items = [
+            {
+              label: "📊 Xem báo cáo học tập",
+              onClick: () => openStudentReportModal(s.id),
+            },
+          ];
+          if (isAdmin) {
+            items.push(
+              {
+                label: "🔑 Reset mật khẩu (123456@)",
+                onClick: () => resetUserById(s.id, s.full_name || s.username, s.username),
+              },
+              { divider: true },
+              {
+                label: "🗑 Xoá học sinh",
+                danger: true,
+                onClick: () => deleteUserById(s.id, s.username),
+              }
+            );
           }
+          openRowActionMenu(btn, items);
         });
       });
 
@@ -2688,6 +2986,49 @@ export function mountTeacherDashboard(container, activeTopic, onTopicUpdated, sh
     });
 
     // ---- ANALYTICS REPORT MODAL EVENTS ----
+    container.querySelectorAll("[data-score-student-menu]").forEach((btn) => {
+      btn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        const sid = btn.dataset.scoreStudentMenu;
+        const s = (overview.students || []).find((x) => String(x.id) === String(sid));
+        if (!s) return;
+        const items = [
+          {
+            label: "📊 Xem hồ sơ học tập chi tiết",
+            onClick: () => openStudentReportModal(s.id),
+          },
+        ];
+        if (isAdmin) {
+          items.push({
+            label: "🔑 Reset mật khẩu (123456@)",
+            onClick: () => resetUserById(s.id, s.full_name || s.username, s.username),
+          });
+        }
+        openRowActionMenu(btn, items);
+      });
+    });
+
+    container.querySelectorAll("[data-attempt-menu]").forEach((btn) => {
+      btn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        const aid = btn.dataset.attemptMenu;
+        const uid = btn.dataset.userId;
+        const items = [
+          {
+            label: "🔍 Xem chi tiết từng câu",
+            onClick: () => openAttemptDetailModal(aid, null),
+          },
+        ];
+        if (uid) {
+          items.push({
+            label: "📊 Xem hồ sơ học sinh",
+            onClick: () => openStudentReportModal(uid),
+          });
+        }
+        openRowActionMenu(btn, items);
+      });
+    });
+
     container.querySelectorAll("[data-open-student-report]").forEach((btn) => {
       btn.addEventListener("click", () => {
         openStudentReportModal(btn.dataset.openStudentReport);
@@ -2726,6 +3067,7 @@ export function mountTeacherDashboard(container, activeTopic, onTopicUpdated, sh
       container.querySelectorAll("[data-em-mode]").forEach((btn) => {
         btn.addEventListener("click", () => {
           examMixerMode = btn.dataset.emMode || "word";
+          onSubRouteChange?.({ subtab, contentSubMode, examMixerMode });
           if (examMixerMode === "matrix" && !examPool) {
             render();
             ensureExamPoolLoaded();
@@ -2983,6 +3325,7 @@ export function mountTeacherDashboard(container, activeTopic, onTopicUpdated, sh
         btn.addEventListener("click", () => {
           contentSubMode = btn.dataset.csub;
           clientCache.setTeacherData({ contentSubMode });
+          onSubRouteChange?.({ subtab, contentSubMode, examMixerMode });
           render();
         });
       });
@@ -3183,7 +3526,7 @@ export function mountTeacherDashboard(container, activeTopic, onTopicUpdated, sh
         if (!file) return;
         const prevDraftId = newTopicDraft.preview?.extracted?.id;
         if (prevDraftId) {
-          api.cleanupDraftTopic(prevDraftId).catch(() => {});
+          api.cleanupDraftTopic(prevDraftId).catch(() => { });
         }
         syncNewTopicMeta();
         newTopicDraft.file = file;
@@ -3284,7 +3627,7 @@ export function mountTeacherDashboard(container, activeTopic, onTopicUpdated, sh
       container.querySelector("#btn-reset-new-topic")?.addEventListener("click", () => {
         const draftId = newTopicDraft.preview?.extracted?.id;
         if (draftId) {
-          api.cleanupDraftTopic(draftId).catch(() => {});
+          api.cleanupDraftTopic(draftId).catch(() => { });
         }
         newTopicDraft.file = null;
         newTopicDraft.preview = null;
@@ -3293,6 +3636,77 @@ export function mountTeacherDashboard(container, activeTopic, onTopicUpdated, sh
         answerPdfReport = null;
         render();
       });
+
+      const triggerBannerPicker = (tid) => {
+        if (!tid || uploadingBannerTopicId) return;
+        pendingBannerTopicId = tid;
+        const inp = container.querySelector("#topic-banner-file-input");
+        if (inp) {
+          inp.value = "";
+          inp.click();
+        }
+      };
+
+      const startEditTopicMeta = (tid) => {
+        const tp = topicsList.find((x) => x.id === tid);
+        if (!tp) return;
+        editingTopicId = tp.id;
+        editingTopicTitle = tp.title || "";
+        editingTopicSubtitle = tp.subtitle || "";
+        render();
+        const inp = container.querySelector("#edit-topic-title-input");
+        if (inp) {
+          inp.focus();
+          inp.setSelectionRange(inp.value.length, inp.value.length);
+        }
+      };
+
+      const deleteTopicBannerById = async (tid, title) => {
+        if (!tid || uploadingBannerTopicId) return;
+        if (!window.confirm(`Xoá ảnh banner của "${title || tid}"?`)) return;
+        uploadingBannerTopicId = tid;
+        render();
+        try {
+          const res = await api.deleteTopicBanner(tid);
+          clientCache.invalidateTopic(tid);
+          clientCache.invalidateTeacherData();
+          showToast(res.message || "Đã xoá ảnh banner.", "success");
+          await onTopicsReload(activeTopic?.id || tid, { changedTopicId: tid });
+        } catch (err) {
+          showToast(err.message, "error");
+        } finally {
+          uploadingBannerTopicId = "";
+          render();
+        }
+      };
+
+      const deleteTopicById = async (tid, title) => {
+        if (!tid || deletingTopicId) return;
+        if (topicsList.length <= 1) {
+          showToast("Không thể xoá Chủ đề cuối cùng của hệ thống.", "error");
+          return;
+        }
+        if (!window.confirm(`Xác nhận xoá "${title || tid}"?\nToàn bộ bài học và câu hỏi thuộc chủ đề này sẽ bị xoá khỏi hệ thống.`)) {
+          return;
+        }
+        deletingTopicId = tid;
+        render();
+        try {
+          const res = await api.deleteTopic(tid);
+          examPool = null;
+          clientCache.invalidateTopic(tid);
+          clientCache.invalidateTeacherData();
+          const remaining = topicsList.filter((x) => x.id !== tid);
+          const nextTopicId = tid === activeTopic?.id ? remaining[0]?.id || "" : activeTopic?.id || remaining[0]?.id || "";
+          showToast(res.message || `Đã xoá "${title}".`, "success");
+          await onTopicsReload(nextTopicId, { deletedTopicId: tid });
+        } catch (err) {
+          showToast(err.message, "error");
+        } finally {
+          deletingTopicId = "";
+          render();
+        }
+      };
 
       container.querySelectorAll("[data-open-topic]").forEach((btn) => {
         btn.addEventListener("click", async () => {
@@ -3304,17 +3718,78 @@ export function mountTeacherDashboard(container, activeTopic, onTopicUpdated, sh
         });
       });
 
-      container.querySelectorAll("[data-edit-topic-meta]").forEach((btn) => {
+      container.querySelectorAll("[data-pick-topic-banner]").forEach((btn) => {
         btn.addEventListener("click", () => {
-          editingTopicId = btn.dataset.editTopicMeta || "";
-          editingTopicTitle = btn.dataset.editTopicTitle || "";
-          editingTopicSubtitle = btn.dataset.editTopicSubtitle || "";
+          triggerBannerPicker(btn.dataset.pickTopicBanner);
+        });
+      });
+
+      container.querySelector("#topic-banner-file-input")?.addEventListener("change", async (e) => {
+        const file = e.target.files?.[0];
+        const tid = pendingBannerTopicId;
+        pendingBannerTopicId = "";
+        if (!file || !tid) return;
+        if (!/\.(png|jpe?g|webp|gif)$/i.test(file.name || "") && !(file.type || "").startsWith("image/")) {
+          showToast("Vui lòng chọn tệp hình ảnh (.png, .jpg, .webp, .gif).", "error");
+          return;
+        }
+        if (file.size > 8 * 1024 * 1024) {
+          showToast("Ảnh banner tối đa 8 MB.", "error");
+          return;
+        }
+        uploadingBannerTopicId = tid;
+        render();
+        try {
+          const res = await api.uploadTopicBanner(tid, file);
+          clientCache.invalidateTopic(tid);
+          clientCache.invalidateTeacherData();
+          showToast(res.message || "Đã lưu ảnh banner cho Chủ đề!", "success");
+          await onTopicsReload(activeTopic?.id || tid, { changedTopicId: tid });
+        } catch (err) {
+          showToast(err.message, "error");
+        } finally {
+          uploadingBannerTopicId = "";
           render();
-          const inp = container.querySelector("#edit-topic-title-input");
-          if (inp) {
-            inp.focus();
-            inp.setSelectionRange(inp.value.length, inp.value.length);
+        }
+      });
+
+      container.querySelectorAll("[data-topic-menu]").forEach((btn) => {
+        btn.addEventListener("click", (e) => {
+          e.stopPropagation();
+          const tid = btn.dataset.topicMenu;
+          const tp = topicsList.find((x) => x.id === tid);
+          if (!tp) return;
+          const items = [
+            {
+              label: "👁 Mở xem chủ đề",
+              onClick: () => onSelectTopic && onSelectTopic(tp.id),
+            },
+            {
+              label: tp.banner_image ? "🖼 Đổi ảnh banner (1 ảnh)" : "🖼 Thêm ảnh banner",
+              onClick: () => triggerBannerPicker(tp.id),
+            },
+            {
+              label: "✏️ Sửa tên & mô tả",
+              onClick: () => startEditTopicMeta(tp.id),
+            },
+          ];
+          if (tp.banner_image) {
+            items.push({
+              label: "🧹 Xoá ảnh banner",
+              onClick: () => deleteTopicBannerById(tp.id, tp.title),
+            });
           }
+          if (topicsList.length > 1) {
+            items.push(
+              { divider: true },
+              {
+                label: deletingTopicId === tp.id ? "Đang xoá..." : "🗑 Xoá chủ đề",
+                danger: true,
+                onClick: () => deleteTopicById(tp.id, tp.title),
+              }
+            );
+          }
+          openRowActionMenu(btn, items);
         });
       });
 
@@ -3349,38 +3824,6 @@ export function mountTeacherDashboard(container, activeTopic, onTopicUpdated, sh
             showToast(err.message, "error");
           } finally {
             savingTopicMetaId = "";
-            render();
-          }
-        });
-      });
-
-      container.querySelectorAll("[data-delete-topic]").forEach((btn) => {
-        btn.addEventListener("click", async () => {
-          const tid = btn.dataset.deleteTopic;
-          const title = btn.dataset.deleteTopicTitle || tid;
-          if (!tid || deletingTopicId) return;
-          if (topicsList.length <= 1) {
-            showToast("Không thể xoá Chủ đề cuối cùng của hệ thống.", "error");
-            return;
-          }
-          if (!window.confirm(`Xác nhận xoá "${title}"?\nToàn bộ bài học và câu hỏi thuộc chủ đề này sẽ bị xoá khỏi hệ thống.`)) {
-            return;
-          }
-          deletingTopicId = tid;
-          render();
-          try {
-            const res = await api.deleteTopic(tid);
-            examPool = null;
-            clientCache.invalidateTopic(tid);
-            clientCache.invalidateTeacherData();
-            const remaining = topicsList.filter((x) => x.id !== tid);
-            const nextTopicId = tid === activeTopic?.id ? remaining[0]?.id || "" : activeTopic?.id || remaining[0]?.id || "";
-            showToast(res.message || `Đã xoá "${title}".`, "success");
-            await onTopicsReload(nextTopicId, { deletedTopicId: tid });
-          } catch (err) {
-            showToast(err.message, "error");
-          } finally {
-            deletingTopicId = "";
             render();
           }
         });

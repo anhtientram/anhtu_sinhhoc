@@ -4,9 +4,11 @@ import io
 import json
 import os
 import queue
+import re
 import secrets
 import sqlite3
 import ssl
+import sys
 import threading
 import time
 from datetime import datetime, timedelta, timezone
@@ -279,9 +281,9 @@ def _open_mysql_raw_conn():
         "password": DB_PASSWORD,
         "charset": "utf8mb4",
         "autocommit": False,
-        "connect_timeout": 10,
-        "read_timeout": 20,
-        "write_timeout": 20,
+        "connect_timeout": int(os.environ.get("DB_CONNECT_TIMEOUT") or "15"),
+        "read_timeout": int(os.environ.get("DB_READ_TIMEOUT") or "30"),
+        "write_timeout": int(os.environ.get("DB_WRITE_TIMEOUT") or "30"),
     }
     ssl_ctx = _build_mysql_ssl_context()
     if ssl_ctx is not None:
@@ -831,22 +833,84 @@ def wipe_all_access_data_and_migrate():
         conn.close()
 
 
+_MYSQL_CREATE_TABLE_RE = re.compile(
+    r"CREATE\s+TABLE\s+IF\s+NOT\s+EXISTS\s+`?([a-zA-Z0-9_]+)`?",
+    re.IGNORECASE,
+)
+
+
+def _extract_create_table_name(stmt: str) -> str:
+    """Trích xuất tên bảng từ câu lệnh CREATE TABLE IF NOT EXISTS."""
+    m = _MYSQL_CREATE_TABLE_RE.search(stmt or "")
+    return m.group(1).lower() if m else ""
+
+
+def _is_transient_mysql_error(exc: Exception) -> bool:
+    """Nhận diện lỗi mạng/timeout/lock tạm thời của MySQL để thử lại khi khởi động."""
+    if isinstance(exc, (TimeoutError, OSError)):
+        return True
+    if pymysql is not None:
+        if isinstance(exc, pymysql.err.InterfaceError):
+            return True
+        if isinstance(exc, pymysql.err.OperationalError):
+            code = exc.args[0] if exc.args and isinstance(exc.args[0], int) else None
+            msg = str(exc).lower()
+            if code in (1205, 1213, 2002, 2003, 2006, 2013):
+                return True
+            if any(
+                k in msg
+                for k in ("timed out", "lost connection", "gone away", "lock wait timeout")
+            ):
+                return True
+    return False
+
+
 def init_db():
     with DB_LOCK:
-        conn = get_conn()
-        try:
-            cur = conn.cursor()
-            if IS_MYSQL:
-                for stmt in MYSQL_SCHEMA_STATEMENTS:
-                    cur.execute(stmt)
-                conn.commit()
-            else:
+        if not IS_MYSQL:
+            conn = get_conn()
+            try:
+                cur = conn.cursor()
                 _configure_sqlite_once(conn)
                 cur.executescript(SCHEMA_SQL)
                 conn.commit()
-            seed_initial_data(conn)
-        finally:
-            conn.close()
+                seed_initial_data(conn)
+            finally:
+                conn.close()
+            return
+
+        max_attempts = 4
+        for attempt in range(1, max_attempts + 1):
+            conn = None
+            try:
+                conn = get_conn()
+                cur = conn.cursor()
+                cur.execute("SHOW TABLES")
+                existing_tables = {str(r[0]).lower() for r in cur.fetchall()}
+                created_any = False
+                for stmt in MYSQL_SCHEMA_STATEMENTS:
+                    tbl = _extract_create_table_name(stmt)
+                    if tbl and tbl in existing_tables:
+                        continue
+                    cur.execute(stmt)
+                    created_any = True
+                if created_any:
+                    conn.commit()
+                seed_initial_data(conn)
+                return
+            except Exception as exc:
+                if _is_transient_mysql_error(exc) and attempt < max_attempts:
+                    delay = 2 * attempt
+                    sys.stderr.write(
+                        f"[init_db] MySQL tạm thời gián đoạn (lần {attempt}/{max_attempts}): {exc}. Thử lại sau {delay}s...\n"
+                    )
+                    sys.stderr.flush()
+                    time.sleep(delay)
+                    continue
+                raise
+            finally:
+                if conn is not None:
+                    conn.close()
 
 
 def seed_initial_data(conn):
@@ -900,6 +964,8 @@ def seed_initial_data(conn):
                         merged = dict(tdata)
                         if old_data.get("youtube_videos") and not merged.get("youtube_videos"):
                             merged["youtube_videos"] = old_data["youtube_videos"]
+                        if old_data.get("banner_image") and not merged.get("banner_image"):
+                            merged["banner_image"] = old_data["banner_image"]
                         cur.execute(
                             """
                             UPDATE topics

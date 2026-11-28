@@ -13,6 +13,7 @@ import {
   withBase,
 } from "./api.js";
 import { mountInteractiveDiagram } from "./diagrams.js";
+import { initContentGuard, setContentGuardAdmin } from "./content_guard.js";
 import { escapeHtml, formatBioHtml } from "./format.js";
 import {
   bindInteractiveExerciseEvents,
@@ -22,6 +23,7 @@ import {
 } from "./interactive_blocks.js";
 import { mountMockExamSection, stopMockExamTimers } from "./mock_exam.js";
 import { mountQuizSection } from "./quiz.js";
+import { parseRoute, resetUrlToHome, syncBrowserUrl } from "./router.js";
 import { mountTeacherDashboard } from "./teacher.js";
 import { mountYoutubeLibrary } from "./youtube_videos.js";
 
@@ -55,7 +57,7 @@ function readStoredRailCollapsed() {
 function saveStoredRailCollapsed(val) {
   try {
     localStorage.setItem("sh12_rail_collapsed", val ? "1" : "0");
-  } catch {}
+  } catch { }
 }
 
 const state = {
@@ -66,9 +68,15 @@ const state = {
   loadingTopicId: "",
   activeTopicId: "chu-de-1",
   activeTopic: null,
-  activeTab: "theory", // 'theory' | 'knowledge' | 'review' | 'teacher' | 'profile'
+  activeTab: "theory", // 'theory' | 'knowledge' | 'review' | 'mock_exam' | 'teacher' | 'profile'
   theoryMode: "lessons", // 'lessons' | 'youtube'
   activeLessonId: "",
+  knowledgeMode: "source", // 'source' | 'mindmap'
+  knowledgeUnitIdx: 0,
+  teacherSubtab: "members",
+  teacherContentSubMode: "add_topic",
+  teacherExamMixerMode: "word",
+  pendingInitialRoute: parseRoute(),
   teacherPreviewAsStudent: false,
   presentationMode: false,
   mobileMenuOpen: false,
@@ -89,6 +97,40 @@ const state = {
 
 function isStaffRole(role) {
   return role === "admin" || role === "teacher";
+}
+
+function applyRouteGuardForUser(route, user) {
+  if (!route) return route;
+  const guarded = { ...route };
+  if (!isStaffRole(user?.role) && guarded.activeTab === "teacher") {
+    guarded.activeTab = "theory";
+  }
+  if (
+    user?.role !== "admin" &&
+    guarded.activeTab === "teacher" &&
+    (guarded.teacherSubtab === "content" || guarded.teacherSubtab === "pw_alerts")
+  ) {
+    guarded.teacherSubtab = "members";
+  }
+  return guarded;
+}
+
+function syncCurrentUrl(replace = false) {
+  if (!state.user || state.user.must_change_password) return;
+  syncBrowserUrl(
+    {
+      activeTab: state.activeTab,
+      topicId: state.activeTopicId,
+      lessonId: state.activeLessonId,
+      theoryMode: state.theoryMode,
+      knowledgeMode: state.knowledgeMode,
+      knowledgeUnitIdx: state.knowledgeUnitIdx,
+      teacherSubtab: state.teacherSubtab,
+      teacherContentSubMode: state.teacherContentSubMode,
+      teacherExamMixerMode: state.teacherExamMixerMode,
+    },
+    { replace }
+  );
 }
 
 function roleDisplayName(role) {
@@ -150,7 +192,7 @@ function startSessionTimers() {
     try {
       state.lastHeartbeatTs = Date.now();
       await api.heartbeatSession(state.activeSession.id, state.activeTopicId, state.activeTab);
-    } catch {}
+    } catch { }
   }, 45000);
 }
 
@@ -159,7 +201,7 @@ function sendThrottledHeartbeat(topicId, tab) {
   const nowMs = Date.now();
   if (nowMs - (state.lastHeartbeatTs || 0) < 20000) return;
   state.lastHeartbeatTs = nowMs;
-  api.heartbeatSession(state.activeSession.id, topicId, tab).catch(() => {});
+  api.heartbeatSession(state.activeSession.id, topicId, tab).catch(() => { });
 }
 
 async function ensureStudentCheckedIn() {
@@ -185,7 +227,7 @@ async function handleLeaveClass(shouldLogout = false) {
       const res = await api.checkoutSession(state.activeSession.id, state.activeTab);
       const dur = res.session?.duration_seconds ?? state.sessionElapsedSeconds;
       showToast(`Đã ghi nhận rời lớp học (${formatDuration(dur)})`, "success");
-    } catch {}
+    } catch { }
     state.activeSession = null;
     setStoredSessionId(null);
     stopSessionTimers();
@@ -195,7 +237,7 @@ async function handleLeaveClass(shouldLogout = false) {
     stopMockExamTimers();
     try {
       await api.logout();
-    } catch {}
+    } catch { }
     setToken("");
     clientCache.clearAll();
     state.user = null;
@@ -203,8 +245,15 @@ async function handleLeaveClass(shouldLogout = false) {
     state.topicCache = {};
     state.activeTopic = null;
     state.activeTab = "theory";
+    state.theoryMode = "lessons";
+    state.knowledgeMode = "source";
+    state.knowledgeUnitIdx = 0;
+    state.teacherSubtab = "members";
+    state.teacherContentSubMode = "add_topic";
+    state.teacherExamMixerMode = "word";
     state.teacherPreviewAsStudent = false;
     document.body.classList.remove("presentation-mode");
+    resetUrlToHome();
     render();
   } else {
     render();
@@ -218,7 +267,11 @@ window.addEventListener("pagehide", () => {
 });
 
 // ================== DATA LOADERS ==================
-async function loadTopicsAndActive(topicId = state.activeTopicId, forceRefresh = false) {
+async function loadTopicsAndActive(
+  topicId = state.activeTopicId,
+  forceRefresh = false,
+  preferredLessonId = ""
+) {
   if (!state.topicsList.length || forceRefresh) {
     const listRes = await api.listTopics();
     state.topicsList = listRes.topics || [];
@@ -240,16 +293,29 @@ async function loadTopicsAndActive(topicId = state.activeTopicId, forceRefresh =
     clientCache.setTopic(chosenId, detailRes.topic);
   }
 
-  if (state.activeTopic?.lessons?.length) {
-    state.activeLessonId = state.activeTopic.lessons[0].id;
+  const lessons = state.activeTopic?.lessons || [];
+  if (lessons.length) {
+    if (preferredLessonId && lessons.some((l) => l.id === preferredLessonId)) {
+      state.activeLessonId = preferredLessonId;
+    } else {
+      state.activeLessonId = lessons[0].id;
+    }
   } else {
     state.activeLessonId = "";
   }
 }
 
-async function switchTopicSmoothly(targetId) {
+async function switchTopicSmoothly(targetId, preferredLessonId = "", skipUrlSync = false) {
   if (!targetId) return;
-  if (targetId === state.activeTopicId && state.activeTopic && !state.topicLoading) return;
+  if (
+    targetId === state.activeTopicId &&
+    state.activeTopic &&
+    !state.topicLoading &&
+    !preferredLessonId
+  ) {
+    if (!skipUrlSync) syncCurrentUrl(false);
+    return;
+  }
 
   state.mobileMenuOpen = false;
   const topicMeta = state.topicsList.find((t) => t.id === targetId);
@@ -262,8 +328,14 @@ async function switchTopicSmoothly(targetId) {
     state.activeTopic = cached;
     state.topicLoading = false;
     state.loadingTopicId = "";
-    state.activeLessonId = cached?.lessons?.[0]?.id || "";
+    const lessons = cached?.lessons || [];
+    state.activeLessonId =
+      preferredLessonId && lessons.some((l) => l.id === preferredLessonId)
+        ? preferredLessonId
+        : lessons[0]?.id || "";
+    state.knowledgeUnitIdx = 0;
     sendThrottledHeartbeat(targetId, state.activeTab);
+    if (!skipUrlSync) syncCurrentUrl(false);
     renderMainShell();
     window.scrollTo({ top: 0, behavior: "smooth" });
     return;
@@ -272,6 +344,7 @@ async function switchTopicSmoothly(targetId) {
   state.activeTopicId = targetId;
   state.loadingTopicId = targetId;
   state.topicLoading = true;
+  if (!skipUrlSync) syncCurrentUrl(false);
   renderMainShell();
 
   try {
@@ -283,8 +356,14 @@ async function switchTopicSmoothly(targetId) {
     state.activeTopic = detailRes.topic;
     state.topicCache[targetId] = detailRes.topic;
     clientCache.setTopic(targetId, detailRes.topic);
-    state.activeLessonId = detailRes.topic?.lessons?.[0]?.id || "";
+    const lessons = detailRes.topic?.lessons || [];
+    state.activeLessonId =
+      preferredLessonId && lessons.some((l) => l.id === preferredLessonId)
+        ? preferredLessonId
+        : lessons[0]?.id || "";
+    state.knowledgeUnitIdx = 0;
     sendThrottledHeartbeat(targetId, state.activeTab);
+    if (!skipUrlSync) syncCurrentUrl(true);
   } catch (err) {
     showToast(err.message, "error");
   } finally {
@@ -304,7 +383,7 @@ async function loadMyProgressAndSessions() {
       (progRes.progress || []).filter((p) => p.completed).map((p) => p.lesson_id)
     );
     state.mySessions = sessRes.sessions || [];
-  } catch {}
+  } catch { }
 }
 
 // ================== AUTH VIEW (3 PHÂN QUYỀN RIÊNG BIỆT) ==================
@@ -465,9 +544,8 @@ function renderFirstLoginSetupView() {
             <input class="form-control" name="full_name" required value="${escapeHtml(/^(?:GV|HS)\s*\(/i.test(user.full_name || "") ? "" : user.full_name || "")}" placeholder="${isTeacher ? "VD: Nguyễn Thị Minh" : "VD: Trần Văn An"}" />
           </div>
 
-          ${
-            isTeacher
-              ? `
+          ${isTeacher
+      ? `
                 <div class="form-row-2">
                   <div class="form-group">
                     <label>Trường *</label>
@@ -479,7 +557,7 @@ function renderFirstLoginSetupView() {
                   </div>
                 </div>
               `
-              : `
+      : `
                 <div class="form-row-2">
                   <div class="form-group">
                     <label>Lớp *</label>
@@ -495,7 +573,7 @@ function renderFirstLoginSetupView() {
                   <input class="form-control" name="school_name" required value="${escapeHtml(user.school_name || "")}" placeholder="VD: Trường THPT Lê Hồng Phong" />
                 </div>
               `
-          }
+    }
 
           <div class="form-row-2">
             <div class="form-group">
@@ -570,22 +648,192 @@ async function enterAuthenticatedApp() {
     render();
     return;
   }
-  await loadTopicsAndActive(state.activeTopicId);
+  const initialRoute = applyRouteGuardForUser(
+    state.pendingInitialRoute || parseRoute(),
+    state.user
+  );
+  state.pendingInitialRoute = null;
+
+  if (initialRoute?.hasExplicitRoute) {
+    state.activeTab = initialRoute.activeTab;
+    state.theoryMode = initialRoute.theoryMode || "lessons";
+    state.knowledgeMode = initialRoute.knowledgeMode || "source";
+    state.knowledgeUnitIdx = initialRoute.knowledgeUnitIdx || 0;
+    state.teacherSubtab = initialRoute.teacherSubtab || "members";
+    state.teacherContentSubMode = initialRoute.teacherContentSubMode || "add_topic";
+    state.teacherExamMixerMode = initialRoute.teacherExamMixerMode || "word";
+    clientCache.setTeacherData({
+      subtab: state.teacherSubtab,
+      contentSubMode: state.teacherContentSubMode,
+    });
+  }
+
+  await loadTopicsAndActive(
+    initialRoute?.topicId || state.activeTopicId,
+    false,
+    initialRoute?.lessonId || ""
+  );
   await loadMyProgressAndSessions();
   if (state.user.role === "student") {
     await ensureStudentCheckedIn();
   }
+  syncCurrentUrl(true);
   render();
+}
+
+// ================== STICKY SCROLL NAVIGATION LIFECYCLE ==================
+const _stickyObservers = [];
+let _stickyResizeObserver = null;
+let _stickyRefreshBound = false;
+
+function cleanupStickyObservers() {
+  while (_stickyObservers.length) {
+    try {
+      _stickyObservers.pop().disconnect();
+    } catch { }
+  }
+  if (_stickyResizeObserver) {
+    try {
+      _stickyResizeObserver.disconnect();
+    } catch { }
+    _stickyResizeObserver = null;
+  }
+}
+
+function renderQuickTabsMiniHtml(activeTab) {
+  return `
+    <div class="sticky-subnav-quick" aria-label="Chuyển nhanh mục học">
+      <button type="button" class="sticky-qtab ${activeTab === "theory" ? "active" : ""}" data-quick-tab="theory" title="1. Lý thuyết">LT</button>
+      <button type="button" class="sticky-qtab ${activeTab === "knowledge" ? "active" : ""}" data-quick-tab="knowledge" title="2. Hệ thống kiến thức">KT</button>
+      <button type="button" class="sticky-qtab ${activeTab === "review" ? "active" : ""}" data-quick-tab="review" title="3. Hệ thống ôn tập">Ôn tập</button>
+      <button type="button" class="sticky-qtab ${activeTab === "mock_exam" ? "active" : ""}" data-quick-tab="mock_exam" title="Thi thử TN THPT">Thi thử</button>
+      <button type="button" class="sticky-qtab sticky-qtab-top" data-scroll-top title="Lên đầu trang">↑</button>
+    </div>
+  `;
+}
+
+let _delegatedQuickNavBound = false;
+
+function ensureQuickNavDelegated() {
+  if (_delegatedQuickNavBound || !appEl) return;
+  _delegatedQuickNavBound = true;
+  appEl.addEventListener("click", (e) => {
+    const topBtn = e.target.closest("[data-scroll-top]");
+    if (topBtn) {
+      window.scrollTo({ top: 0, behavior: "smooth" });
+      return;
+    }
+    const qBtn = e.target.closest("[data-quick-tab]");
+    if (qBtn) {
+      const nextTab = qBtn.dataset.quickTab;
+      if (!nextTab) return;
+      if (state.activeTab === "mock_exam" && nextTab !== "mock_exam") {
+        stopMockExamTimers();
+      }
+      if (state.activeTab === "theory" && nextTab !== "theory") {
+        cleanupTheoryObserver();
+      }
+      state.mobileMenuOpen = false;
+      state.activeTab = nextTab;
+      sendThrottledHeartbeat(state.activeTopicId, state.activeTab);
+      syncCurrentUrl(false);
+      render();
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
+  });
+}
+
+function setupStickyNavigation() {
+  cleanupStickyObservers();
+  if (typeof window === "undefined") return;
+
+  if (!_stickyRefreshBound) {
+    _stickyRefreshBound = true;
+    window.addEventListener("sh12:refresh-sticky", () => setupStickyNavigation());
+  }
+
+  const workspace = document.getElementById("workspace-body");
+  const tabsBar = document.getElementById("center-tabs-bar");
+  const hasSubnav = Boolean(document.querySelector(".sticky-subnav, .mock-sticky-clock-bar"));
+
+  if (tabsBar) {
+    tabsBar.classList.toggle("no-sticky", hasSubnav);
+    if (hasSubnav) tabsBar.classList.remove("is-stuck");
+  }
+
+  const updateOffsets = () => {
+    const barH = tabsBar ? Math.ceil(tabsBar.getBoundingClientRect().height) : 48;
+    const subTop = hasSubnav ? 64 : 64 + barH + 6;
+    if (workspace) {
+      workspace.style.setProperty("--sticky-sub-top", `${subTop}px`);
+      workspace.style.setProperty("--mock-palette-top", `${subTop + 120}px`);
+    }
+    return subTop;
+  };
+
+  const subTop = updateOffsets();
+  if (tabsBar && !hasSubnav && typeof ResizeObserver !== "undefined") {
+    _stickyResizeObserver = new ResizeObserver(() => updateOffsets());
+    _stickyResizeObserver.observe(tabsBar);
+  }
+
+  if (typeof IntersectionObserver === "undefined") return;
+
+  const mainSentinel = document.querySelector('[data-sticky-sentinel="center-tabs"]');
+  if (mainSentinel && tabsBar && !hasSubnav) {
+    const obsMain = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          tabsBar.classList.toggle("is-stuck", !entry.isIntersecting && entry.boundingClientRect.top < 70);
+          updateOffsets();
+        });
+      },
+      { threshold: 0, rootMargin: "-64px 0px 0px 0px" }
+    );
+    obsMain.observe(mainSentinel);
+    _stickyObservers.push(obsMain);
+  }
+
+  document.querySelectorAll("[data-sticky-sub-sentinel]").forEach((sentinel) => {
+    const subnav = sentinel.nextElementSibling;
+    if (!subnav || !subnav.classList.contains("sticky-subnav")) return;
+    const obsSub = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          subnav.classList.toggle(
+            "is-stuck",
+            !entry.isIntersecting && entry.boundingClientRect.top < subTop + 12
+          );
+        });
+      },
+      { threshold: 0, rootMargin: `-${subTop}px 0px 0px 0px` }
+    );
+    obsSub.observe(sentinel);
+    _stickyObservers.push(obsSub);
+  });
 }
 
 // ================== MAIN WORKSPACE SHELL (LEFT CONTRASTING TOPICS + HIDDEN MENU DRAWER + CENTERED TABS) ==================
 function renderMainShell() {
+  ensureQuickNavDelegated();
   const user = state.user;
   const isStaff = isStaffRole(user.role);
   const isAdmin = user.role === "admin";
   const effectiveStudentView = !isStaff || state.teacherPreviewAsStudent;
+  const isAdminView = !effectiveStudentView && state.activeTab === "teacher";
+  const isTopicTab =
+    state.activeTab === "theory" || state.activeTab === "knowledge" || state.activeTab === "review";
   const topic = state.activeTopic;
   const lessons = topic?.lessons || [];
+  const topbarBadgeText = isAdminView
+    ? isAdmin
+      ? "Quản trị hệ thống"
+      : "Quản lý lớp học"
+    : state.activeTab === "mock_exam"
+    ? "Thi thử Tốt nghiệp THPT"
+    : state.activeTab === "profile"
+    ? "Hồ sơ cá nhân"
+    : topic?.title || "";
 
   // Ghi nhớ vị trí cuộn của thanh Chủ đề trước khi re-render
   const prevRailScroll = document.getElementById("topics-rail-scroll");
@@ -618,8 +866,8 @@ function renderMainShell() {
           </div>
 
           ${
-            topic
-              ? `<span class="topbar-current-topic" title="${escapeHtml(topic.title)}">${escapeHtml(topic.title)}</span>`
+            topbarBadgeText
+              ? `<span class="topbar-current-topic" title="${escapeHtml(topbarBadgeText)}">${escapeHtml(topbarBadgeText)}</span>`
               : ""
           }
         </div>
@@ -629,24 +877,37 @@ function renderMainShell() {
             ${ICONS.feather}
             <span>Tác giả: <strong>Thầy Bạch Anh Tú</strong></span>
           </span>
-          ${
-            !isStaff
-              ? state.activeSession
-                ? `
+          ${!isStaff
+      ? state.activeSession
+        ? `
                   <div class="attendance-pill" title="Tự động ghi nhận thời gian học tập">
                     <span class="pulse-dot"></span>
                     <span>Vào ${formatTimeShort(state.activeSession.enter_time)} · <span id="live-session-clock">${formatDuration(state.sessionElapsedSeconds)}</span></span>
                   </div>
                   <button class="btn btn-sm btn-danger" id="btn-leave-class">Rời lớp</button>
                 `
-                : `
+        : `
                   <div class="attendance-pill paused"><span>Đã rời lớp</span></div>
                   <button class="btn btn-sm btn-primary" id="btn-reenter-class">Vào học lại</button>
                 `
-              : `
-                <span class="pill pill-primary">${state.teacherPreviewAsStudent ? "Xem như Học sinh" : roleDisplayName(user.role)}</span>
+      : `
+                ${
+                  isAdminView
+                    ? `<button type="button" class="topbar-back-study-btn" data-tab="theory" title="Quay lại giao diện bài học">← Về bài học</button>`
+                    : ""
+                }
+                <button
+                  type="button"
+                  class="topbar-admin-btn ${state.activeTab === "teacher" ? "active" : ""}"
+                  data-tab="teacher"
+                  title="${isAdmin ? "Mở bảng Quản trị hệ thống" : "Mở bảng Quản lý lớp học"}"
+                >
+                  ${ICONS.barChart}
+                  <span>${isAdmin ? "Quản trị hệ thống" : "Quản lý lớp học"}</span>
+                </button>
+                <span class="pill pill-primary topbar-role-pill">${state.teacherPreviewAsStudent ? "Xem như Học sinh" : roleDisplayName(user.role)}</span>
               `
-          }
+    }
         </div>
       </header>
 
@@ -671,11 +932,10 @@ function renderMainShell() {
             <button class="drawer-item ${state.activeTab === "knowledge" ? "active" : ""}" data-drawer-tab="knowledge">${ICONS.layers}<span>2. Hệ thống kiến thức</span></button>
             <button class="drawer-item ${state.activeTab === "review" ? "active" : ""}" data-drawer-tab="review">${ICONS.checkSquare}<span>3. Hệ thống ôn tập (3 phần)</span></button>
             <button class="drawer-item ${state.activeTab === "mock_exam" ? "active" : ""}" data-drawer-tab="mock_exam">${ICONS.award}<span>Thi thử Tốt nghiệp THPT</span></button>
-            ${
-              !effectiveStudentView
-                ? `<button class="drawer-item ${state.activeTab === "teacher" ? "active" : ""}" data-drawer-tab="teacher">${ICONS.barChart}<span>${isAdmin ? "Quản trị &amp; Quản lý lớp" : "Quản lý lớp học"}</span></button>`
-                : ""
-            }
+            ${!effectiveStudentView
+      ? `<button class="drawer-item ${state.activeTab === "teacher" ? "active" : ""}" data-drawer-tab="teacher">${ICONS.barChart}<span>${isAdmin ? "Quản trị &amp; Quản lý lớp" : "Quản lý lớp học"}</span></button>`
+      : ""
+    }
             <button class="drawer-item ${state.activeTab === "profile" ? "active" : ""}" data-drawer-tab="profile">${ICONS.user}<span>Hồ sơ &amp; Đổi mật khẩu</span></button>
           </nav>
         </div>
@@ -684,42 +944,40 @@ function renderMainShell() {
           <div class="drawer-section-title">Tất cả Chủ đề (${state.topicsList.length})</div>
           <div class="drawer-nav">
             ${state.topicsList
-              .map(
-                (t, idx) => `
-                <button class="drawer-item ${t.id === state.activeTopicId ? "active" : ""}" data-select-topic="${t.id}">
+      .map(
+        (t, idx) => `
+                <button class="drawer-item ${t.id === state.activeTopicId && isTopicTab ? "active" : ""}" data-select-topic="${t.id}">
                   <span style="font-weight:700;min-width:20px;">${t.order_index || idx + 1}.</span>
                   <span style="line-height:1.35;">${escapeHtml((t.title || "").replace(/^Chủ đề\s*\d+[\.\:]?\s*/i, ""))}</span>
                 </button>
               `
-              )
-              .join("")}
+      )
+      .join("")}
           </div>
         </div>
 
-        ${
-          lessons.length
-            ? `
+        ${lessons.length
+      ? `
               <div class="drawer-section">
                 <div class="drawer-section-title">Bài học trong Chủ đề đang chọn</div>
                 <div class="drawer-nav">
                   ${lessons
-                    .map(
-                      (l) => `
+        .map(
+          (l) => `
                       <button class="drawer-item ${l.id === state.activeLessonId && state.activeTab === "theory" ? "active" : ""}" data-drawer-lesson="${l.id}">
                         <span style="font-size:0.8rem;line-height:1.35;">${escapeHtml(l.number)}: ${escapeHtml(l.title)}</span>
                       </button>
                     `
-                    )
-                    .join("")}
+        )
+        .join("")}
                 </div>
               </div>
             `
-            : ""
-        }
+      : ""
+    }
 
-        ${
-          isStaff
-            ? `
+        ${isStaff
+      ? `
               <div class="drawer-section">
                 <div class="drawer-section-title">Công cụ ${roleDisplayName(user.role)}</div>
                 <div style="display:flex;flex-direction:column;gap:6px;padding:0 6px;">
@@ -732,8 +990,8 @@ function renderMainShell() {
                 </div>
               </div>
             `
-            : ""
-        }
+      : ""
+    }
 
         <div class="drawer-footer">
           <div style="display:flex;align-items:center;gap:10px;padding:4px 6px;cursor:pointer;" id="btn-open-profile">
@@ -771,19 +1029,19 @@ function renderMainShell() {
 
           <div class="topics-rail-scroll" id="topics-rail-scroll">
             ${state.topicsList
-              .map((t, i) => {
-                const num = t.order_index || i + 1;
-                const themeCls = `topic-theme-${((num - 1) % 8) + 1}`;
-                const shortTitle = (t.title || "").replace(/^Chủ đề\s*\d+[\.\:]?\s*/i, "");
-                const isLoadingThis = state.topicLoading && state.loadingTopicId === t.id;
-                return `
-                  <button class="topic-color-card ${themeCls} ${t.id === state.activeTopicId && state.activeTab !== "mock_exam" ? "active" : ""} ${isLoadingThis ? "is-loading" : ""}" data-select-topic="${t.id}">
+      .map((t, i) => {
+        const num = t.order_index || i + 1;
+        const themeCls = `topic-theme-${((num - 1) % 8) + 1}`;
+        const shortTitle = (t.title || "").replace(/^Chủ đề\s*\d+[\.\:]?\s*/i, "");
+        const isLoadingThis = state.topicLoading && state.loadingTopicId === t.id;
+        return `
+                  <button class="topic-color-card ${themeCls} ${t.id === state.activeTopicId && isTopicTab ? "active" : ""} ${isLoadingThis ? "is-loading" : ""}" data-select-topic="${t.id}">
                     <span class="topic-color-badge">Chủ đề ${num}${isLoadingThis ? `<span class="topic-card-spinner" aria-hidden="true"></span>` : ""}</span>
                     <span class="topic-color-title">${escapeHtml(shortTitle || t.title)}</span>
                   </button>
                 `;
-              })
-              .join("")}
+      })
+      .join("")}
 
             <div class="topics-rail-divider">Kỳ thi &amp; Luyện đề</div>
             <button class="topic-color-card topic-theme-mock ${state.activeTab === "mock_exam" ? "active" : ""}" data-tab="mock_exam">
@@ -804,30 +1062,28 @@ function renderMainShell() {
         </aside>
 
         <section class="center-stage">
-          <!-- Balanced Scientific Navigation Tabs Bar -->
-          <nav class="center-tabs-bar" aria-label="Các thẻ nội dung">
-            <button class="center-tab-card ctab-theory ${state.activeTab === "theory" ? "active" : ""}" data-tab="theory">
-              ${ICONS.book}<span>1. Lý thuyết</span>
-            </button>
-            <button class="center-tab-card ctab-knowledge ${state.activeTab === "knowledge" ? "active" : ""}" data-tab="knowledge">
-              ${ICONS.layers}<span>2. Hệ thống kiến thức</span>
-            </button>
-            <button class="center-tab-card ctab-review ${state.activeTab === "review" ? "active" : ""}" data-tab="review">
-              ${ICONS.checkSquare}<span>3. Hệ thống ôn tập</span>
-            </button>
-            <button class="center-tab-card ctab-mock ${state.activeTab === "mock_exam" ? "active" : ""}" data-tab="mock_exam">
-              ${ICONS.award}<span>Thi thử TN THPT</span>
-            </button>
-            ${
-              !effectiveStudentView
-                ? `
-                  <button class="center-tab-card ctab-teacher ${state.activeTab === "teacher" ? "active" : ""}" data-tab="teacher">
-                    ${ICONS.barChart}<span>${isAdmin ? "Quản trị hệ thống" : "Quản lý lớp học"}</span>
+          ${
+            !isAdminView
+              ? `
+                <!-- Balanced Scientific Navigation Tabs Bar (Sticky when no subnav is present) -->
+                <div class="sticky-sentinel" data-sticky-sentinel="center-tabs" aria-hidden="true"></div>
+                <nav class="center-tabs-bar" id="center-tabs-bar" aria-label="Các thẻ nội dung">
+                  <button class="center-tab-card ctab-theory ${state.activeTab === "theory" ? "active" : ""}" data-tab="theory">
+                    ${ICONS.book}<span>1. Lý thuyết</span>
                   </button>
-                `
-                : ""
-            }
-          </nav>
+                  <button class="center-tab-card ctab-knowledge ${state.activeTab === "knowledge" ? "active" : ""}" data-tab="knowledge">
+                    ${ICONS.layers}<span>2. Hệ thống kiến thức</span>
+                  </button>
+                  <button class="center-tab-card ctab-review ${state.activeTab === "review" ? "active" : ""}" data-tab="review">
+                    ${ICONS.checkSquare}<span>3. Hệ thống ôn tập</span>
+                  </button>
+                  <button class="center-tab-card ctab-mock ${state.activeTab === "mock_exam" ? "active" : ""}" data-tab="mock_exam">
+                    ${ICONS.award}<span>Thi thử TN THPT</span>
+                  </button>
+                </nav>
+              `
+              : ""
+          }
 
           <div class="center-content-wrap" id="tab-view"></div>
 
@@ -891,13 +1147,14 @@ function renderMainShell() {
 
   document.getElementById("btn-brand-home")?.addEventListener("click", () => {
     state.activeTab = "theory";
+    syncCurrentUrl(false);
     render();
   });
 
   document.querySelectorAll("[data-select-topic]").forEach((btn) => {
     btn.addEventListener("click", () => {
       stopMockExamTimers();
-      if (state.activeTab === "mock_exam") {
+      if (state.activeTab === "mock_exam" || state.activeTab === "teacher" || state.activeTab === "profile") {
         state.activeTab = "theory";
       }
       switchTopicSmoothly(btn.dataset.selectTopic);
@@ -911,6 +1168,7 @@ function renderMainShell() {
       state.activeTab = "theory";
       state.theoryMode = "lessons";
       state.activeLessonId = btn.dataset.drawerLesson;
+      syncCurrentUrl(false);
       render();
     });
   });
@@ -927,6 +1185,7 @@ function renderMainShell() {
       state.mobileMenuOpen = false;
       state.activeTab = nextTab;
       sendThrottledHeartbeat(state.activeTopicId, state.activeTab);
+      syncCurrentUrl(false);
       render();
     });
   });
@@ -934,6 +1193,7 @@ function renderMainShell() {
   document.getElementById("btn-open-profile")?.addEventListener("click", () => {
     state.mobileMenuOpen = false;
     state.activeTab = "profile";
+    syncCurrentUrl(false);
     render();
   });
 
@@ -949,6 +1209,7 @@ function renderMainShell() {
     state.teacherPreviewAsStudent = !state.teacherPreviewAsStudent;
     if (state.teacherPreviewAsStudent && state.activeTab === "teacher") {
       state.activeTab = "theory";
+      syncCurrentUrl(false);
     }
     render();
   });
@@ -997,6 +1258,15 @@ function renderMainShell() {
       {
         currentUser: state.user,
         topicsList: state.topicsList,
+        initialSubtab: state.teacherSubtab,
+        initialContentSubMode: state.teacherContentSubMode,
+        initialExamMixerMode: state.teacherExamMixerMode,
+        onSubRouteChange: (patch, replace = false) => {
+          if (patch?.subtab) state.teacherSubtab = patch.subtab;
+          if (patch?.contentSubMode) state.teacherContentSubMode = patch.contentSubMode;
+          if (patch?.examMixerMode) state.teacherExamMixerMode = patch.examMixerMode;
+          syncCurrentUrl(replace);
+        },
         onSelectTopic: async (tid) => {
           state.activeTab = "theory";
           await switchTopicSmoothly(tid);
@@ -1011,6 +1281,7 @@ function renderMainShell() {
           }
           clientCache.invalidateTeacherData();
           await loadTopicsAndActive(newTopicId || state.activeTopicId, true);
+          syncCurrentUrl(true);
           render();
         },
       }
@@ -1018,11 +1289,20 @@ function renderMainShell() {
   } else if (state.activeTab === "profile") {
     renderProfileTab(tabView);
   }
+
+  setupStickyNavigation();
 }
 
 // ================== SHARED RICH CONTENT RENDERERS (với bài tập tương tác & đối chiếu đáp án) ==================
 function renderDocumentBlocks(blocks, editableEmptyCells = false) {
   return renderDocumentBlocksInteractive(blocks, editableEmptyCells);
+}
+
+function renderTopicBannerLayer(topic) {
+  if (topic?.banner_image) {
+    return `<div class="bio-header-banner-layer" aria-hidden="true"><img src="${escapeHtml(withBase(topic.banner_image))}" alt="" loading="lazy" /></div>`;
+  }
+  return ICONS.helixBg;
 }
 
 // ================== TAB 1: LÝ THUYẾT & THƯ VIỆN VIDEO YOUTUBE ==================
@@ -1042,8 +1322,8 @@ function renderTheoryTab(container) {
   const doneCount = lessons.filter((l) => state.completedLessonIds.has(l.id)).length;
 
   container.innerHTML = `
-    <div class="page-header bio-page-header">
-      ${ICONS.helixBg}
+    <div class="page-header bio-page-header ${topic.banner_image ? "has-banner" : ""}">
+      ${renderTopicBannerLayer(topic)}
       <div class="bio-page-header-main">
         <div class="bio-topic-kicker">
           <span class="bio-kicker-dot"></span>
@@ -1067,10 +1347,12 @@ function renderTheoryTab(container) {
 
   container.querySelector("#mode-lessons")?.addEventListener("click", () => {
     state.theoryMode = "lessons";
+    syncCurrentUrl(false);
     renderTheoryTab(container);
   });
   container.querySelector("#mode-youtube")?.addEventListener("click", () => {
     state.theoryMode = "youtube";
+    syncCurrentUrl(false);
     renderTheoryTab(container);
   });
 
@@ -1093,17 +1375,22 @@ function renderTheoryTab(container) {
   const lessonInteractiveIds = collectInteractiveUnitIds(allLessonBlocks);
 
   bodyEl.innerHTML = `
-    <div class="lesson-tabs-bar">
-      ${lessons
-        .map((l) => {
-          const done = state.completedLessonIds.has(l.id);
-          return `
-            <button class="lesson-pill-tab ${l.id === activeLesson.id ? "active" : ""}" data-lesson-id="${l.id}">
-              ${escapeHtml(l.number)}: ${escapeHtml(l.title)}${done ? " ✓" : ""}
+    <div class="sticky-sentinel" data-sticky-sub-sentinel aria-hidden="true"></div>
+    <div class="lesson-tabs-bar sticky-subnav">
+      <div class="sticky-lessons-list">
+        ${lessons
+      .map((l) => {
+        const done = state.completedLessonIds.has(l.id);
+        return `
+            <button class="lesson-pill-tab ${l.id === activeLesson.id ? "active" : ""}" data-lesson-id="${l.id}" title="${escapeHtml(l.number)}: ${escapeHtml(l.title)}">
+              <span class="lesson-pill-short">${escapeHtml(l.number)}${done ? " ✓" : ""}</span>
+              <span class="lesson-pill-full">${escapeHtml(l.number)}: ${escapeHtml(l.title)}${done ? " ✓" : ""}</span>
             </button>
           `;
-        })
-        .join("")}
+      })
+      .join("")}
+      </div>
+      ${renderQuickTabsMiniHtml("theory")}
     </div>
 
     <article class="card prose-article">
@@ -1120,22 +1407,21 @@ function renderTheoryTab(container) {
       ${renderInteractiveToolbar(lessonInteractiveIds, `bài ${activeLesson.number}`)}
 
       ${(activeLesson.sections || [])
-        .map((sec, sIdx) => {
-          const isYccd = /yêu cầu cần đạt/i.test(sec.heading || "");
-          const secKey = `sec-${sIdx}`;
-          const secHeading = (sec.heading || `Mục ${sIdx + 1}`).trim();
-          return `
+      .map((sec, sIdx) => {
+        const isYccd = /yêu cầu cần đạt/i.test(sec.heading || "");
+        const secKey = `sec-${sIdx}`;
+        const secHeading = (sec.heading || `Mục ${sIdx + 1}`).trim();
+        return `
           <section class="theory-section ${isYccd ? "yccd-box" : ""}" data-section-key="${secKey}" data-section-heading="${escapeHtml(secHeading)}">
             <h3>${formatBioHtml(sec.heading)}</h3>
-            ${
-              (sec.blocks || []).length
-                ? renderDocumentBlocks(sec.blocks, false)
-                : `<ul style="margin:0;padding-left:20px;color:var(--text-secondary);">${(sec.points || []).map((pt) => `<li>${formatBioHtml(pt)}</li>`).join("")}</ul>`
-            }
+            ${(sec.blocks || []).length
+            ? renderDocumentBlocks(sec.blocks, false)
+            : `<ul style="margin:0;padding-left:20px;color:var(--text-secondary);">${(sec.points || []).map((pt) => `<li>${formatBioHtml(pt)}</li>`).join("")}</ul>`
+          }
           </section>
         `;
-        })
-        .join("")}
+      })
+      .join("")}
 
       <div id="lesson-interactive-sim"></div>
 
@@ -1162,7 +1448,10 @@ function renderTheoryTab(container) {
   bodyEl.querySelectorAll("[data-lesson-id]").forEach((btn) => {
     btn.addEventListener("click", () => {
       state.activeLessonId = btn.dataset.lessonId;
+      syncCurrentUrl(false);
       renderTheoryTab(container);
+      const activePill = container.querySelector(`[data-lesson-id="${CSS.escape(state.activeLessonId)}"]`);
+      activePill?.scrollIntoView({ inline: "nearest", block: "nearest" });
       window.scrollTo({ top: 0, behavior: "smooth" });
     });
   });
@@ -1203,13 +1492,17 @@ function renderTheoryTab(container) {
 
   bodyEl.querySelector("#btn-open-yt-from-lesson")?.addEventListener("click", () => {
     state.theoryMode = "youtube";
+    syncCurrentUrl(false);
     renderTheoryTab(container);
   });
 
   bodyEl.querySelector("#btn-goto-review-from-lesson")?.addEventListener("click", () => {
     state.activeTab = "review";
+    syncCurrentUrl(false);
     render();
   });
+
+  setupStickyNavigation();
 }
 
 // ================== TAB 2: HỆ THỐNG KIẾN THỨC ==================
@@ -1222,13 +1515,19 @@ function renderKnowledgeTab(container) {
   }
 
   const units = ks.units || [];
-  let ksMode = units.length ? "source" : "mindmap";
-  let activeUnitIdx = 0;
+  let ksMode = units.length
+    ? state.knowledgeMode === "mindmap"
+      ? "mindmap"
+      : "source"
+    : "mindmap";
+  let activeUnitIdx = Math.min(Math.max(0, Number(state.knowledgeUnitIdx || 0)), Math.max(0, units.length - 1));
+  state.knowledgeMode = ksMode;
+  state.knowledgeUnitIdx = activeUnitIdx;
 
   const draw = () => {
     container.innerHTML = `
-      <div class="page-header bio-page-header">
-        ${ICONS.helixBg}
+      <div class="page-header bio-page-header ${topic.banner_image ? "has-banner" : ""}">
+        ${renderTopicBannerLayer(topic)}
         <div class="bio-page-header-main">
           <div class="bio-topic-kicker">
             <span class="bio-kicker-dot"></span>
@@ -1251,10 +1550,14 @@ function renderKnowledgeTab(container) {
 
     container.querySelector("#ks-mode-source")?.addEventListener("click", () => {
       ksMode = "source";
+      state.knowledgeMode = ksMode;
+      syncCurrentUrl(false);
       draw();
     });
     container.querySelector("#ks-mode-mindmap")?.addEventListener("click", () => {
       ksMode = "mindmap";
+      state.knowledgeMode = ksMode;
+      syncCurrentUrl(false);
       draw();
     });
 
@@ -1264,16 +1567,21 @@ function renderKnowledgeTab(container) {
       const unit = units[activeUnitIdx] || units[0];
       const unitInteractiveIds = collectInteractiveUnitIds(unit.blocks || []);
       bodyEl.innerHTML = `
-        <div class="lesson-tabs-bar">
-          ${units
-            .map(
-              (u, i) => `
-              <button class="lesson-pill-tab ${i === activeUnitIdx ? "active" : ""}" data-ks-unit="${i}">
-                ${escapeHtml(u.lesson_number)}: ${escapeHtml(u.lesson_title)}
+        <div class="sticky-sentinel" data-sticky-sub-sentinel aria-hidden="true"></div>
+        <div class="lesson-tabs-bar sticky-subnav">
+          <div class="sticky-lessons-list">
+            ${units
+          .map(
+            (u, i) => `
+              <button class="lesson-pill-tab ${i === activeUnitIdx ? "active" : ""}" data-ks-unit="${i}" title="${escapeHtml(u.lesson_number)}: ${escapeHtml(u.lesson_title)}">
+                <span class="lesson-pill-short">${escapeHtml(u.lesson_number)}</span>
+                <span class="lesson-pill-full">${escapeHtml(u.lesson_number)}: ${escapeHtml(u.lesson_title)}</span>
               </button>
             `
-            )
-            .join("")}
+          )
+          .join("")}
+          </div>
+          ${renderQuickTabsMiniHtml("knowledge")}
         </div>
 
         <article class="card prose-article prose-article-wide">
@@ -1296,9 +1604,15 @@ function renderKnowledgeTab(container) {
       bodyEl.querySelectorAll("[data-ks-unit]").forEach((btn) => {
         btn.addEventListener("click", () => {
           activeUnitIdx = Number(btn.dataset.ksUnit);
+          state.knowledgeUnitIdx = activeUnitIdx;
+          syncCurrentUrl(false);
           draw();
+          const activePill = container.querySelector(`[data-ks-unit="${activeUnitIdx}"]`);
+          activePill?.scrollIntoView({ inline: "nearest", block: "nearest" });
+          window.scrollTo({ top: 0, behavior: "smooth" });
         });
       });
+      setupStickyNavigation();
       return;
     }
 
@@ -1308,8 +1622,8 @@ function renderKnowledgeTab(container) {
           <h3 class="card-title">Sơ đồ tổng hợp theo bài</h3>
           <div class="mindmap-grid">
             ${(ks.mindmap?.branches || [])
-              .map(
-                (br) => `
+        .map(
+          (br) => `
                 <div class="mindmap-branch">
                   <div class="mindmap-branch-head" data-toggle-branch="${br.id}">
                     <span>${formatBioHtml(br.title)}</span>
@@ -1322,36 +1636,34 @@ function renderKnowledgeTab(container) {
                   </div>
                 </div>
               `
-              )
-              .join("")}
+        )
+        .join("")}
           </div>
         </section>
 
-        ${
-          (ks.formulas || []).length
-            ? `
+        ${(ks.formulas || []).length
+        ? `
               <section class="card">
                 <h3 class="card-title">Công thức &amp; Quy tắc trọng tâm</h3>
                 <div class="formula-grid">
                   ${ks.formulas
-                    .map(
-                      (f) => `
+          .map(
+            (f) => `
                       <div class="formula-card">
                         <strong style="font-size:0.86rem;">${formatBioHtml(f.name)}</strong>
                         <div class="formula-expr">${formatBioHtml(f.expression)}</div>
                       </div>
                     `
-                    )
-                    .join("")}
+          )
+          .join("")}
                 </div>
               </section>
             `
-            : ""
-        }
+        : ""
+      }
 
-        ${
-          (ks.flashcards || []).length
-            ? `
+        ${(ks.flashcards || []).length
+        ? `
               <section class="card">
                 <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
                   <h3 class="card-title" style="margin:0;">Thẻ ghi nhớ nhanh</h3>
@@ -1359,21 +1671,21 @@ function renderKnowledgeTab(container) {
                 </div>
                 <div class="flashcard-grid">
                   ${ks.flashcards
-                    .map(
-                      (fc, i) => `
+          .map(
+            (fc, i) => `
                       <div class="flashcard" data-fc-idx="${i}">
                         <span class="pill pill-primary" data-fc-tag>Thẻ ${i + 1}</span>
                         <div style="font-weight:600;margin:10px 0;font-size:0.9rem;" data-fc-text>${formatBioHtml(fc.front)}</div>
                         <small style="color:var(--text-muted);" data-fc-hint>Xem nội dung</small>
                       </div>
                     `
-                    )
-                    .join("")}
+          )
+          .join("")}
                 </div>
               </section>
             `
-            : ""
-        }
+        : ""
+      }
       </div>
     `;
 
@@ -1395,6 +1707,8 @@ function renderKnowledgeTab(container) {
         card.querySelector("[data-fc-hint]").textContent = flipped ? "Lật lại" : "Xem nội dung";
       });
     });
+
+    setupStickyNavigation();
   };
 
   draw();
@@ -1425,7 +1739,7 @@ function cleanupTheoryObserver() {
   if (_activeTheoryObserver) {
     try {
       _activeTheoryObserver.disconnect();
-    } catch {}
+    } catch { }
     _activeTheoryObserver = null;
   }
   _theorySectionTimers.forEach((t) => clearTimeout(t));
@@ -1452,7 +1766,7 @@ function setupTheorySectionObserver(bodyEl, topic, activeLesson) {
         sections,
       })
       .then(() => clientCache.invalidateTeacherData())
-      .catch(() => {});
+      .catch(() => { });
   };
 
   const queueSection = (secKey, secHeading, durSec = 5) => {
@@ -1548,13 +1862,12 @@ async function renderProfileTab(container) {
             <small style="color:var(--text-muted);">${sm.review_rounds_count} đợt · Đúng ${sm.review_correct_total}/${sm.review_questions_total} câu/ý</small>
           </div>
         </div>
-        ${
-          (myReport.topics || []).length
-            ? `
+        ${(myReport.topics || []).length
+      ? `
               <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:10px;">
                 ${myReport.topics
-                  .map(
-                    (tp) => `
+        .map(
+          (tp) => `
                     <div style="padding:10px 12px;border-radius:10px;background:#fff;border:1px solid var(--border);font-size:0.82rem;">
                       <div style="font-weight:700;margin-bottom:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="${escapeHtml(tp.title)}">${escapeHtml(tp.title)}</div>
                       <div class="progress-bar-track" style="margin-bottom:6px;"><div class="progress-bar-fill" style="width:${Math.min(100, tp.theory_pct)}%;"></div></div>
@@ -1564,12 +1877,12 @@ async function renderProfileTab(container) {
                       </div>
                     </div>
                   `
-                  )
-                  .join("")}
+        )
+        .join("")}
               </div>
             `
-            : ""
-        }
+      : ""
+    }
       </div>
     `
     : "";
@@ -1631,15 +1944,15 @@ async function renderProfileTab(container) {
             <label>Màu ảnh đại diện</label>
             <div style="display:flex;gap:8px;">
               ${colors
-                .map(
-                  (c) => `
+      .map(
+        (c) => `
                   <label style="cursor:pointer;">
                     <input type="radio" name="avatar_color" value="${c}" ${user.avatar_color === c ? "checked" : ""} style="display:none;" />
                     <span style="display:inline-block;width:24px;height:24px;border-radius:50%;background:${c};border:2.5px solid ${user.avatar_color === c ? "#0f172a" : "transparent"};"></span>
                   </label>
                 `
-                )
-                .join("")}
+      )
+      .join("")}
             </div>
           </div>
 
@@ -1674,12 +1987,11 @@ async function renderProfileTab(container) {
               <tr><th>Vào lớp</th><th>Rời lớp</th><th>Thời lượng</th><th>Trạng thái</th></tr>
             </thead>
             <tbody>
-              ${
-                state.mySessions.length
-                  ? state.mySessions
-                      .slice(0, 12)
-                      .map(
-                        (s) => `
+              ${state.mySessions.length
+      ? state.mySessions
+        .slice(0, 12)
+        .map(
+          (s) => `
                         <tr>
                           <td>${formatDateTimeVN(s.enter_time)}</td>
                           <td>${s.leave_time ? formatDateTimeVN(s.leave_time) : "Đang học"}</td>
@@ -1687,10 +1999,10 @@ async function renderProfileTab(container) {
                           <td>${s.status === "active" ? `<span class="pill pill-green">Đang học</span>` : `<span class="pill pill-muted">Hoàn thành</span>`}</td>
                         </tr>
                       `
-                      )
-                      .join("")
-                  : `<tr><td colspan="4" style="text-align:center;color:var(--text-muted);padding:18px;">Chưa có phiên học.</td></tr>`
-              }
+        )
+        .join("")
+      : `<tr><td colspan="4" style="text-align:center;color:var(--text-muted);padding:18px;">Chưa có phiên học.</td></tr>`
+    }
             </tbody>
           </table>
         </div>
@@ -1730,13 +2042,55 @@ async function renderProfileTab(container) {
 }
 
 // ================== ROOT RENDER & BOOTSTRAP ==================
+window.addEventListener("popstate", async () => {
+  if (!state.user || state.user.must_change_password) return;
+  const route = applyRouteGuardForUser(parseRoute(), state.user);
+  if (state.activeTab === "mock_exam" && route.activeTab !== "mock_exam") {
+    stopMockExamTimers();
+  }
+  if (state.activeTab === "theory" && route.activeTab !== "theory") {
+    cleanupTheoryObserver();
+  }
+  state.mobileMenuOpen = false;
+  state.activeTab = route.activeTab;
+  state.theoryMode = route.theoryMode || "lessons";
+  state.knowledgeMode = route.knowledgeMode || "source";
+  state.knowledgeUnitIdx = route.knowledgeUnitIdx || 0;
+  state.teacherSubtab = route.teacherSubtab || "members";
+  state.teacherContentSubMode = route.teacherContentSubMode || "add_topic";
+  state.teacherExamMixerMode = route.teacherExamMixerMode || "word";
+  clientCache.setTeacherData({
+    subtab: state.teacherSubtab,
+    contentSubMode: state.teacherContentSubMode,
+  });
+
+  if (
+    route.topicId &&
+    route.topicId !== state.activeTopicId &&
+    state.topicsList.some((t) => t.id === route.topicId)
+  ) {
+    await switchTopicSmoothly(route.topicId, route.lessonId || "", true);
+    return;
+  }
+
+  if (route.lessonId && (state.activeTopic?.lessons || []).some((l) => l.id === route.lessonId)) {
+    state.activeLessonId = route.lessonId;
+  }
+  sendThrottledHeartbeat(state.activeTopicId, state.activeTab);
+  render();
+});
+
 function render() {
+  setContentGuardAdmin(
+    Boolean(state.user && state.user.role === "admin" && !state.teacherPreviewAsStudent)
+  );
   if (!state.user) renderAuthView();
   else if (state.user.must_change_password) renderFirstLoginSetupView();
   else renderMainShell();
 }
 
 async function boot() {
+  initContentGuard(showToast);
   const token = getToken();
   if (token) {
     try {

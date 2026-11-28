@@ -86,14 +86,14 @@ function renderQuestionMedia(q) {
     html += `
       <div style="display:flex;gap:12px;flex-wrap:wrap;margin:10px 0;">
         ${q.images
-          .map(
-            (src) => `
+        .map(
+          (src) => `
             <figure class="lesson-hero-figure" style="margin:0;max-width:440px;">
               <img src="${withBase(src)}" alt="Hình minh họa câu hỏi" loading="lazy" style="max-height:280px;" />
             </figure>
           `
-          )
-          .join("")}
+        )
+        .join("")}
       </div>
     `;
   }
@@ -120,7 +120,7 @@ function renderQuestionMedia(q) {
 
 export function mountQuizSection(container, topic, user, showToast, opts = {}) {
   const canEditKeys = Boolean(opts.canEditKeys);
-  const onTopicUpdated = opts.onTopicUpdated || (() => {});
+  const onTopicUpdated = opts.onTopicUpdated || (() => { });
   const review = topic.review || { mcq: [], true_false: [], short_answer: [] };
   const lessons = topic.lessons || [];
 
@@ -188,7 +188,7 @@ export function mountQuizSection(container, topic, user, showToast, opts = {}) {
       recentAttempts = res.attempts || [];
       clientCache.setAttempts(topic.id, recentAttempts);
       renderHistoryBlock();
-    } catch {}
+    } catch { }
   }
 
   function resetAttempt(newMode = activeMode, shouldShuffle = false) {
@@ -494,50 +494,48 @@ export function mountQuizSection(container, topic, user, showToast, opts = {}) {
               ${renderQuestionMedia(q)}
               <div class="option-list">
                 ${opts
-                  .map((opt, optIdx) => {
-                    let cls = "option-btn";
-                    if (submitted && hasKey) {
-                      if (optIdx === corrIdx) cls += " correct";
-                      else if (optIdx === picked) cls += " wrong";
-                    } else if (optIdx === picked) {
-                      cls += " selected";
-                    }
-                    return `
+              .map((opt, optIdx) => {
+                let cls = "option-btn";
+                if (submitted && hasKey) {
+                  if (optIdx === corrIdx) cls += " correct";
+                  else if (optIdx === picked) cls += " wrong";
+                } else if (optIdx === picked) {
+                  cls += " selected";
+                }
+                return `
                       <button class="${cls}" data-mcq="${q.id}" data-opt="${optIdx}" ${submitted ? "disabled" : ""}>
                         <strong>${String.fromCharCode(65 + optIdx)}.</strong>
                         <span>${formatBioHtml(opt)}</span>
                       </button>
                     `;
-                  })
-                  .join("")}
+              })
+              .join("")}
               </div>
 
-              ${
-                canEditKeys && keyEditMode
-                  ? `
+              ${canEditKeys && keyEditMode
+              ? `
                     <div style="margin-top:10px;padding:8px 12px;border-radius:6px;background:var(--amber-soft);border:1px solid var(--amber-border);display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
                       <span style="font-size:0.8rem;font-weight:600;color:var(--amber);">Đáp án chuẩn (gốc):</span>
                       ${(q.options || [])
-                        .map(
-                          (_, optIdx) => `
+                .map(
+                  (_, optIdx) => `
                           <button type="button" class="btn btn-sm ${q.correct_index === optIdx ? "btn-primary" : "btn-secondary"}"
                                   data-set-mcq-key="${q.id}" data-key-idx="${optIdx}">
                             ${String.fromCharCode(65 + optIdx)}
                           </button>
                         `
-                        )
-                        .join("")}
+                )
+                .join("")}
                       ${renderLevelEditor("mcq", q)}
                     </div>
                   `
-                  : ""
-              }
+              : ""
+            }
 
-              ${
-                submitted && hasKey
-                  ? `<div class="explanation-box"><strong>Đáp án đúng: ${String.fromCharCode(65 + corrIdx)} (+${picked === corrIdx ? "0,25" : "0"}đ).</strong> ${formatBioHtml(q.explanation || "")}</div>`
-                  : ""
-              }
+              ${submitted && hasKey
+              ? `<div class="explanation-box"><strong>Đáp án đúng: ${String.fromCharCode(65 + corrIdx)} (+${picked === corrIdx ? "0,25" : "0"}đ).</strong> ${formatBioHtml(q.explanation || "")}</div>`
+              : ""
+            }
             </div>
           `;
         })
@@ -571,42 +569,39 @@ export function mountQuizSection(container, topic, user, showToast, opts = {}) {
                 <span class="q-num">Câu ${idx + 1} · ${escapeHtml(q.lesson || "")}</span>
                 <div style="display:flex;gap:6px;align-items:center;">
                   ${renderLevelBadge(q)}
-                  ${
-                    submitted && hasKey
-                      ? `<span class="pill ${rightCount === stmts.length ? "pill-green" : "pill-amber"}">Đúng ${rightCount}/${stmts.length} ý (+${gradeTrueFalseProgressive(rightCount)}đ)</span>`
-                      : !hasKey
-                      ? `<span class="pill pill-muted">Chưa có đáp án</span>`
-                      : ""
-                  }
+                  ${submitted && hasKey
+              ? `<span class="pill ${rightCount === stmts.length ? "pill-green" : "pill-amber"}">Đúng ${rightCount}/${stmts.length} ý (+${gradeTrueFalseProgressive(rightCount)}đ)</span>`
+              : !hasKey
+                ? `<span class="pill pill-muted">Chưa có đáp án</span>`
+                : ""
+            }
                 </div>
               </div>
               <div class="q-stem">${formatBioHtml(q.stem)}</div>
               ${renderQuestionMedia(q)}
               ${stmts
-                .map((st) => {
-                  const key = `${q.id}:${st.key}`;
-                  const val = answers.true_false[key];
-                  const isCorrect = submitted && hasKey && val === st.answer;
-                  return `
+              .map((st) => {
+                const key = `${q.id}:${st.key}`;
+                const val = answers.true_false[key];
+                const isCorrect = submitted && hasKey && val === st.answer;
+                return `
                     <div class="tf-row" style="${submitted && hasKey ? `border-color:${isCorrect ? "#16a34a" : "#dc2626"};background:${isCorrect ? "var(--green-soft)" : "var(--red-soft)"};` : ""}">
                       <div>
                         <strong>${escapeHtml(st.key)})</strong> ${formatBioHtml(st.text)}
-                        ${
-                          submitted && hasKey
-                            ? `<div style="margin-top:4px;font-size:0.82rem;color:var(--text-secondary);"><strong>Đáp án: ${st.answer ? "Đúng" : "Sai"}</strong>${st.explanation ? ` — ${formatBioHtml(st.explanation)}` : ""}</div>`
-                            : ""
-                        }
-                        ${
-                          canEditKeys && keyEditMode
-                            ? `
+                        ${submitted && hasKey
+                    ? `<div style="margin-top:4px;font-size:0.82rem;color:var(--text-secondary);"><strong>Đáp án: ${st.answer ? "Đúng" : "Sai"}</strong>${st.explanation ? ` — ${formatBioHtml(st.explanation)}` : ""}</div>`
+                    : ""
+                  }
+                        ${canEditKeys && keyEditMode
+                    ? `
                               <div style="margin-top:6px;display:flex;gap:6px;align-items:center;">
                                 <small style="color:var(--amber);font-weight:600;">Đáp án chuẩn:</small>
                                 <button type="button" class="btn btn-sm ${st.answer === true ? "btn-primary" : "btn-secondary"}" data-set-tf-key="${q.id}" data-stmt-key="${st.key}" data-tf-val="true">Đúng</button>
                                 <button type="button" class="btn btn-sm ${st.answer === false ? "btn-danger" : "btn-secondary"}" data-set-tf-key="${q.id}" data-stmt-key="${st.key}" data-tf-val="false">Sai</button>
                               </div>
                             `
-                            : ""
-                        }
+                    : ""
+                  }
                       </div>
                       <div class="tf-toggle-group">
                         <button class="tf-choice ${val === true ? "selected-true" : ""}" data-tf="${key}" data-val="true" ${submitted ? "disabled" : ""}>Đúng</button>
@@ -614,17 +609,16 @@ export function mountQuizSection(container, topic, user, showToast, opts = {}) {
                       </div>
                     </div>
                   `;
-                })
-                .join("")}
-              ${
-                canEditKeys && keyEditMode
-                  ? `
+              })
+              .join("")}
+              ${canEditKeys && keyEditMode
+              ? `
                     <div style="margin-top:10px;padding:8px 12px;border-radius:6px;background:var(--amber-soft);border:1px solid var(--amber-border);display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
                       ${renderLevelEditor("true_false", q)}
                     </div>
                   `
-                  : ""
-              }
+              : ""
+            }
             </div>
           `;
         })
@@ -651,13 +645,12 @@ export function mountQuizSection(container, topic, user, showToast, opts = {}) {
                 <span class="q-num">Câu ${idx + 1} · ${escapeHtml(q.lesson || "")}</span>
                 <div style="display:flex;gap:6px;align-items:center;">
                   ${renderLevelBadge(q)}
-                  ${
-                    submitted && hasKey
-                      ? `<span class="pill ${isCorrect ? "pill-green" : "pill-red"}">${isCorrect ? "Đúng (+0,25đ)" : "Chưa đúng"}</span>`
-                      : !hasKey
-                      ? `<span class="pill pill-muted">Chưa có đáp án</span>`
-                      : ""
-                  }
+                  ${submitted && hasKey
+              ? `<span class="pill ${isCorrect ? "pill-green" : "pill-red"}">${isCorrect ? "Đúng (+0,25đ)" : "Chưa đúng"}</span>`
+              : !hasKey
+                ? `<span class="pill pill-muted">Chưa có đáp án</span>`
+                : ""
+            }
                 </div>
               </div>
               <div class="q-stem">${formatBioHtml(q.question)}</div>
@@ -671,9 +664,8 @@ export function mountQuizSection(container, topic, user, showToast, opts = {}) {
                 <span style="font-size:0.78rem;color:var(--text-muted);">Tối đa 4 ký tự gồm chữ số, dấu âm (-) và dấu phẩy (,)</span>
               </div>
 
-              ${
-                canEditKeys && keyEditMode
-                  ? `
+              ${canEditKeys && keyEditMode
+              ? `
                     <div style="margin-top:10px;padding:8px 12px;border-radius:6px;background:var(--amber-soft);border:1px solid var(--amber-border);display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
                       <span style="font-size:0.8rem;font-weight:600;color:var(--amber);">Đáp án chuẩn (tối đa 4 ký tự):</span>
                       <input type="text" class="form-control form-control-sm" style="max-width:140px;"
@@ -682,14 +674,13 @@ export function mountQuizSection(container, topic, user, showToast, opts = {}) {
                       ${renderLevelEditor("short_answer", q)}
                     </div>
                   `
-                  : ""
-              }
+              : ""
+            }
 
-              ${
-                submitted && hasKey
-                  ? `<div class="explanation-box"><strong>Đáp án chuẩn: ${formatBioHtml((q.accepted_answers || [])[0] || "")}</strong>${q.explanation ? `<br/>${formatBioHtml(q.explanation)}` : ""}</div>`
-                  : ""
-              }
+              ${submitted && hasKey
+              ? `<div class="explanation-box"><strong>Đáp án chuẩn: ${formatBioHtml((q.accepted_answers || [])[0] || "")}</strong>${q.explanation ? `<br/>${formatBioHtml(q.explanation)}` : ""}</div>`
+              : ""
+            }
             </div>
           `;
         })
@@ -718,9 +709,9 @@ export function mountQuizSection(container, topic, user, showToast, opts = {}) {
           </thead>
           <tbody>
             ${recentAttempts
-              .slice(0, 8)
-              .map(
-                (a) => `
+        .slice(0, 8)
+        .map(
+          (a) => `
                 <tr>
                   <td><strong>${typeLabel[a.quiz_type] || a.quiz_type}</strong></td>
                   <td><span class="pill pill-primary">${a.score} / ${a.max_score}</span></td>
@@ -729,8 +720,8 @@ export function mountQuizSection(container, topic, user, showToast, opts = {}) {
                   <td>${formatDateTimeVN(a.submitted_at)}</td>
                 </tr>
               `
-              )
-              .join("")}
+        )
+        .join("")}
           </tbody>
         </table>
       </div>
@@ -747,20 +738,28 @@ export function mountQuizSection(container, topic, user, showToast, opts = {}) {
     const lists = activeLists;
 
     container.innerHTML = `
-      <div class="page-header">
-        <div>
+      <div class="page-header bio-page-header ${topic.banner_image ? "has-banner" : ""}">
+        ${
+          topic.banner_image
+            ? `<div class="bio-header-banner-layer" aria-hidden="true"><img src="${escapeHtml(withBase(topic.banner_image))}" alt="" loading="lazy" /></div>`
+            : ""
+        }
+        <div class="bio-page-header-main">
+          <div class="bio-topic-kicker">
+            <span class="bio-kicker-dot"></span>
+            <span>HỆ THỐNG ÔN TẬP · SINH HỌC 12</span>
+          </div>
           <h1>Hệ thống ôn tập — ${formatBioHtml(topic.title)}</h1>
           <p>${mcqTotal + tfTotal + saTotal} câu hỏi · ${mcqKeyed + tfKeyed + saKeyed} câu có sẵn đáp án chấm tự động${shuffleCount > 0 ? ` · Đã trộn bộ đề #${shuffleCount}` : ""}</p>
         </div>
-        ${
-          canEditKeys
-            ? `
-              <button class="btn btn-sm ${keyEditMode ? "btn-primary" : "btn-secondary"}" id="toggle-key-edit">
+        ${canEditKeys
+        ? `
+              <button class="btn btn-sm ${keyEditMode ? "btn-primary" : "btn-secondary"}" id="toggle-key-edit" style="position:relative;z-index:1;">
                 ${keyEditMode ? "Hoàn tất chỉnh sửa đáp án" : "Chỉnh sửa đáp án & mức độ"}
               </button>
             `
-            : ""
-        }
+        : ""
+      }
       </div>
 
       <div class="quiz-mode-strip">
@@ -789,17 +788,24 @@ export function mountQuizSection(container, topic, user, showToast, opts = {}) {
         </button>
       </div>
 
-      <div class="filter-bar">
+      <div class="sticky-sentinel" data-sticky-sub-sentinel aria-hidden="true"></div>
+      <div class="filter-bar sticky-subnav quiz-sticky-bar">
+        <div class="quiz-sticky-modes" aria-label="Chuyển nhanh phần ôn tập">
+          <button type="button" class="quiz-mini-mode ${activeMode === "mcq" ? "active" : ""}" data-qmode="mcq">3.1 TN</button>
+          <button type="button" class="quiz-mini-mode ${activeMode === "true_false" ? "active" : ""}" data-qmode="true_false">3.2 Đ/S</button>
+          <button type="button" class="quiz-mini-mode ${activeMode === "short_answer" ? "active" : ""}" data-qmode="short_answer">3.3 TLN</button>
+          <button type="button" class="quiz-mini-mode ${activeMode === "combined" ? "active" : ""}" data-qmode="combined">Tổng hợp</button>
+        </div>
         <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
           <label style="font-size:0.82rem;font-weight:600;color:var(--text-muted);">Bài học:</label>
           <select id="quiz-lesson-filter" class="form-control form-control-sm" style="width:auto;min-width:210px;">
             <option value="all" ${lessonFilter === "all" ? "selected" : ""}>Tất cả các bài</option>
             ${lessons
-              .map(
-                (ls) =>
-                  `<option value="${ls.id}" ${lessonFilter === ls.id ? "selected" : ""}>${escapeHtml(ls.number)}: ${escapeHtml(ls.title)}</option>`
-              )
-              .join("")}
+        .map(
+          (ls) =>
+            `<option value="${ls.id}" ${lessonFilter === ls.id ? "selected" : ""}>${escapeHtml(ls.number)}: ${escapeHtml(ls.title)}</option>`
+        )
+        .join("")}
           </select>
 
           <label style="font-size:0.82rem;font-weight:600;color:var(--text-muted);">Hiển thị:</label>
@@ -811,28 +817,32 @@ export function mountQuizSection(container, topic, user, showToast, opts = {}) {
           </select>
         </div>
         <button type="button" class="btn btn-soft btn-sm" id="quiz-reset-btn">Làm mới câu hỏi</button>
+        <div class="sticky-subnav-quick" aria-label="Chuyển nhanh mục học">
+          <button type="button" class="sticky-qtab" data-quick-tab="theory" title="1. Lý thuyết">LT</button>
+          <button type="button" class="sticky-qtab" data-quick-tab="knowledge" title="2. Hệ thống kiến thức">KT</button>
+          <button type="button" class="sticky-qtab active" data-quick-tab="review" title="3. Hệ thống ôn tập">Ôn tập</button>
+          <button type="button" class="sticky-qtab" data-quick-tab="mock_exam" title="Thi thử TN THPT">Thi thử</button>
+          <button type="button" class="sticky-qtab sticky-qtab-top" data-scroll-top title="Lên đầu trang">↑</button>
+        </div>
       </div>
 
-      ${
-        submitted && resultSummary
-          ? `
+      ${submitted && resultSummary
+        ? `
             <div class="card" style="margin-bottom:18px;border-color:var(--primary-border);background:var(--surface-tint);">
               <div style="display:flex;justify-content:space-between;align-items:center;gap:14px;flex-wrap:wrap;">
                 <div>
                   <span class="pill pill-green">Đã lưu kết quả</span>
                   <h2 style="margin:6px 0 4px;font-size:1.18rem;">
-                    ${
-                      resultSummary.maxScore > 0
-                        ? `Điểm số: ${resultSummary.score} / ${resultSummary.maxScore} điểm`
-                        : `Đã ghi nhận ${resultSummary.answeredPendingCount} câu trả lời`
-                    }
+                    ${resultSummary.maxScore > 0
+          ? `Điểm số: ${resultSummary.score} / ${resultSummary.maxScore} điểm`
+          : `Đã ghi nhận ${resultSummary.answeredPendingCount} câu trả lời`
+        }
                   </h2>
                   <p style="margin:0;color:var(--text-secondary);font-size:0.86rem;">
-                    ${
-                      resultSummary.maxScore > 0
-                        ? `Đúng <strong>${resultSummary.correctCount}/${resultSummary.totalGradable}</strong> câu/ý (Tỉ lệ đúng: <strong>${resultSummary.accuracyPct}%</strong>) · Phạm vi: ${escapeHtml(resultSummary.lessonFilterLabel || "Toàn chủ đề")} · `
-                        : ""
-                    }
+                    ${resultSummary.maxScore > 0
+          ? `Đúng <strong>${resultSummary.correctCount}/${resultSummary.totalGradable}</strong> câu/ý (Tỉ lệ đúng: <strong>${resultSummary.accuracyPct}%</strong>) · Phạm vi: ${escapeHtml(resultSummary.lessonFilterLabel || "Toàn chủ đề")} · `
+          : ""
+        }
                     Thời gian làm bài: ${formatDuration(resultSummary.durationSeconds)}
                   </p>
                 </div>
@@ -843,7 +853,7 @@ export function mountQuizSection(container, topic, user, showToast, opts = {}) {
               </div>
             </div>
           `
-          : ""
+        : ""
       }
 
       <div>
@@ -852,14 +862,13 @@ export function mountQuizSection(container, topic, user, showToast, opts = {}) {
         ${activeMode === "short_answer" || activeMode === "combined" ? renderShortAnswerList(lists.short_answer) : ""}
       </div>
 
-      ${
-        !submitted
-          ? `
+      ${!submitted
+        ? `
             <div style="display:flex;justify-content:flex-end;gap:10px;margin:20px 0 28px;">
               <button type="button" class="btn btn-primary btn-lg" id="quiz-submit-btn">Nộp bài &amp; Chấm điểm</button>
             </div>
           `
-          : ""
+        : ""
       }
 
       <div class="card" style="margin-top:20px;">
@@ -869,11 +878,15 @@ export function mountQuizSection(container, topic, user, showToast, opts = {}) {
     `;
 
     container.querySelectorAll("[data-qmode]").forEach((card) => {
-      card.addEventListener("click", () => resetAttempt(card.dataset.qmode, false));
+      card.addEventListener("click", () => {
+        resetAttempt(card.dataset.qmode, false);
+        window.scrollTo({ top: 0, behavior: "smooth" });
+      });
     });
     container.querySelector("#quiz-lesson-filter")?.addEventListener("change", (e) => {
       lessonFilter = e.target.value;
       resetAttempt(activeMode, false);
+      window.scrollTo({ top: 0, behavior: "smooth" });
     });
     container.querySelector("#quiz-batch-limit")?.addEventListener("change", (e) => {
       batchLimit = Number(e.target.value);
@@ -961,6 +974,7 @@ export function mountQuizSection(container, topic, user, showToast, opts = {}) {
     container.querySelector("#quiz-retry-same-btn")?.addEventListener("click", () => resetAttempt(activeMode, false));
 
     renderHistoryBlock();
+    window.dispatchEvent(new CustomEvent("sh12:refresh-sticky"));
   }
 
   buildActiveLists(false);

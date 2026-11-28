@@ -112,7 +112,9 @@ export const clientCache = {
   },
 };
 
-export const BASE_PATH = window.location.pathname.startsWith("/sinhhoc12") ? "/sinhhoc12" : "";
+const _locPath = typeof window !== "undefined" ? window.location.pathname : "";
+export const BASE_PATH =
+  _locPath === "/sinhhoc12" || _locPath.startsWith("/sinhhoc12/") ? "/sinhhoc12" : "";
 
 export function withBase(path) {
   if (!path) return "";
@@ -348,6 +350,23 @@ export const api = {
 
   cleanupDraftTopic: (id) =>
     apiRequest(`/api/topics/${encodeURIComponent(id)}/cleanup-draft`, {
+      method: "POST",
+      body: JSON.stringify({}),
+    }),
+
+  uploadTopicBanner: (id, file, onProgress) => {
+    const qs = new URLSearchParams({
+      filename: (file && file.name) || "banner.png",
+    });
+    return apiBinaryUpload(
+      `/api/topics/${encodeURIComponent(id)}/banner?${qs.toString()}`,
+      file,
+      onProgress
+    );
+  },
+
+  deleteTopicBanner: (id) =>
+    apiRequest(`/api/topics/${encodeURIComponent(id)}/banner/delete`, {
       method: "POST",
       body: JSON.stringify({}),
     }),
