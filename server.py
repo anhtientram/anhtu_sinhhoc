@@ -94,6 +94,84 @@ class _IncompleteUploadError(Exception):
 # Bộ nhớ tạm lưu các gói đề trộn (.docx + .xlsx) vừa tạo để tải xuống nhanh
 EXAM_EXPORTS = {}
 
+_BANNER_PREFIX = "banner_"
+_MAX_BANNER_BYTES = 8 * 1024 * 1024
+
+
+def _detect_banner_ext(file_bytes: bytes, filename: str = "") -> str:
+    """Kiểm tra magic bytes của ảnh banner hợp lệ (.png, .jpg, .webp, .gif)."""
+    if not file_bytes or len(file_bytes) < 12:
+        return ""
+    if file_bytes.startswith(b"\x89PNG\r\n\x1a\n"):
+        return ".png"
+    if file_bytes.startswith(b"\xff\xd8\xff"):
+        return ".jpg"
+    if file_bytes[:4] == b"RIFF" and file_bytes[8:12] == b"WEBP":
+        return ".webp"
+    if file_bytes.startswith((b"GIF87a", b"GIF89a")):
+        return ".gif"
+    return ""
+
+
+def _topic_uploads_dirs(topic_id: str) -> list[str]:
+    dirs = []
+    if EXTRA_UPLOADS_DIR:
+        dirs.append(os.path.join(EXTRA_UPLOADS_DIR, topic_id))
+    static_dir = os.path.join(STATIC_DIR, "uploads", topic_id)
+    if static_dir not in dirs:
+        dirs.append(static_dir)
+    return dirs
+
+
+def _remove_topic_banner_files(topic_id: str) -> int:
+    """Xoá mọi file banner cũ của chủ đề để mỗi chủ đề chỉ lưu duy nhất 1 ảnh banner."""
+    removed = 0
+    for d in _topic_uploads_dirs(topic_id):
+        if not os.path.isdir(d):
+            continue
+        try:
+            for fn in os.listdir(d):
+                if fn.startswith(_BANNER_PREFIX):
+                    try:
+                        os.remove(os.path.join(d, fn))
+                        removed += 1
+                    except OSError:
+                        pass
+        except OSError:
+            pass
+    return removed
+
+
+def _save_topic_banner_file(topic_id: str, file_bytes: bytes, filename: str = "") -> str:
+    """Lưu duy nhất 1 ảnh banner cho chủ đề (tự xoá ảnh banner cũ trước khi ghi)."""
+    if not file_bytes:
+        raise ValueError("Tệp ảnh banner trống.")
+    if len(file_bytes) > _MAX_BANNER_BYTES:
+        raise ValueError("Ảnh banner vượt quá giới hạn 8 MB.")
+    ext = _detect_banner_ext(file_bytes, filename)
+    if not ext:
+        raise ValueError("Định dạng ảnh không hợp lệ (chỉ hỗ trợ PNG, JPG, WebP, GIF).")
+    _remove_topic_banner_files(topic_id)
+    root_dir = EXTRA_UPLOADS_DIR or os.path.join(STATIC_DIR, "uploads")
+    target_dir = os.path.join(root_dir, topic_id)
+    os.makedirs(target_dir, exist_ok=True)
+    digest = hashlib.sha1(file_bytes).hexdigest()[:10]
+    fname = f"{_BANNER_PREFIX}{digest}{ext}"
+    with open(os.path.join(target_dir, fname), "wb") as f:
+        f.write(file_bytes)
+    return f"/uploads/{topic_id}/{fname}"
+
+
+def _extract_banner_from_json(content_json: str) -> str:
+    if not content_json:
+        return ""
+    try:
+        obj = json.loads(content_json)
+        val = obj.get("banner_image") if isinstance(obj, dict) else ""
+        return str(val or "").strip()
+    except Exception:
+        return ""
+
 
 def _find_sample_exams_dir() -> str:
     """Tìm thư mục 'FILE ĐỀ MẪU' (hỗ trợ cả Unicode NFC/NFD, chữ đ/Đ, dấu cách thừa, hoặc nằm trong data/)."""
@@ -485,9 +563,22 @@ class Bio12Handler(BaseHTTPRequestHandler):
                 c = get_conn()
                 try:
                     rows = c.execute(
-                        "SELECT id, order_index, title, subtitle, status, updated_at FROM topics ORDER BY order_index ASC"
+                        "SELECT id, order_index, title, subtitle, status, content_json, updated_at FROM topics ORDER BY order_index ASC"
                     ).fetchall()
-                    return {"topics": [dict(r) for r in rows]}
+                    return {
+                        "topics": [
+                            {
+                                "id": r["id"],
+                                "order_index": r["order_index"],
+                                "title": r["title"],
+                                "subtitle": r["subtitle"],
+                                "status": r["status"],
+                                "updated_at": r["updated_at"],
+                                "banner_image": _extract_banner_from_json(r["content_json"]),
+                            }
+                            for r in rows
+                        ]
+                    }
                 finally:
                     c.close()
 
@@ -1384,12 +1475,55 @@ class Bio12Handler(BaseHTTPRequestHandler):
             meta, file_bytes = self._parse_upload_request(qs)
             return self._handle_import_topic_file(m_imp.group(1), meta, file_bytes, qs)
 
+        m_banner = re.match(r"^/api/topics/([a-zA-Z0-9_-]+)/banner$", path)
+        if m_banner:
+            meta, file_bytes = self._parse_upload_request(qs)
+            return self._handle_upload_topic_banner(m_banner.group(1), meta, file_bytes, qs)
+
         body = self.read_json_body()
 
         with DB_LOCK:
             conn = get_conn()
             try:
                 self._dispatch_post(conn, path, qs, body)
+            finally:
+                conn.close()
+
+    def _handle_upload_topic_banner(self, tid: str, body, file_bytes: bytes, qs):
+        filename = (body.get("filename") or "banner.png").strip()
+        with DB_LOCK:
+            conn = get_conn()
+            try:
+                staff = self.require_admin(conn, qs, body)
+                if not staff:
+                    return
+                row = conn.execute("SELECT * FROM topics WHERE id = ?", (tid,)).fetchone()
+                if not row:
+                    return self.send_json(404, {"error": "Không tìm thấy chủ đề."})
+                try:
+                    banner_url = _save_topic_banner_file(tid, file_bytes, filename)
+                except ValueError as ve:
+                    return self.send_json(400, {"error": str(ve)})
+                content = json.loads(row["content_json"])
+                content["id"] = tid
+                content["banner_image"] = banner_url
+                ts = now_iso()
+                conn.execute(
+                    "UPDATE topics SET content_json = ?, updated_by = ?, updated_at = ? WHERE id = ?",
+                    (json.dumps(content, ensure_ascii=False), staff["id"], ts, tid),
+                )
+                conn.commit()
+                app_cache.invalidate_topics(tid)
+                return self.send_json(
+                    200,
+                    {
+                        "ok": True,
+                        "topic_id": tid,
+                        "banner_image": banner_url,
+                        "updated_at": ts,
+                        "message": f"Đã cập nhật ảnh banner cho '{row['title']}'!",
+                    },
+                )
             finally:
                 conn.close()
 
@@ -2134,6 +2268,37 @@ class Bio12Handler(BaseHTTPRequestHandler):
                     return self.send_json(200, {"ok": True, "cleaned": False})
                 cleaned = cleanup_topic_uploads(tid)
                 return self.send_json(200, {"ok": True, "cleaned": cleaned})
+
+            # Admin: Xoá ảnh banner của Chủ đề
+            m_del_banner = re.match(r"^/api/topics/([a-zA-Z0-9_-]+)/banner/delete$", path)
+            if m_del_banner:
+                staff = self.require_admin(conn, qs, body)
+                if not staff:
+                    return
+                tid = m_del_banner.group(1)
+                row = conn.execute("SELECT * FROM topics WHERE id = ?", (tid,)).fetchone()
+                if not row:
+                    return self.send_json(404, {"error": "Không tìm thấy chủ đề."})
+                _remove_topic_banner_files(tid)
+                content = json.loads(row["content_json"])
+                content.pop("banner_image", None)
+                ts = now_iso()
+                conn.execute(
+                    "UPDATE topics SET content_json = ?, updated_by = ?, updated_at = ? WHERE id = ?",
+                    (json.dumps(content, ensure_ascii=False), staff["id"], ts, tid),
+                )
+                conn.commit()
+                app_cache.invalidate_topics(tid)
+                return self.send_json(
+                    200,
+                    {
+                        "ok": True,
+                        "topic_id": tid,
+                        "banner_image": "",
+                        "updated_at": ts,
+                        "message": f"Đã xoá ảnh banner của '{row['title']}'.",
+                    },
+                )
 
             # Staff: Xoá toàn bộ cache Redis + L1 Memory thủ công
             if path == "/api/admin/cache-clear":
@@ -2941,6 +3106,14 @@ class Bio12Handler(BaseHTTPRequestHandler):
                 if not isinstance(content, dict):
                     return self.send_json(400, {"error": "Dữ liệu chủ đề không hợp lệ."})
 
+                old_content = {}
+                try:
+                    old_content = json.loads(row["content_json"]) or {}
+                except Exception:
+                    old_content = {}
+                if "banner_image" not in content and old_content.get("banner_image"):
+                    content["banner_image"] = old_content["banner_image"]
+
                 content["id"] = tid
                 title = (content.get("title") or row["title"]).strip()
                 subtitle = (content.get("subtitle") or row["subtitle"]).strip()
@@ -3117,6 +3290,7 @@ def prewarm_caches():
                 "subtitle": r["subtitle"],
                 "status": r["status"],
                 "updated_at": r["updated_at"],
+                "banner_image": _extract_banner_from_json(r["content_json"]),
             }
             for r in rows
         ]

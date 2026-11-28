@@ -964,6 +964,8 @@ def seed_initial_data(conn):
                         merged = dict(tdata)
                         if old_data.get("youtube_videos") and not merged.get("youtube_videos"):
                             merged["youtube_videos"] = old_data["youtube_videos"]
+                        if old_data.get("banner_image") and not merged.get("banner_image"):
+                            merged["banner_image"] = old_data["banner_image"]
                         cur.execute(
                             """
                             UPDATE topics

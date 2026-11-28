@@ -354,6 +354,23 @@ export const api = {
       body: JSON.stringify({}),
     }),
 
+  uploadTopicBanner: (id, file, onProgress) => {
+    const qs = new URLSearchParams({
+      filename: (file && file.name) || "banner.png",
+    });
+    return apiBinaryUpload(
+      `/api/topics/${encodeURIComponent(id)}/banner?${qs.toString()}`,
+      file,
+      onProgress
+    );
+  },
+
+  deleteTopicBanner: (id) =>
+    apiRequest(`/api/topics/${encodeURIComponent(id)}/banner/delete`, {
+      method: "POST",
+      body: JSON.stringify({}),
+    }),
+
   cacheStatus: () => apiRequest("/api/admin/cache-status"),
 
   cacheClear: () =>

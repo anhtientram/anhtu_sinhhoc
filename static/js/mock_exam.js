@@ -580,9 +580,8 @@ export function mountMockExamSection(container, { currentUser, effectiveStudentV
           </div>
         </div>
 
-        ${
-          canAdd
-            ? `
+        ${canAdd
+        ? `
               <div class="mock-upload-bar">
                 <div class="mock-upload-info">
                   <div style="font-weight:700;font-size:0.95rem;color:var(--text);">
@@ -611,9 +610,8 @@ export function mountMockExamSection(container, { currentUser, effectiveStudentV
                   <div><strong>• Gợi ý đáp án:</strong> Tự động nhận diện nội dung sau cụm từ <code><strong>Giải chi tiết</strong></code> (hoặc <code>Hướng dẫn giải chi tiết</code>) đưa vào phần <strong>Đáp án gợi ý</strong>.</div>
                 </div>
               </div>
-              ${
-                st.uploading
-                  ? `
+              ${st.uploading
+          ? `
                     <div class="mock-upload-progress">
                       <div class="mock-upload-progress-bar" style="width:${st.uploadPercent}%;"></div>
                     </div>
@@ -621,23 +619,22 @@ export function mountMockExamSection(container, { currentUser, effectiveStudentV
                       ${st.uploadPhase === "processing" ? "Đang trích xuất câu hỏi, hình ảnh và đáp án từ tệp..." : `Đang tải tệp lên máy chủ (${st.uploadPercent}%)...`}
                     </div>
                   `
-                  : ""
-              }
-            `
-            : ""
+          : ""
         }
+            `
+        : ""
+      }
       </div>
 
-      ${
-        st.loading
-          ? `
+      ${st.loading
+        ? `
             <div class="card" style="padding:36px;text-align:center;">
               <div class="spinner" style="margin:0 auto 12px;"></div>
               <div style="color:var(--text-secondary);">Đang tải danh sách đề thi thử...</div>
             </div>
           `
-          : st.exams.length === 0
-            ? `
+        : st.exams.length === 0
+          ? `
               <div class="card" style="padding:40px 24px;text-align:center;">
                 <div style="font-size:2rem;margin-bottom:8px;">📝</div>
                 <h3 style="margin:0 0 6px;">Chưa có đề thi thử nào trong Phòng luyện tập</h3>
@@ -646,23 +643,49 @@ export function mountMockExamSection(container, { currentUser, effectiveStudentV
                 </p>
               </div>
             `
-            : `
+          : `
+              ${st.exams.length > 1
+            ? `
+                    <div class="sticky-sentinel" data-sticky-sub-sentinel aria-hidden="true"></div>
+                    <div class="lesson-tabs-bar sticky-subnav mock-lobby-jump-bar" aria-label="Điều hướng nhanh các đề thi">
+                      <div class="sticky-lessons-list">
+                        ${st.exams
+              .map(
+                (ex) => `
+                          <button type="button" class="lesson-pill-tab" data-jump-exam-card="${ex.id}" title="Đề số ${ex.order_number}">
+                            <span class="lesson-pill-short">Đề ${ex.order_number}</span>
+                            <span class="lesson-pill-full">Đề số ${ex.order_number}</span>
+                          </button>
+                        `
+              )
+              .join("")}
+                      </div>
+                      <div class="sticky-subnav-quick" aria-label="Chuyển nhanh mục học">
+                        <button type="button" class="sticky-qtab" data-quick-tab="theory" title="1. Lý thuyết">LT</button>
+                        <button type="button" class="sticky-qtab" data-quick-tab="knowledge" title="2. Hệ thống kiến thức">KT</button>
+                        <button type="button" class="sticky-qtab" data-quick-tab="review" title="3. Hệ thống ôn tập">Ôn tập</button>
+                        <button type="button" class="sticky-qtab active" data-quick-tab="mock_exam" title="Thi thử TN THPT">Thi thử</button>
+                        <button type="button" class="sticky-qtab sticky-qtab-top" data-scroll-top title="Lên đầu trang">↑</button>
+                      </div>
+                    </div>
+                  `
+            : ""
+          }
               <div class="mock-exams-grid">
                 ${st.exams
-                  .map(
-                    (ex) => `
-                    <article class="mock-exam-card">
+            .map(
+              (ex) => `
+                    <article class="mock-exam-card" id="mock-card-${ex.id}">
                       <div class="mock-exam-card-head">
                         <div class="mock-exam-kicker">${escapeHtml(ex.header_label || "PHÒNG LUYỆN TẬP")}</div>
                         <div class="mock-exam-stt-row">
                           <h3 class="mock-exam-title">${escapeHtml(ex.title || `Đề số ${ex.order_number}`)}</h3>
                           <span class="mock-exam-time-badge">⏱ Thời gian: ${ex.duration_minutes || 45} phút</span>
                         </div>
-                        ${
-                          ex.subtitle
-                            ? `<div class="mock-exam-subtitle">${escapeHtml(ex.subtitle)}</div>`
-                            : ""
-                        }
+                        ${ex.subtitle
+                  ? `<div class="mock-exam-subtitle">${escapeHtml(ex.subtitle)}</div>`
+                  : ""
+                }
                       </div>
 
                       <div class="mock-exam-meta-grid">
@@ -674,53 +697,47 @@ export function mountMockExamSection(container, { currentUser, effectiveStudentV
 
                       <div class="mock-exam-status-row">
                         <span>Tổng <strong>${ex.question_count}</strong> câu hỏi</span>
-                        ${
-                          ex.my_attempt_count > 0
-                            ? `<span class="pill pill-emerald">Điểm cao nhất: <strong>${formatScoreVN(ex.my_best_score)}/${formatScoreVN(ex.max_score)}</strong> (${ex.my_attempt_count} lượt)</span>`
-                            : `<span style="color:var(--text-muted);font-size:0.78rem;">Chưa làm bài</span>`
-                        }
+                        ${ex.my_attempt_count > 0
+                  ? `<span class="pill pill-emerald">Điểm cao nhất: <strong>${formatScoreVN(ex.my_best_score)}/${formatScoreVN(ex.max_score)}</strong> (${ex.my_attempt_count} lượt)</span>`
+                  : `<span style="color:var(--text-muted);font-size:0.78rem;">Chưa làm bài</span>`
+                }
                       </div>
 
-                      ${
-                        canAdd
-                          ? `
+                      ${canAdd
+                  ? `
                             <div style="font-size:0.76rem;color:var(--text-muted);padding:0 16px 8px;display:flex;justify-content:space-between;gap:8px;">
                               <span>Người tạo: ${escapeHtml(ex.created_by_name || "Hệ thống")}</span>
                               <span>Tổng lượt làm: <strong>${ex.total_attempts || 0}</strong></span>
                             </div>
                           `
-                          : ""
-                      }
+                  : ""
+                }
 
                       <div class="mock-exam-actions">
                         <button type="button" class="btn btn-primary btn-sm" data-start-exam="${ex.id}" style="flex:1;">
                           ▶ Bắt đầu làm bài
                         </button>
-                        ${
-                          ex.my_last_attempt_id
-                            ? `<button type="button" class="btn btn-secondary btn-sm" data-review-attempt="${ex.my_last_attempt_id}">Xem lại</button>`
-                            : ""
-                        }
-                        ${
-                          canAdd
-                            ? `<button type="button" class="btn btn-secondary btn-sm" data-view-attempts="${ex.id}">Bảng điểm</button>`
-                            : ""
-                        }
-                        ${
-                          canEditPublished
-                            ? `<button type="button" class="btn btn-secondary btn-sm" data-edit-exam="${ex.id}">Sửa đề</button>`
-                            : ""
-                        }
-                        ${
-                          canDelete
-                            ? `<button type="button" class="btn btn-danger btn-sm" data-delete-exam="${ex.id}" data-exam-stt="${ex.order_number}">Xoá</button>`
-                            : ""
-                        }
+                        ${ex.my_last_attempt_id
+                  ? `<button type="button" class="btn btn-secondary btn-sm" data-review-attempt="${ex.my_last_attempt_id}">Xem lại</button>`
+                  : ""
+                }
+                        ${canAdd
+                  ? `<button type="button" class="btn btn-secondary btn-sm" data-view-attempts="${ex.id}">Bảng điểm</button>`
+                  : ""
+                }
+                        ${canEditPublished
+                  ? `<button type="button" class="btn btn-secondary btn-sm" data-edit-exam="${ex.id}">Sửa đề</button>`
+                  : ""
+                }
+                        ${canDelete
+                  ? `<button type="button" class="btn btn-danger btn-sm" data-delete-exam="${ex.id}" data-exam-stt="${ex.order_number}">Xoá</button>`
+                  : ""
+                }
                       </div>
                     </article>
                   `
-                  )
-                  .join("")}
+            )
+            .join("")}
               </div>
             `
       }
@@ -881,6 +898,17 @@ export function mountMockExamSection(container, { currentUser, effectiveStudentV
         }
       });
     });
+
+    container.querySelectorAll("[data-jump-exam-card]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        container.querySelectorAll("[data-jump-exam-card]").forEach((b) => b.classList.remove("active"));
+        btn.classList.add("active");
+        const target = document.getElementById(`mock-card-${btn.dataset.jumpExamCard}`);
+        target?.scrollIntoView({ behavior: "smooth", block: "start" });
+      });
+    });
+
+    window.dispatchEvent(new CustomEvent("sh12:refresh-sticky"));
   }
 
   // ================== VIEW 2: PREVIEW & PER-QUESTION EDITOR + IMAGE POLISHING ==================
@@ -902,13 +930,12 @@ export function mountMockExamSection(container, { currentUser, effectiveStudentV
             <input type="file" accept="image/*" style="display:none;" data-add-img="${partKey}:${qIdx}" />
           </label>
         </div>
-        ${
-          imgs.length
-            ? `
+        ${imgs.length
+        ? `
               <div class="mock-ed-img-list">
                 ${imgs
-                  .map(
-                    (src, imIdx) => `
+          .map(
+            (src, imIdx) => `
                     <div class="mock-ed-img-card">
                       <img src="${src}" alt="Ảnh câu hỏi" class="mock-ed-img-thumb" />
                       <div class="mock-ed-img-actions">
@@ -922,12 +949,12 @@ export function mountMockExamSection(container, { currentUser, effectiveStudentV
                       </div>
                     </div>
                   `
-                  )
-                  .join("")}
+          )
+          .join("")}
               </div>
             `
-            : ""
-        }
+        : ""
+      }
       </div>
     `;
 
@@ -956,13 +983,12 @@ export function mountMockExamSection(container, { currentUser, effectiveStudentV
             <button type="button" class="btn btn-secondary" id="btn-ed-std-geno" title="Tự động chuẩn hoá AB/ab, X^AX^a, I^AI^O, A-B-, dấu × toàn đề">
               🧬 Chuẩn hoá kiểu gene toàn đề
             </button>
-            ${
-              stats.imgs > 0
-                ? `<button type="button" class="btn btn-secondary" id="btn-ed-polish-all" ${st.polishingAll ? "disabled" : ""}>
+            ${stats.imgs > 0
+        ? `<button type="button" class="btn btn-secondary" id="btn-ed-polish-all" ${st.polishingAll ? "disabled" : ""}>
                     ${st.polishingAll ? "Đang chau chuốt ảnh..." : `✨ Chau chuốt tất cả ${stats.imgs} ảnh (1 chạm)`}
                   </button>`
-                : ""
-            }
+        : ""
+      }
             <button type="button" class="btn btn-primary" id="btn-ed-save" ${st.savingDraft ? "disabled" : ""}>
               ${st.savingDraft ? "Đang lưu..." : st.editingExamId ? "💾 Lưu thay đổi đề thi" : "✅ Lưu & Tạo đề thi"}
             </button>
@@ -991,15 +1017,14 @@ export function mountMockExamSection(container, { currentUser, effectiveStudentV
           <span class="pill">Thang điểm: ${formatScoreVN(stats.maxScore)}đ</span>
         </div>
 
-        ${
-          st.draftWarnings.length
-            ? `
+        ${st.draftWarnings.length
+        ? `
               <div class="mock-warning-box">
                 ${st.draftWarnings.map((w) => `<div>⚠️ ${escapeHtml(w)}</div>`).join("")}
               </div>
             `
-            : ""
-        }
+        : ""
+      }
 
         <div class="mock-ed-filter-bar">
           <button type="button" class="btn btn-sm ${st.editorFilter === "all" ? "btn-primary" : "btn-secondary"}" data-ed-filter="all">Tất cả (${stats.total})</button>
@@ -1009,9 +1034,8 @@ export function mountMockExamSection(container, { currentUser, effectiveStudentV
         </div>
       </div>
 
-      ${
-        st.showGenotypeTool
-          ? `
+      ${st.showGenotypeTool
+        ? `
             <div class="card mock-geno-toolbar" id="mock-geno-toolbar">
               <div class="mock-geno-head">
                 <div>
@@ -1022,18 +1046,17 @@ export function mountMockExamSection(container, { currentUser, effectiveStudentV
                 </div>
                 <div class="mock-geno-tabs">
                   ${Object.entries(GENOTYPE_GROUPS)
-                    .map(
-                      ([k, g]) => `
+          .map(
+            ([k, g]) => `
                       <button type="button" class="btn btn-sm ${st.genoTab === k ? "btn-primary" : "btn-secondary"}" data-geno-tab="${k}">${g.label}</button>
                     `
-                    )
-                    .join("")}
+          )
+          .join("")}
                 </div>
               </div>
 
-              ${
-                st.genoTab === "linked"
-                  ? `
+              ${st.genoTab === "linked"
+          ? `
                     <div class="mock-geno-builder">
                       <span style="font-size:0.78rem;font-weight:700;color:var(--text-secondary);">Tạo phân số liên kết / hoán vị:</span>
                       <input type="text" class="form-control mock-geno-mini-inp" id="geno-num" value="AB" placeholder="Tử (AB)" />
@@ -1043,8 +1066,8 @@ export function mountMockExamSection(container, { currentUser, effectiveStudentV
                       <button type="button" class="btn btn-sm btn-primary" id="btn-insert-linked">Chèn vào ô đang nhập</button>
                     </div>
                   `
-                  : st.genoTab === "sex"
-                    ? `
+          : st.genoTab === "sex"
+            ? `
                       <div class="mock-geno-builder">
                         <span style="font-size:0.78rem;font-weight:700;color:var(--text-secondary);">Tạo kiểu gene liên kết giới tính:</span>
                         <select class="form-control mock-geno-mini-sel" id="geno-chr1"><option value="X">X</option><option value="Y">Y</option></select>
@@ -1055,8 +1078,8 @@ export function mountMockExamSection(container, { currentUser, effectiveStudentV
                         <button type="button" class="btn btn-sm btn-primary" id="btn-insert-sex">Chèn vào ô đang nhập</button>
                       </div>
                     `
-                    : st.genoTab === "multi"
-                      ? `
+            : st.genoTab === "multi"
+              ? `
                         <div class="mock-geno-builder">
                           <span style="font-size:0.78rem;font-weight:700;color:var(--text-secondary);">Tạo kiểu gene đa allele:</span>
                           <select class="form-control mock-geno-mini-sel" id="geno-ma-base"><option value="I">Nhóm máu I</option><option value="A">Allele A</option><option value="C">Màu lông C</option></select>
@@ -1066,35 +1089,34 @@ export function mountMockExamSection(container, { currentUser, effectiveStudentV
                           <button type="button" class="btn btn-sm btn-primary" id="btn-insert-multi">Chèn vào ô đang nhập</button>
                         </div>
                       `
-                      : ""
-              }
+              : ""
+        }
 
               <div class="mock-geno-chips">
                 ${(GENOTYPE_GROUPS[st.genoTab]?.chips || [])
-                  .map(
-                    (tok) => `
+          .map(
+            (tok) => `
                     <button type="button" class="mock-geno-chip" data-insert-geno="${escapeHtml(tok)}" title="Chèn ${escapeHtml(tok)}">
                       ${formatBioHtml(tok)}
                     </button>
                   `
-                  )
-                  .join("")}
+          )
+          .join("")}
               </div>
             </div>
           `
-          : ""
+        : ""
       }
 
-      ${
-        showMcq
-          ? `
+      ${showMcq
+        ? `
             <div class="mock-part-heading-bar">
               <h3>PHẦN I. Trắc nghiệm nhiều phương án lựa chọn (${c.mcq.length} câu · 0,25đ/câu)</h3>
               <button type="button" class="btn btn-sm btn-secondary" data-add-q="mcq">+ Thêm câu Phần I</button>
             </div>
             ${c.mcq
-              .map(
-                (q, idx) => `
+          .map(
+            (q, idx) => `
                 <div class="card mock-ed-qcard">
                   <div class="mock-ed-qhead">
                     <span class="pill pill-primary">Phần I · Câu ${idx + 1}</span>
@@ -1120,10 +1142,10 @@ export function mountMockExamSection(container, { currentUser, effectiveStudentV
 
                   <div class="mock-ed-opts-grid">
                     ${[0, 1, 2, 3]
-                      .map((oi) => {
-                        const optVal = (q.options || [])[oi] || "";
-                        const hasBio = /[\/^_×]/.test(optVal);
-                        return `
+                .map((oi) => {
+                  const optVal = (q.options || [])[oi] || "";
+                  const hasBio = /[\/^_×]/.test(optVal);
+                  return `
                         <div class="mock-ed-opt-row ${q.correct_index === oi ? "is-correct" : ""}" style="flex-direction:column;align-items:stretch;">
                           <div style="display:flex;align-items:center;gap:8px;">
                             <label class="mock-ed-opt-radio" title="Chọn làm đáp án đúng">
@@ -1135,8 +1157,8 @@ export function mountMockExamSection(container, { currentUser, effectiveStudentV
                           <div class="mock-ed-mini-bio" data-opt-prev="${idx}:${oi}" style="${hasBio ? "" : "display:none;"}">${formatBioHtml(optVal)}</div>
                         </div>
                       `;
-                      })
-                      .join("")}
+                })
+                .join("")}
                   </div>
 
                   <div class="form-group" style="margin-top:10px;margin-bottom:0;">
@@ -1145,22 +1167,21 @@ export function mountMockExamSection(container, { currentUser, effectiveStudentV
                   </div>
                 </div>
               `
-              )
-              .join("")}
+          )
+          .join("")}
           `
-          : ""
+        : ""
       }
 
-      ${
-        showTf
-          ? `
+      ${showTf
+        ? `
             <div class="mock-part-heading-bar">
               <h3>PHẦN II. Trắc nghiệm Đúng / Sai (${c.true_false.length} câu · tối đa 1,0đ/câu)</h3>
               <button type="button" class="btn btn-sm btn-secondary" data-add-q="true_false">+ Thêm câu Phần II</button>
             </div>
             ${c.true_false
-              .map(
-                (q, idx) => `
+          .map(
+            (q, idx) => `
                 <div class="card mock-ed-qcard">
                   <div class="mock-ed-qhead">
                     <span class="pill pill-primary">Phần II · Câu ${idx + 1}</span>
@@ -1181,8 +1202,8 @@ export function mountMockExamSection(container, { currentUser, effectiveStudentV
 
                   <div style="display:flex;flex-direction:column;gap:8px;margin-top:8px;">
                     ${(q.statements || [])
-                      .map(
-                        (stItem, si) => `
+                .map(
+                  (stItem, si) => `
                         <div class="mock-ed-tf-row">
                           <span class="mock-tf-key">${escapeHtml(stItem.key)})</span>
                           <input type="text" class="form-control" value="${escapeHtml(stItem.text || "")}" data-tf-text="${idx}:${si}" placeholder="Nội dung ý ${stItem.key}" />
@@ -1192,8 +1213,8 @@ export function mountMockExamSection(container, { currentUser, effectiveStudentV
                           </div>
                         </div>
                       `
-                      )
-                      .join("")}
+                )
+                .join("")}
                   </div>
 
                   <div class="form-group" style="margin-top:10px;margin-bottom:0;">
@@ -1202,22 +1223,21 @@ export function mountMockExamSection(container, { currentUser, effectiveStudentV
                   </div>
                 </div>
               `
-              )
-              .join("")}
+          )
+          .join("")}
           `
-          : ""
+        : ""
       }
 
-      ${
-        showSa
-          ? `
+      ${showSa
+        ? `
             <div class="mock-part-heading-bar">
               <h3>PHẦN III. Trắc nghiệm trả lời ngắn (${c.short_answer.length} câu · 0,25đ/câu)</h3>
               <button type="button" class="btn btn-sm btn-secondary" data-add-q="short_answer">+ Thêm câu Phần III</button>
             </div>
             ${c.short_answer
-              .map(
-                (q, idx) => `
+          .map(
+            (q, idx) => `
                 <div class="card mock-ed-qcard">
                   <div class="mock-ed-qhead">
                     <span class="pill pill-primary">Phần III · Câu ${idx + 1}</span>
@@ -1247,10 +1267,10 @@ export function mountMockExamSection(container, { currentUser, effectiveStudentV
                   </div>
                 </div>
               `
-              )
-              .join("")}
+          )
+          .join("")}
           `
-          : ""
+        : ""
       }
     `;
 
@@ -1308,7 +1328,7 @@ export function mountMockExamSection(container, { currentUser, effectiveStudentV
       target.focus();
       try {
         target.setSelectionRange(pos, pos);
-      } catch {}
+      } catch { }
       target.dispatchEvent(new Event("input", { bubbles: true }));
     };
 
@@ -1806,20 +1826,20 @@ export function mountMockExamSection(container, { currentUser, effectiveStudentV
           <table class="data-table">
             <tbody>
               ${rows
-                .map(
-                  (r, ri) => `
+            .map(
+              (r, ri) => `
                   <tr>
                     ${r
-                      .map((cell) =>
-                        ri === 0
-                          ? `<th>${formatBioHtml(cell)}</th>`
-                          : `<td>${formatBioHtml(cell)}</td>`
-                      )
-                      .join("")}
+                  .map((cell) =>
+                    ri === 0
+                      ? `<th>${formatBioHtml(cell)}</th>`
+                      : `<td>${formatBioHtml(cell)}</td>`
+                  )
+                  .join("")}
                   </tr>
                 `
-                )
-                .join("")}
+            )
+            .join("")}
             </tbody>
           </table>
         </div>
@@ -1890,75 +1910,84 @@ export function mountMockExamSection(container, { currentUser, effectiveStudentV
             <button type="button" class="btn btn-sm btn-ghost" id="btn-exit-exam">Thoát</button>
           </div>
         </div>
+
+        ${(c.mcq || []).length || (c.true_false || []).length || (c.short_answer || []).length
+        ? `
+              <div class="mock-part-jump-bar" aria-label="Chuyển nhanh phần thi">
+                ${(c.mcq || []).length ? `<button type="button" class="mock-part-chip" data-jump-mock-part="mock-part-1">Phần I (${c.mcq.length} câu)</button>` : ""}
+                ${(c.true_false || []).length ? `<button type="button" class="mock-part-chip" data-jump-mock-part="mock-part-2">Phần II (${c.true_false.length} câu)</button>` : ""}
+                ${(c.short_answer || []).length ? `<button type="button" class="mock-part-chip" data-jump-mock-part="mock-part-3">Phần III (${c.short_answer.length} câu)</button>` : ""}
+              </div>
+            `
+        : ""
+      }
       </div>
 
       <div class="mock-exam-layout">
         <!-- Main Questions Column -->
         <div class="mock-exam-questions">
-          ${
-            (c.mcq || []).length
-              ? `
-                <div class="mock-section-banner">
+          ${(c.mcq || []).length
+        ? `
+                <div class="mock-section-banner" id="mock-part-1">
                   <strong>PHẦN I. Câu trắc nghiệm nhiều phương án lựa chọn</strong>
                   <span>Thí sinh trả lời từ câu 1 đến câu ${c.mcq.length}. Mỗi câu hỏi thí sinh chỉ chọn một phương án (0,25 điểm/câu).</span>
                 </div>
                 ${c.mcq
-                  .map(
-                    (q, idx) => `
+          .map(
+            (q, idx) => `
                     <div class="card mock-q-card" id="mock-q-${q.id}">
                       <div class="mock-q-stem">
                         <span class="mock-q-num">Câu ${idx + 1}.</span>
                         <span style="white-space:pre-line;">${formatBioHtml(q.question)}</span>
                       </div>
                       ${(q.images || [])
-                        .map((im) => `<div class="mock-q-img-wrap"><img src="${im}" alt="Hình câu ${idx + 1}" /></div>`)
-                        .join("")}
+                .map((im) => `<div class="mock-q-img-wrap"><img src="${im}" alt="Hình câu ${idx + 1}" /></div>`)
+                .join("")}
                       ${renderTablesHtml(q.tables)}
                       <div class="mock-mcq-options">
                         ${(q.options || [])
-                          .map(
-                            (opt, oi) => `
+                .map(
+                  (opt, oi) => `
                             <label class="mock-mcq-opt ${st.answers.mcq[q.id] === oi ? "selected" : ""}">
                               <input type="radio" name="take-${q.id}" value="${oi}" ${st.answers.mcq[q.id] === oi ? "checked" : ""} data-take-mcq="${q.id}:${oi}" />
                               <span class="mock-opt-letter">${LETTERS[oi]}</span>
                               <span class="mock-opt-text">${formatBioHtml(opt)}</span>
                             </label>
                           `
-                          )
-                          .join("")}
+                )
+                .join("")}
                       </div>
                     </div>
                   `
-                  )
-                  .join("")}
+          )
+          .join("")}
               `
-              : ""
-          }
+        : ""
+      }
 
-          ${
-            (c.true_false || []).length
-              ? `
-                <div class="mock-section-banner">
+          ${(c.true_false || []).length
+        ? `
+                <div class="mock-section-banner" id="mock-part-2">
                   <strong>PHẦN II. Câu trắc nghiệm đúng sai</strong>
                   <span>Thí sinh trả lời từ câu 1 đến câu ${c.true_false.length}. Trong mỗi ý a), b), c), d) ở mỗi câu, thí sinh chọn Đúng hoặc Sai (1 ý: 0,1đ · 2 ý: 0,25đ · 3 ý: 0,5đ · 4 ý: 1,0đ).</span>
                 </div>
                 ${c.true_false
-                  .map(
-                    (q, idx) => `
+          .map(
+            (q, idx) => `
                     <div class="card mock-q-card" id="mock-q-${q.id}">
                       <div class="mock-q-stem">
                         <span class="mock-q-num">Câu ${idx + 1}.</span>
                         <span style="white-space:pre-line;">${formatBioHtml(q.question)}</span>
                       </div>
                       ${(q.images || [])
-                        .map((im) => `<div class="mock-q-img-wrap"><img src="${im}" alt="Hình câu Đ/S ${idx + 1}" /></div>`)
-                        .join("")}
+                .map((im) => `<div class="mock-q-img-wrap"><img src="${im}" alt="Hình câu Đ/S ${idx + 1}" /></div>`)
+                .join("")}
                       ${renderTablesHtml(q.tables)}
                       <div class="mock-tf-list">
                         ${(q.statements || [])
-                          .map((stItem) => {
-                            const curVal = st.answers.true_false[`${q.id}:${stItem.key}`];
-                            return `
+                .map((stItem) => {
+                  const curVal = st.answers.true_false[`${q.id}:${stItem.key}`];
+                  return `
                               <div class="mock-tf-item">
                                 <div class="mock-tf-text"><strong>${escapeHtml(stItem.key)})</strong> ${formatBioHtml(stItem.text)}</div>
                                 <div class="mock-tf-btns">
@@ -1967,35 +1996,34 @@ export function mountMockExamSection(container, { currentUser, effectiveStudentV
                                 </div>
                               </div>
                             `;
-                          })
-                          .join("")}
+                })
+                .join("")}
                       </div>
                     </div>
                   `
-                  )
-                  .join("")}
+          )
+          .join("")}
               `
-              : ""
-          }
+        : ""
+      }
 
-          ${
-            (c.short_answer || []).length
-              ? `
-                <div class="mock-section-banner">
+          ${(c.short_answer || []).length
+        ? `
+                <div class="mock-section-banner" id="mock-part-3">
                   <strong>PHẦN III. Câu trắc nghiệm trả lời ngắn</strong>
                   <span>Thí sinh trả lời từ câu 1 đến câu ${c.short_answer.length}. Nhập kết quả số vào ô đáp án (0,25 điểm/câu).</span>
                 </div>
                 ${c.short_answer
-                  .map(
-                    (q, idx) => `
+          .map(
+            (q, idx) => `
                     <div class="card mock-q-card" id="mock-q-${q.id}">
                       <div class="mock-q-stem">
                         <span class="mock-q-num">Câu ${idx + 1}.</span>
                         <span style="white-space:pre-line;">${formatBioHtml(q.question)}</span>
                       </div>
                       ${(q.images || [])
-                        .map((im) => `<div class="mock-q-img-wrap"><img src="${im}" alt="Hình câu TLN ${idx + 1}" /></div>`)
-                        .join("")}
+                .map((im) => `<div class="mock-q-img-wrap"><img src="${im}" alt="Hình câu TLN ${idx + 1}" /></div>`)
+                .join("")}
                       ${renderTablesHtml(q.tables)}
                       <div class="mock-sa-box">
                         <label>Nhập đáp án của em:</label>
@@ -2003,46 +2031,43 @@ export function mountMockExamSection(container, { currentUser, effectiveStudentV
                       </div>
                     </div>
                   `
-                  )
-                  .join("")}
+          )
+          .join("")}
               `
-              : ""
-          }
+        : ""
+      }
         </div>
 
         <!-- Question Navigator Palette -->
         <aside class="card mock-nav-palette">
           <div style="font-weight:700;font-size:0.88rem;margin-bottom:8px;">Bảng điều hướng câu hỏi</div>
-          ${
-            (c.mcq || []).length
-              ? `
+          ${(c.mcq || []).length
+        ? `
                 <div class="mock-nav-group-title">Phần I (${c.mcq.length} câu)</div>
                 <div class="mock-nav-chips">
                   ${c.mcq.map((q, i) => `<button type="button" class="mock-nav-chip" data-nav-q="${q.id}">${i + 1}</button>`).join("")}
                 </div>
               `
-              : ""
-          }
-          ${
-            (c.true_false || []).length
-              ? `
+        : ""
+      }
+          ${(c.true_false || []).length
+        ? `
                 <div class="mock-nav-group-title">Phần II (${c.true_false.length} câu)</div>
                 <div class="mock-nav-chips">
                   ${c.true_false.map((q, i) => `<button type="button" class="mock-nav-chip" data-nav-q="${q.id}">ĐS${i + 1}</button>`).join("")}
                 </div>
               `
-              : ""
-          }
-          ${
-            (c.short_answer || []).length
-              ? `
+        : ""
+      }
+          ${(c.short_answer || []).length
+        ? `
                 <div class="mock-nav-group-title">Phần III (${c.short_answer.length} câu)</div>
                 <div class="mock-nav-chips">
                   ${c.short_answer.map((q, i) => `<button type="button" class="mock-nav-chip" data-nav-q="${q.id}">N${i + 1}</button>`).join("")}
                 </div>
               `
-              : ""
-          }
+        : ""
+      }
           <div style="margin-top:12px;font-size:0.74rem;color:var(--text-muted);line-height:1.5;">
             <span class="mock-legend-dot done"></span> Đã xong &nbsp;
             <span class="mock-legend-dot partial"></span> Làm dở &nbsp;
@@ -2114,7 +2139,15 @@ export function mountMockExamSection(container, { currentUser, effectiveStudentV
       render();
     });
 
+    container.querySelectorAll("[data-jump-mock-part]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const target = document.getElementById(btn.dataset.jumpMockPart);
+        target?.scrollIntoView({ behavior: "smooth", block: "start" });
+      });
+    });
+
     updateTakingProgressUI();
+    window.dispatchEvent(new CustomEvent("sh12:refresh-sticky"));
   }
 
   // ================== VIEW 4: RESULT & SUGGESTED ANSWERS ==================
@@ -2181,17 +2214,16 @@ export function mountMockExamSection(container, { currentUser, effectiveStudentV
 
       <!-- Detailed Answer Review -->
       <div class="mock-review-list">
-        ${
-          c.mcq.length
-            ? `
+        ${c.mcq.length
+        ? `
               <div class="mock-section-banner"><strong>PHẦN I · Chi tiết chấm bài &amp; Đáp án gợi ý</strong></div>
               ${c.mcq
-                .map((q, idx) => {
-                  const r = mcqMap[q.id] || {};
-                  const uIdx = r.user_answer;
-                  const cIdx = r.correct_index;
-                  const ok = r.is_correct;
-                  return `
+          .map((q, idx) => {
+            const r = mcqMap[q.id] || {};
+            const uIdx = r.user_answer;
+            const cIdx = r.correct_index;
+            const ok = r.is_correct;
+            return `
                     <div class="card mock-q-card ${ok ? "res-correct" : "res-wrong"}">
                       <div class="mock-ed-qhead">
                         <span class="mock-q-num">Câu ${idx + 1}.</span>
@@ -2204,11 +2236,11 @@ export function mountMockExamSection(container, { currentUser, effectiveStudentV
                       ${renderTablesHtml(q.tables)}
                       <div class="mock-mcq-options">
                         ${(q.options || [])
-                          .map((opt, oi) => {
-                            let cls = "";
-                            if (oi === cIdx) cls = "opt-correct";
-                            else if (oi === uIdx && oi !== cIdx) cls = "opt-wrong";
-                            return `
+                .map((opt, oi) => {
+                  let cls = "";
+                  if (oi === cIdx) cls = "opt-correct";
+                  else if (oi === uIdx && oi !== cIdx) cls = "opt-wrong";
+                  return `
                               <div class="mock-mcq-opt readonly ${cls}">
                                 <span class="mock-opt-letter">${LETTERS[oi]}</span>
                                 <span class="mock-opt-text">${formatBioHtml(opt)}</span>
@@ -2216,35 +2248,33 @@ export function mountMockExamSection(container, { currentUser, effectiveStudentV
                                 ${oi === cIdx ? `<span class="mock-key-tag">Đáp án đúng</span>` : ""}
                               </div>
                             `;
-                          })
-                          .join("")}
+                })
+                .join("")}
                       </div>
                       <div class="mock-suggestion-box">
                         <strong>💡 Đáp án gợi ý:</strong>
-                        ${
-                          cIdx !== null && cIdx !== undefined
-                            ? `Chọn phương án <strong>${LETTERS[cIdx]}</strong>.`
-                            : ""
-                        }
+                        ${cIdx !== null && cIdx !== undefined
+                ? `Chọn phương án <strong>${LETTERS[cIdx]}</strong>.`
+                : ""
+              }
                         ${q.explanation ? `<div style="margin-top:4px;white-space:pre-line;">${formatBioHtml(q.explanation)}</div>` : ""}
                       </div>
                     </div>
                   `;
-                })
-                .join("")}
+          })
+          .join("")}
             `
-            : ""
-        }
+        : ""
+      }
 
-        ${
-          c.true_false.length
-            ? `
+        ${c.true_false.length
+        ? `
               <div class="mock-section-banner"><strong>PHẦN II · Chi tiết chấm bài Đúng / Sai &amp; Đáp án gợi ý</strong></div>
               ${c.true_false
-                .map((q, idx) => {
-                  const r = tfMap[q.id] || {};
-                  const stResMap = Object.fromEntries((r.statements || []).map((s) => [s.key, s]));
-                  return `
+          .map((q, idx) => {
+            const r = tfMap[q.id] || {};
+            const stResMap = Object.fromEntries((r.statements || []).map((s) => [s.key, s]));
+            return `
                     <div class="card mock-q-card ${r.right_statements === r.total_statements ? "res-correct" : ""}">
                       <div class="mock-ed-qhead">
                         <span class="mock-q-num">Câu ${idx + 1}.</span>
@@ -2257,11 +2287,11 @@ export function mountMockExamSection(container, { currentUser, effectiveStudentV
                       ${renderTablesHtml(q.tables)}
                       <div class="mock-tf-list">
                         ${(q.statements || [])
-                          .map((stItem) => {
-                            const sr = stResMap[stItem.key] || {};
-                            const uTxt = sr.user_answer === true ? "Đúng" : sr.user_answer === false ? "Sai" : "Bỏ trống";
-                            const cTxt = sr.correct_answer === true ? "Đúng" : sr.correct_answer === false ? "Sai" : "Chưa có";
-                            return `
+                .map((stItem) => {
+                  const sr = stResMap[stItem.key] || {};
+                  const uTxt = sr.user_answer === true ? "Đúng" : sr.user_answer === false ? "Sai" : "Bỏ trống";
+                  const cTxt = sr.correct_answer === true ? "Đúng" : sr.correct_answer === false ? "Sai" : "Chưa có";
+                  return `
                               <div class="mock-tf-item ${sr.is_correct ? "tf-ok" : "tf-bad"}">
                                 <div class="mock-tf-text"><strong>${escapeHtml(stItem.key)})</strong> ${formatBioHtml(stItem.text)}</div>
                                 <div style="display:flex;gap:8px;align-items:center;flex-shrink:0;font-size:0.8rem;">
@@ -2270,32 +2300,30 @@ export function mountMockExamSection(container, { currentUser, effectiveStudentV
                                 </div>
                               </div>
                             `;
-                          })
-                          .join("")}
-                      </div>
-                      ${
-                        q.explanation
-                          ? `<div class="mock-suggestion-box"><strong>💡 Đáp án gợi ý:</strong><div style="margin-top:4px;white-space:pre-line;">${formatBioHtml(q.explanation)}</div></div>`
-                          : ""
-                      }
-                    </div>
-                  `;
                 })
                 .join("")}
+                      </div>
+                      ${q.explanation
+                ? `<div class="mock-suggestion-box"><strong>💡 Đáp án gợi ý:</strong><div style="margin-top:4px;white-space:pre-line;">${formatBioHtml(q.explanation)}</div></div>`
+                : ""
+              }
+                    </div>
+                  `;
+          })
+          .join("")}
             `
-            : ""
-        }
+        : ""
+      }
 
-        ${
-          c.short_answer.length
-            ? `
+        ${c.short_answer.length
+        ? `
               <div class="mock-section-banner"><strong>PHẦN III · Chi tiết chấm bài Trả lời ngắn &amp; Đáp án gợi ý</strong></div>
               ${c.short_answer
-                .map((q, idx) => {
-                  const r = saMap[q.id] || {};
-                  const ok = r.is_correct;
-                  const acc = (r.accepted_answers || q.accepted_answers || []).join(" / ");
-                  return `
+          .map((q, idx) => {
+            const r = saMap[q.id] || {};
+            const ok = r.is_correct;
+            const acc = (r.accepted_answers || q.accepted_answers || []).join(" / ");
+            return `
                     <div class="card mock-q-card ${ok ? "res-correct" : "res-wrong"}">
                       <div class="mock-ed-qhead">
                         <span class="mock-q-num">Câu ${idx + 1}.</span>
@@ -2314,11 +2342,11 @@ export function mountMockExamSection(container, { currentUser, effectiveStudentV
                       </div>
                     </div>
                   `;
-                })
-                .join("")}
+          })
+          .join("")}
             `
-            : ""
-        }
+        : ""
+      }
       </div>
     `;
 
@@ -2353,10 +2381,9 @@ export function mountMockExamSection(container, { currentUser, effectiveStudentV
           <button type="button" class="btn btn-secondary btn-sm" id="btn-att-back">← Quay lại danh sách đề</button>
         </div>
 
-        ${
-          st.attemptsList.length === 0
-            ? `<p style="color:var(--text-secondary);">Chưa có học sinh nào nộp bài cho đề này.</p>`
-            : `
+        ${st.attemptsList.length === 0
+        ? `<p style="color:var(--text-secondary);">Chưa có học sinh nào nộp bài cho đề này.</p>`
+        : `
               <div class="data-table-wrap">
                 <table class="data-table">
                   <thead>
@@ -2373,8 +2400,8 @@ export function mountMockExamSection(container, { currentUser, effectiveStudentV
                   </thead>
                   <tbody>
                     ${st.attemptsList
-                      .map(
-                        (a, i) => `
+          .map(
+            (a, i) => `
                         <tr>
                           <td>${i + 1}</td>
                           <td><strong>${escapeHtml(a.full_name)}</strong> <span style="color:var(--text-muted);font-size:0.78rem;">(@${escapeHtml(a.username)})</span></td>
@@ -2386,13 +2413,13 @@ export function mountMockExamSection(container, { currentUser, effectiveStudentV
                           <td><button type="button" class="btn btn-secondary btn-sm" data-open-att="${a.id}">Xem bài</button></td>
                         </tr>
                       `
-                      )
-                      .join("")}
+          )
+          .join("")}
                   </tbody>
                 </table>
               </div>
             `
-        }
+      }
       </div>
     `;
 
