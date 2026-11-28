@@ -3234,6 +3234,14 @@ class Bio12Handler(BaseHTTPRequestHandler):
                     etag = f'W/"{hashlib.sha1(raw).hexdigest()[:14]}"'
             is_upload_img = rel.startswith("uploads/")
             if is_upload_img and raw:
+                # Chốt chặn an toàn: nếu lỡ đọc phải file .emf cũ trên volume, tự trích ảnh JPEG/PNG nhúng bên trong
+                if len(raw) > 128 and raw[:4] == b"\x01\x00\x00\x00" and b" EMF" in raw[:64]:
+                    j_start = raw.find(b"\xff\xd8\xff")
+                    j_end = raw.rfind(b"\xff\xd9")
+                    if j_start >= 0 and j_end > j_start + 200:
+                        raw = raw[j_start : j_end + 2]
+                        gz = b""
+                        etag = f'W/"{hashlib.sha1(raw).hexdigest()[:14]}"'
                 # Khớp đúng Content-Type theo magic bytes thực tế (tránh lỗi ảnh .png chứa dữ liệu JPEG trên mobile/Chrome)
                 if raw[:3] == b"\xff\xd8\xff":
                     mime_out = "image/jpeg"

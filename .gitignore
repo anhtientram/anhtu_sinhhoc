@@ -11,6 +11,6 @@ data/sinhhoc12.db
 data/sinhhoc12.db-wal
 data/sinhhoc12.db-shm
 tools/crop_img_bin
-# Chặn đẩy ảnh phát sinh trong uploads lên Git (các ảnh đã commit trước đó của chu-de-1..7 vẫn giữ nguyên)
-static/uploads/
+# Không bỏ qua static/uploads/ để Wasmer Edge đóng gói đủ toàn bộ ảnh chuẩn của Chủ đề 1..7
+static/uploads/draft-*
 uploads/
